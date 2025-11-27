@@ -8,7 +8,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/tim-the-toolman-taylor/nivek/internal/twitchbot"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/twitchbot"
 )
 
 func main() {
