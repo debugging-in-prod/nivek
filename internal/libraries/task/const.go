@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/suuuth/nivek/internal/libraries/nivek"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 	"github.com/upper/db/v4"
 )
 

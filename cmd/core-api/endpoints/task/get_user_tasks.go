@@ -5,9 +5,9 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
-	"github.com/suuuth/nivek/internal/libraries/nivek"
-	"github.com/suuuth/nivek/internal/libraries/task"
-	"github.com/suuuth/nivek/internal/libraries/utilities"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/task"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/utilities"
 )
 
 func NewGetUserTasksEndpoint(nivek nivek.NivekService) echo.HandlerFunc {

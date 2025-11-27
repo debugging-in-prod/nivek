@@ -2,13 +2,13 @@ package routes
 
 import (
 	"github.com/labstack/echo/v4"
-	"github.com/suuuth/nivek/cmd/core-api/endpoints"
-	"github.com/suuuth/nivek/cmd/core-api/endpoints/task"
-	"github.com/suuuth/nivek/cmd/core-api/endpoints/user"
-	"github.com/suuuth/nivek/cmd/core-api/endpoints/user/auth"
-	"github.com/suuuth/nivek/cmd/core-api/endpoints/weather"
-	"github.com/suuuth/nivek/internal/libraries/nivek"
-	"github.com/suuuth/nivek/internal/libraries/nivekmiddleware"
+	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints"
+	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/task"
+	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/user"
+	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/user/auth"
+	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/weather"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivekmiddleware"
 )
 
 func RegisterRoutes(nivek nivek.NivekService, e *echo.Echo) {

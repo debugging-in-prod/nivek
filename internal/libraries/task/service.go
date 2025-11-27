@@ -3,8 +3,8 @@ package task
 import (
 	"fmt"
 
-	"github.com/suuuth/nivek/internal/libraries/nivek"
-	"github.com/suuuth/nivek/internal/libraries/user"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/user"
 	"github.com/upper/db/v4"
 )
 

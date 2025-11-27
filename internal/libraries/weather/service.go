@@ -8,7 +8,7 @@ import (
 
 	"github.com/ipinfo/go/v2/ipinfo"
 	"github.com/sirupsen/logrus"
-	"github.com/suuuth/nivek/internal/libraries/nivek"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 )
 
 type NivekWeatherReport struct {

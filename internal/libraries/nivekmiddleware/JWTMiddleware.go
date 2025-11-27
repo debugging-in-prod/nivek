@@ -6,8 +6,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
-	"github.com/suuuth/nivek/internal/libraries/jwt"
-	"github.com/suuuth/nivek/internal/libraries/nivek"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/jwt"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 )
 
 type JWTMiddleware interface {

@@ -9,8 +9,8 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/sourcegraph/conc/pool"
-	"github.com/suuuth/nivek/cmd/core-api/routes"
-	"github.com/suuuth/nivek/internal/libraries/nivek"
+	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/routes"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 )
 
 func main() {

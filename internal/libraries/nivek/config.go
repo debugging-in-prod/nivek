@@ -1,6 +1,6 @@
 package nivek
 
-import "github.com/suuuth/nivek/internal/libraries/conman"
+import "github.com/tim-the-toolman-taylor/nivek/internal/libraries/conman"
 
 type NivekServiceConfig struct {
 	UsePSQL bool

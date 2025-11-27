@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"github.com/suuuth/nivek/cmd/core-api/utility"
-	"github.com/suuuth/nivek/internal/libraries/nivek"
+	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/utility"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 )
 
 type LogoutRequest struct {

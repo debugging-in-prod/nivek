@@ -6,7 +6,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
-	userlib "github.com/suuuth/nivek/internal/libraries/user"
+	userlib "github.com/tim-the-toolman-taylor/nivek/internal/libraries/user"
 )
 
 func GetUserFromContext(c echo.Context) (*userlib.User, error) {

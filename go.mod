@@ -1,4 +1,4 @@
-module github.com/suuuth/nivek
+module github.com/tim-the-toolman-taylor/nivek
 
 go 1.23.0
 
@@ -19,6 +19,7 @@ require (
 )
 
 require (
+	github.com/gempir/go-twitch-irc/v4 v4.3.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect

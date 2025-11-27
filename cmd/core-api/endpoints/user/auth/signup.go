@@ -5,9 +5,9 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
-	"github.com/suuuth/nivek/cmd/core-api/utility"
-	"github.com/suuuth/nivek/internal/libraries/nivek"
-	userLib "github.com/suuuth/nivek/internal/libraries/user"
+	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/utility"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
+	userLib "github.com/tim-the-toolman-taylor/nivek/internal/libraries/user"
 )
 
 func NewSignupEndpoint(nivek nivek.NivekService) echo.HandlerFunc {

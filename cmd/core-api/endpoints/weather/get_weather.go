@@ -6,8 +6,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
-	"github.com/suuuth/nivek/internal/libraries/nivek"
-	"github.com/suuuth/nivek/internal/libraries/weather"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/weather"
 )
 
 func NewGetWeatherEndpoint(nivek nivek.NivekService) echo.HandlerFunc {

@@ -6,7 +6,7 @@ import (
 
 	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/sirupsen/logrus"
-	"github.com/suuuth/nivek/internal/libraries/nivek"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 )
 
 type NivekClaims struct {

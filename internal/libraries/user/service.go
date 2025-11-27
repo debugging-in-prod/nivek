@@ -3,7 +3,7 @@ package user
 import (
 	"fmt"
 
-	"github.com/suuuth/nivek/internal/libraries/nivek"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 	"github.com/upper/db/v4"
 )
 

@@ -8,7 +8,7 @@ import (
 	"math"
 	"net/http"
 
-	"github.com/suuuth/nivek/internal/libraries/nivek"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 )
 
 type WindyResponseBody struct {

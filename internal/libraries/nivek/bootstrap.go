@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/suuuth/nivek/internal/libraries/config"
-	"github.com/suuuth/nivek/internal/libraries/conman"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/config"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/conman"
 	"github.com/upper/db/v4/adapter/postgresql"
 )
 

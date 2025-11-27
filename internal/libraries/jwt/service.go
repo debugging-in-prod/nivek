@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/labstack/echo/v4"
-	"github.com/suuuth/nivek/internal/libraries/nivek"
-	userlib "github.com/suuuth/nivek/internal/libraries/user"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
+	userlib "github.com/tim-the-toolman-taylor/nivek/internal/libraries/user"
 )
 
 type Service struct {

@@ -1,0 +1,145 @@
+package twitchbot
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"strings"
+	"time"
+
+	"github.com/gempir/go-twitch-irc/v4"
+)
+
+type Config struct {
+	BotUsername string
+	BotOAuth    string
+	Channel     string
+	StoragePath string
+	Timezone    string
+}
+
+type Bot struct {
+	client   *twitch.Client
+	config   Config
+	counters *CounterManager
+	location *time.Location
+}
+
+func NewBot(config Config) (*Bot, error) {
+	// Load timezone
+	loc, err := time.LoadLocation(config.Timezone)
+	if err != nil {
+		return nil, fmt.Errorf("invalid timezone %s: %w", config.Timezone, err)
+	}
+
+	// Create counter manager
+	counters, err := NewCounterManager(config.StoragePath, loc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create counter manager: %w", err)
+	}
+
+	// Create Twitch IRC client
+	client := twitch.NewClient(config.BotUsername, config.BotOAuth)
+
+	bot := &Bot{
+		client:   client,
+		config:   config,
+		counters: counters,
+		location: loc,
+	}
+
+	// Register message handler
+	client.OnPrivateMessage(bot.handleMessage)
+
+	// Log connection events
+	client.OnConnect(func() {
+		log.Printf("Connected to Twitch IRC as %s", config.BotUsername)
+	})
+
+	return bot, nil
+}
+
+func (b *Bot) Start(ctx context.Context) error {
+	// Join channel
+	b.client.Join(b.config.Channel)
+	log.Printf("Joining channel: %s", b.config.Channel)
+
+	// Start reset timer
+	go b.counters.StartResetTimer(ctx)
+
+	// Start IRC client (blocking)
+	go func() {
+		if err := b.client.Connect(); err != nil {
+			log.Printf("Error connecting to Twitch: %v", err)
+		}
+	}()
+
+	// Wait for context cancellation
+	<-ctx.Done()
+	return nil
+}
+
+func (b *Bot) Stop() {
+	log.Println("Disconnecting from Twitch...")
+	b.client.Disconnect()
+
+	// Save counters one last time
+	if err := b.counters.Save(); err != nil {
+		log.Printf("Error saving counters on shutdown: %v", err)
+	}
+}
+
+func (b *Bot) handleMessage(message twitch.PrivateMessage) {
+	// Normalize message
+	msg := strings.TrimSpace(strings.ToLower(message.Message))
+	username := message.User.Name
+
+	// Check for commands
+	switch msg {
+	case "!bread":
+		b.handleBreadCommand(username)
+	case "!piss":
+		b.handlePissCommand(username)
+	}
+}
+
+func (b *Bot) handleBreadCommand(username string) {
+	userCount := b.counters.IncrementBread(username)
+	totalCount := b.counters.GetTotalBread()
+
+	response := fmt.Sprintf(
+		"@%s has baked %d loaf%s of bread today! 🍞 This chat has baked %d loaf%s total in the last 24 hours.",
+		username,
+		userCount,
+		pluralize(userCount),
+		totalCount,
+		pluralize(totalCount),
+	)
+
+	b.client.Say(b.config.Channel, response)
+	log.Printf("[BREAD] %s: %d (Total: %d)", username, userCount, totalCount)
+}
+
+func (b *Bot) handlePissCommand(username string) {
+	userCount := b.counters.IncrementPiss(username)
+	totalCount := b.counters.GetTotalPiss()
+
+	response := fmt.Sprintf(
+		"@%s has pissed %d time%s today! 💦 This chat has pissed %d time%s total in the last 24 hours.",
+		username,
+		userCount,
+		pluralize(userCount),
+		totalCount,
+		pluralize(totalCount),
+	)
+
+	b.client.Say(b.config.Channel, response)
+	log.Printf("[PISS] %s: %d (Total: %d)", username, userCount, totalCount)
+}
+
+func pluralize(count int) string {
+	if count == 1 {
+		return ""
+	}
+	return "s"
+}
