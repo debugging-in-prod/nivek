@@ -13,7 +13,7 @@ import (
 type Config struct {
 	BotUsername string
 	BotOAuth    string
-	Channel     string
+	Channels    []string // Changed from single Channel to multiple Channels
 	StoragePath string
 	Timezone    string
 }
@@ -60,9 +60,11 @@ func NewBot(config Config) (*Bot, error) {
 }
 
 func (b *Bot) Start(ctx context.Context) error {
-	// Join channel
-	b.client.Join(b.config.Channel)
-	log.Printf("Joining channel: %s", b.config.Channel)
+	// Join all channels
+	for _, channel := range b.config.Channels {
+		b.client.Join(channel)
+		log.Printf("Joining channel: %s", channel)
+	}
 
 	// Start reset timer
 	go b.counters.StartResetTimer(ctx)
@@ -93,17 +95,18 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	// Normalize message
 	msg := strings.TrimSpace(strings.ToLower(message.Message))
 	username := message.User.Name
+	channel := message.Channel
 
 	// Check for commands
 	switch msg {
 	case "!bread":
-		b.handleBreadCommand(username)
+		b.handleBreadCommand(username, channel)
 	case "!piss":
-		b.handlePissCommand(username)
+		b.handlePissCommand(username, channel)
 	}
 }
 
-func (b *Bot) handleBreadCommand(username string) {
+func (b *Bot) handleBreadCommand(username, channel string) {
 	userCount := b.counters.IncrementBread(username)
 	totalCount := b.counters.GetTotalBread()
 
@@ -116,11 +119,11 @@ func (b *Bot) handleBreadCommand(username string) {
 		pluralize(totalCount),
 	)
 
-	b.client.Say(b.config.Channel, response)
-	log.Printf("[BREAD] %s: %d (Total: %d)", username, userCount, totalCount)
+	b.client.Say(channel, response)
+	log.Printf("[BREAD] [%s] %s: %d (Total: %d)", channel, username, userCount, totalCount)
 }
 
-func (b *Bot) handlePissCommand(username string) {
+func (b *Bot) handlePissCommand(username, channel string) {
 	userCount := b.counters.IncrementPiss(username)
 	totalCount := b.counters.GetTotalPiss()
 
@@ -133,8 +136,8 @@ func (b *Bot) handlePissCommand(username string) {
 		pluralize(totalCount),
 	)
 
-	b.client.Say(b.config.Channel, response)
-	log.Printf("[PISS] %s: %d (Total: %d)", username, userCount, totalCount)
+	b.client.Say(channel, response)
+	log.Printf("[PISS] [%s] %s: %d (Total: %d)", channel, username, userCount, totalCount)
 }
 
 func pluralize(count int) string {

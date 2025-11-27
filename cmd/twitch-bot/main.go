@@ -5,24 +5,37 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
-	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/twitchbot"
+	"github.com/tim-the-toolman-taylor/nivek/internal/twitchbot"
 )
 
 func main() {
 	// Load configuration from environment
+	channelsStr := getEnv("TWITCH_CHANNELS", getEnv("TWITCH_CHANNEL", ""))
+
+	// Parse comma-separated channel list
+	var channels []string
+	if channelsStr != "" {
+		channels = strings.Split(channelsStr, ",")
+		// Trim whitespace from each channel
+		for i, ch := range channels {
+			channels[i] = strings.TrimSpace(ch)
+		}
+	}
+
 	config := twitchbot.Config{
 		BotUsername: getEnv("TWITCH_BOT_USERNAME", ""),
 		BotOAuth:    getEnv("TWITCH_BOT_OAUTH", ""),
-		Channel:     getEnv("TWITCH_CHANNEL", ""),
+		Channels:    channels,
 		StoragePath: getEnv("TWITCH_STORAGE_PATH", "./data/twitch-counters.json"),
 		Timezone:    getEnv("TWITCH_TIMEZONE", "America/New_York"),
 	}
 
 	// Validate required config
-	if config.BotUsername == "" || config.BotOAuth == "" || config.Channel == "" {
-		log.Fatal("Missing required environment variables: TWITCH_BOT_USERNAME, TWITCH_BOT_OAUTH, TWITCH_CHANNEL")
+	if config.BotUsername == "" || config.BotOAuth == "" || len(config.Channels) == 0 {
+		log.Fatal("Missing required environment variables: TWITCH_BOT_USERNAME, TWITCH_BOT_OAUTH, TWITCH_CHANNELS (or TWITCH_CHANNEL)")
 	}
 
 	// Create bot instance
