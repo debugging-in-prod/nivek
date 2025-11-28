@@ -97,7 +97,6 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	username := message.User.Name
 	channel := message.Channel
 
-	// @TODO::add !dad command
 	// Check for commands
 	switch msg {
 	case "!bread":
@@ -106,6 +105,8 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 		b.handlePissCommand(username, channel)
 	case "!fish":
 		b.handleFishCommand(username, channel)
+	case "!dad":
+		b.client.Say(channel, "still out getting milk!")
 	}
 }
 
@@ -141,6 +142,31 @@ func (b *Bot) handlePissCommand(username, channel string) {
 
 	b.client.Say(channel, response)
 	log.Printf("[PISS] [%s] %s: %d (Total: %d)", channel, username, userCount, totalCount)
+}
+
+func (b *Bot) handleFishCommand(username, channel string) {
+	userScore := b.counters.IncrementFish(username)
+
+	caughtFish, caughtTrash, message := b.goFishing()
+	userScore.TimesFished++
+
+	if caughtTrash {
+		userScore.TrashCaught++
+	} else if caughtFish != nil {
+		userScore.Fish = append(userScore.Fish, *caughtFish)
+		userScore.Score = userScore.Score + caughtFish.Value
+	}
+
+	response := fmt.Sprintf(
+		"%s You've caught %d fish, and %d trash. Your total score is %d",
+		message,
+		len(userScore.Fish),
+		userScore.TrashCaught,
+		userScore.Score,
+	)
+
+	b.client.Say(channel, response)
+	log.Printf("[FISH] [%s] %s: %d", channel, username, userScore.Score)
 }
 
 func pluralize(count int) string {

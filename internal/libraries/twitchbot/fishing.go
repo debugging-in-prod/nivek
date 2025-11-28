@@ -19,31 +19,6 @@ type fish struct {
 	Scarcity int    `json:"scarcity"`
 }
 
-func (b *Bot) handleFishCommand(username, channel string) {
-	userScore := b.counters.IncrementFish(username)
-
-	caughtFish, caughtTrash, message := b.goFishing()
-	userScore.TimesFished++
-
-	if caughtTrash {
-		userScore.TrashCaught++
-	} else if caughtFish != nil {
-		userScore.Fish = append(userScore.Fish, *caughtFish)
-		userScore.Score = userScore.Score + caughtFish.Value
-	}
-
-	response := fmt.Sprintf(
-		"%s You've caught %d fish, and %d trash. Your total score is %d",
-		message,
-		len(userScore.Fish),
-		userScore.TrashCaught,
-		userScore.Score,
-	)
-
-	b.client.Say(channel, response)
-	log.Printf("[FISH] [%s] %s: %d", channel, username, userScore.Score)
-}
-
 func (b *Bot) goFishing() (*fish, bool, string) {
 	// Seed random (do this once in bot initialization, not here)
 	// rand.Seed(time.Now().UnixNano())
