@@ -2,7 +2,6 @@ package twitchbot
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 )
 
