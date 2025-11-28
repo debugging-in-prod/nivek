@@ -97,12 +97,15 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	username := message.User.Name
 	channel := message.Channel
 
+	// @TODO::add !dad command
 	// Check for commands
 	switch msg {
 	case "!bread":
 		b.handleBreadCommand(username, channel)
 	case "!piss":
 		b.handlePissCommand(username, channel)
+	case "!fish":
+		b.handleFishCommand(username, channel)
 	}
 }
 

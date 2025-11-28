@@ -8,9 +8,10 @@ import (
 )
 
 type CounterData struct {
-	BreadCounts map[string]int `json:"bread_counts"`
-	PissCounts  map[string]int `json:"piss_counts"`
-	LastReset   time.Time      `json:"last_reset"`
+	BreadCounts map[string]int        `json:"bread_counts"`
+	PissCounts  map[string]int        `json:"piss_counts"`
+	FishCounts  map[string]*FishScore `json:"fish_counts"`
+	LastReset   time.Time             `json:"last_reset"`
 }
 
 type CounterManager struct {
@@ -27,6 +28,7 @@ func NewCounterManager(storagePath string, location *time.Location) (*CounterMan
 		data: &CounterData{
 			BreadCounts: make(map[string]int),
 			PissCounts:  make(map[string]int),
+			FishCounts:  make(map[string]*FishScore),
 			LastReset:   time.Now().In(location),
 		},
 	}
@@ -71,6 +73,19 @@ func (cm *CounterManager) IncrementPiss(username string) int {
 	go cm.Save()
 
 	return count
+}
+
+func (cm *CounterManager) IncrementFish(username string) *FishScore {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	cm.data.FishCounts[username].TimesFished++
+	score := cm.data.FishCounts[username]
+
+	// Save after each increment
+	go cm.Save()
+
+	return score
 }
 
 func (cm *CounterManager) GetTotalBread() int {
