@@ -1,4 +1,7 @@
 environments/*
 .env
 
+bin/*
+data/*
+
 vendor/*
