@@ -79,6 +79,17 @@ func (cm *CounterManager) IncrementFish(username string) *FishScore {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
+	// Initialize FishScore if user doesn't exist
+	if cm.data.FishCounts[username] == nil {
+		cm.data.FishCounts[username] = &FishScore{
+			Score:       0,
+			Fish:        []fish{},
+			TrashCaught: 0,
+			TimesFished: 0,
+		}
+	}
+
+	// Now safely increment
 	cm.data.FishCounts[username].TimesFished++
 	score := cm.data.FishCounts[username]
 
