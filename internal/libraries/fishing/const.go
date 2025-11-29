@@ -3,19 +3,19 @@ package fishing
 const TableFishing = "fish_score"
 
 type FishScore struct {
-	Id          int    `json:"id"`
-	ChannelName string `json:"channelname"`
-	ChatterName string `json:"chattername"`
-	Score       int    `json:"score"`
-	Fish        []Fish `json:"fish"`
-	TrashCaught int    `json:"trash_caught"`
-	TimesFished int    `json:"times_fished"`
+	Id          int    `db:"id" json:"id"`
+	ChannelName string `db:"channelname" json:"channelname"`
+	ChatterName string `db:"chattername" json:"chattername"`
+	Score       int    `db:"score" json:"score"`
+	Fish        []Fish `db:"fish" json:"fish"`
+	TrashCaught int    `db:"trash_caught" json:"trash_caught"`
+	TimesFished int    `db:"times_fished" json:"times_fished"`
 }
 
 type Fish struct {
-	Value    int    `json:"value"`
-	Name     string `json:"name"`
-	Scarcity int    `json:"scarcity"`
+	Value    int    `db:"value" json:"value"`
+	Name     string `db:"name" json:"name"`
+	Scarcity int    `db:"scarcity" json:"scarcity"`
 }
 
 // rather than hardcode in static db table, just leave in code where it's easier to find
