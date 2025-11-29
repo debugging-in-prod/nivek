@@ -127,10 +127,34 @@ func (s *nivekFishingServiceImpl) rollForFish() (*Fish, bool, bool) {
 func (s *nivekFishingServiceImpl) getFishScore() (*FishScore, error) {
 	var fishScore FishScore
 
-	if err := s.fishingTable.Find(db.Cond{
+	err := s.fishingTable.Find(db.Cond{
 		"channelname": s.channel,
 		"chattername": s.chatter,
-	}).One(&fishScore); err != nil {
+	}).One(&fishScore)
+
+	if err != nil {
+		// Check if error is "not found"
+		if err == db.ErrNoMoreRows {
+			// Record doesn't exist - create it
+			newFishScore := FishScore{
+				Score:       0,
+				Fish:        []Fish{}, // Empty array
+				TrashCaught: 0,
+				TimesFished: 0,
+			}
+
+			// Insert the new record
+			if id, err := s.fishingTable.Insert(newFishScore); err != nil {
+				return nil, fmt.Errorf("failed to create fish score record: %w", err)
+			} else {
+				newFishScore.Id = id.ID().(int)
+			}
+
+			// Return the newly created record
+			return &newFishScore, nil
+		}
+
+		// Some other error occurred
 		return nil, fmt.Errorf("failed to find fish score record: %w", err)
 	}
 
