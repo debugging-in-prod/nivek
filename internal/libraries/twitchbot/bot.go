@@ -97,10 +97,10 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	username := message.User.Name
 	channel := message.Channel
 
-	//so := b.autoShoutWhitelistCheck(username)
-	//if so {
-	//	b.client.Say(channel, fmt.Sprintf("!so @%s", username))
-	//}
+	so := b.autoShoutWhitelistCheck(username)
+	if so {
+		b.client.Say(channel, fmt.Sprintf("!so @%s", username))
+	}
 
 	// Check for commands
 	switch msg {
@@ -117,8 +117,9 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 
 func (b *Bot) autoShoutWhitelistCheck(username string) bool {
 	var example = map[string]bool{
-		"athlte":   true,
-		"whoqufad": true,
+		"athlte":       true,
+		"whoqufad":     true,
+		"itzmonsta420": true,
 	}
 
 	exists := example[strings.ToLower(username)]
