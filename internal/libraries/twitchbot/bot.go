@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/gempir/go-twitch-irc/v4"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/fishing"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 )
 
 type Config struct {
@@ -23,9 +25,10 @@ type Bot struct {
 	config   Config
 	counters *CounterManager
 	location *time.Location
+	nivek    nivek.NivekService
 }
 
-func NewBot(config Config) (*Bot, error) {
+func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
 	// Load timezone
 	loc, err := time.LoadLocation(config.Timezone)
 	if err != nil {
@@ -46,6 +49,7 @@ func NewBot(config Config) (*Bot, error) {
 		config:   config,
 		counters: counters,
 		location: loc,
+		nivek:    nivek,
 	}
 
 	// Register message handler
@@ -165,28 +169,11 @@ func (b *Bot) handlePissCommand(username, channel string) {
 }
 
 func (b *Bot) handleFishCommand(username, channel string) {
-	userScore := b.counters.IncrementFish(username)
-
-	caughtFish, caughtTrash, message := b.goFishing()
-	userScore.TimesFished++
-
-	if caughtTrash {
-		userScore.TrashCaught++
-	} else if caughtFish != nil {
-		userScore.Fish = append(userScore.Fish, *caughtFish)
-		userScore.Score = userScore.Score + caughtFish.Value
-	}
-
-	response := fmt.Sprintf(
-		"%s You've caught %d fish, and %d trash. Your total score is %d",
-		message,
-		len(userScore.Fish),
-		userScore.TrashCaught,
-		userScore.Score,
-	)
+	fishingService := fishing.NewService(b.nivek, username, channel)
+	response := fishingService.GoFishing()
 
 	b.client.Say(channel, response)
-	log.Printf("[FISH] [%s] %s: %d", channel, username, userScore.Score)
+	log.Printf("[FISH] [%s] %s: %d", channel, username)
 }
 
 func pluralize(count int) string {

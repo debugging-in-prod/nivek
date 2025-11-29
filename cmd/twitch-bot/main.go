@@ -34,6 +34,7 @@ func main() {
 				Channels:    getChannelNames(nivek),
 				StoragePath: getEnv("TWITCH_STORAGE_PATH", "./data/twitch-counters.json"),
 				Timezone:    getEnv("TWITCH_TIMEZONE", "America/New_York"),
+				Nivek:       nivek,
 			}
 
 			// Validate required config
@@ -42,7 +43,7 @@ func main() {
 			}
 
 			// Create bot instance
-			bot, err := twitchbot.NewBot(config)
+			bot, err := twitchbot.NewBot(nivek, config)
 			if err != nil {
 				log.Fatalf("Failed to create bot: %v", err)
 			}

@@ -5,13 +5,15 @@ import (
 	"log"
 	"sync"
 	"time"
+
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/fishing"
 )
 
 type CounterData struct {
-	BreadCounts map[string]int        `json:"bread_counts"`
-	PissCounts  map[string]int        `json:"piss_counts"`
-	FishCounts  map[string]*FishScore `json:"fish_counts"`
-	LastReset   time.Time             `json:"last_reset"`
+	BreadCounts map[string]int                `json:"bread_counts"`
+	PissCounts  map[string]int                `json:"piss_counts"`
+	FishCounts  map[string]*fishing.FishScore `json:"fish_counts"`
+	LastReset   time.Time                     `json:"last_reset"`
 }
 
 type CounterManager struct {
@@ -28,7 +30,7 @@ func NewCounterManager(storagePath string, location *time.Location) (*CounterMan
 		data: &CounterData{
 			BreadCounts: make(map[string]int),
 			PissCounts:  make(map[string]int),
-			FishCounts:  make(map[string]*FishScore),
+			FishCounts:  make(map[string]*fishing.FishScore),
 			LastReset:   time.Now().In(location),
 		},
 	}
@@ -73,30 +75,6 @@ func (cm *CounterManager) IncrementPiss(username string) int {
 	go cm.Save()
 
 	return count
-}
-
-func (cm *CounterManager) IncrementFish(username string) *FishScore {
-	cm.mu.Lock()
-	defer cm.mu.Unlock()
-
-	// Initialize FishScore if user doesn't exist
-	if cm.data.FishCounts[username] == nil {
-		cm.data.FishCounts[username] = &FishScore{
-			Score:       0,
-			Fish:        []fish{},
-			TrashCaught: 0,
-			TimesFished: 0,
-		}
-	}
-
-	// Now safely increment
-	cm.data.FishCounts[username].TimesFished++
-	score := cm.data.FishCounts[username]
-
-	// Save after each increment
-	go cm.Save()
-
-	return score
 }
 
 func (cm *CounterManager) GetTotalBread() int {

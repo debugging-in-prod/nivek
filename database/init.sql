@@ -25,7 +25,7 @@ ON CONFLICT (username) DO NOTHING;
 -- Table to track fishing scores per user
 create TABLE IF NOT EXISTS nivek.fish_score (
     id SERIAL PRIMARY KEY,
-    user_id INT NOT NULL,
+    channelname VARCHAT(255) NOT NULL,
     chattername VARCHAR(255) NOT NULL,
     score INT NOT NULL DEFAULT 0,
     fish JSONB NOT NULL DEFAULT '[]',
@@ -35,7 +35,7 @@ create TABLE IF NOT EXISTS nivek.fish_score (
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
     -- Composite unique constraint
-    CONSTRAINT unique_user_chatter UNIQUE (user_id, chattername)
+    CONSTRAINT unique_user_chatter UNIQUE (channelname, chattername)
 );
 
 -- Optional: Create index for faster lookups
