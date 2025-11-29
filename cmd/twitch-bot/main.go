@@ -34,7 +34,6 @@ func main() {
 				Channels:    getChannelNames(nivek),
 				StoragePath: getEnv("TWITCH_STORAGE_PATH", "./data/twitch-counters.json"),
 				Timezone:    getEnv("TWITCH_TIMEZONE", "America/New_York"),
-				Nivek:       nivek,
 			}
 
 			// Validate required config
