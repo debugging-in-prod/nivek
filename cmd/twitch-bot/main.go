@@ -92,6 +92,10 @@ func getChannelNames(nivek nivek.NivekService) []string {
 		log.Fatalf("Failed to get all active users: %v", err)
 	}
 
+	if len(users) == 0 {
+		log.Fatal("No active users found")
+	}
+
 	var channels []string
 	for i, usr := range users {
 		channels[i] = strings.TrimSpace(usr.Username)
