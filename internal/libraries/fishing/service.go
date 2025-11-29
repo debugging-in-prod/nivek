@@ -1,12 +1,14 @@
 package fishing
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 
 	"github.com/labstack/gommon/log"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 	"github.com/upper/db/v4"
+	"gorm.io/datatypes"
 )
 
 type NivekFishingService interface {
@@ -134,22 +136,19 @@ func (s *nivekFishingServiceImpl) getFishScore() (*FishScore, error) {
 
 	if err != nil {
 		// Check if error is "not found"
-		if err == db.ErrNoMoreRows {
+		if errors.Is(err, db.ErrNoMoreRows) {
 			// Record doesn't exist - create it
 			newFishScore := FishScore{
 				ChannelName: s.channel,
 				ChatterName: s.chatter,
-				Score:       0,
-				Fish:        make([]Fish, 0), // Empty array
-				TrashCaught: 0,
-				TimesFished: 0,
+				Fish:        datatypes.JSON(`[]`), // Empty array
 			}
 
 			// Insert the new record
 			if id, err := s.fishingTable.Insert(newFishScore); err != nil {
 				return nil, fmt.Errorf("failed to create fish score record: %w", err)
 			} else {
-				newFishScore.Id = id.ID().(int)
+				newFishScore.ID = id.ID().(int)
 			}
 
 			// Return the newly created record
