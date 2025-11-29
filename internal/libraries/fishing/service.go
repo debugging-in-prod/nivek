@@ -140,7 +140,7 @@ func (s *nivekFishingServiceImpl) getFishScore() (*FishScore, error) {
 				ChannelName: s.channel,
 				ChatterName: s.chatter,
 				Score:       0,
-				Fish:        []Fish{}, // Empty array
+				Fish:        make([]Fish, 0), // Empty array
 				TrashCaught: 0,
 				TimesFished: 0,
 			}
