@@ -34,7 +34,7 @@ services:
 
   vue:
     build:
-      dockerfile: docker/images/vue/Dockerfile
+      dockerfile: docker/images/vue/Dockerfile.dev
     volumes:
       - './nivek-vue:/app'
     networks:
