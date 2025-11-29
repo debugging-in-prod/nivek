@@ -173,7 +173,7 @@ func (b *Bot) handleFishCommand(username, channel string) {
 	response := fishingService.GoFishing()
 
 	b.client.Say(channel, response)
-	log.Printf("[FISH] [%s] %s: %d", channel, username)
+	log.Printf("[FISH] [%s] %s", channel, username)
 }
 
 func pluralize(count int) string {

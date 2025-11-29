@@ -10,15 +10,15 @@ import (
 const TableFishing = "fish_score"
 
 type FishScore struct {
-	ID          int       `gorm:"primaryKey"`
-	ChannelName string    `gorm:"not null;index:idx_channel_chatter,unique"`
-	ChatterName string    `gorm:"not null;index:idx_channel_chatter,unique"`
-	Score       int       `gorm:"not null;default:0"`
-	Fish        FishArray `gorm:"type:jsonb;not null;default:'[]'"`
-	TrashCaught int       `gorm:"not null;default:0"`
-	TimesFished int       `gorm:"not null;default:0"`
-	CreatedAt   time.Time `gorm:"autoCreateTime"`
-	UpdatedAt   time.Time `gorm:"autoUpdateTime"`
+	ID          int       `db:"id" json:"id"`
+	ChannelName string    `db:"channelname" json:"channelname"`
+	ChatterName string    `db:"chattername" json:"chattername"`
+	Score       int       `db:"score" json:"score"`
+	Fish        FishArray `db:"fish" json:"fish"`
+	TrashCaught int       `db:"trash_caught" json:"trash_caught"`
+	TimesFished int       `db:"times_fished" json:"times_fished"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
 }
 
 // FishArray Custom type for Fish array in FishScore record
