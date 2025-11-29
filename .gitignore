@@ -1,6 +1,7 @@
 environments/*
 .env
 
+bin/twitch-bot
 bin/*
 data/*
 
