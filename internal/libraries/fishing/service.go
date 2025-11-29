@@ -141,4 +141,6 @@ func (s *nivekFishingServiceImpl) updateScore(fishScore *FishScore) error {
 	if err := s.fishingTable.UpdateReturning(fishScore); err != nil {
 		return fmt.Errorf("failed to save updated fish score: %w", err)
 	}
+
+	return nil
 }
