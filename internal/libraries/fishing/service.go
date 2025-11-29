@@ -147,7 +147,7 @@ func (s *nivekFishingServiceImpl) getFishScore() (*FishScore, error) {
 			if id, err := s.fishingTable.Insert(newFishScore); err != nil {
 				return nil, fmt.Errorf("failed to create fish score record: %w", err)
 			} else {
-				newFishScore.ID = id.ID().(int)
+				newFishScore.ID = int(id.ID().(int64))
 			}
 
 			// Return the newly created record
