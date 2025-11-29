@@ -97,10 +97,10 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	username := message.User.Name
 	channel := message.Channel
 
-	so := b.autoShoutWhitelistCheck(username)
-	if so {
-		b.client.Say(channel, fmt.Sprintf("!so @%s", username))
-	}
+	//so := b.autoShoutWhitelistCheck(username)
+	//if so {
+	//	b.client.Say(channel, fmt.Sprintf("!so @%s", username))
+	//}
 
 	// Check for commands
 	switch msg {
