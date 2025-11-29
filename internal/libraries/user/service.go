@@ -12,6 +12,7 @@ type NivekUserService interface {
 	Login(request LoginRequest) (*User, error)
 	Logout(request LogoutRequest) (bool, error)
 
+	GetAllActiveUsers() ([]User, error)
 	GetUserById(id int) (*User, error)
 	DeleteUserById(id int) error
 }
@@ -26,6 +27,16 @@ func NewService(service nivek.NivekService) NivekUserService {
 		nivek:     service,
 		userTable: service.Postgres().GetDefaultConnection().Collection(TableUser),
 	}
+}
+
+func (s *nivekUserServiceImpl) GetAllActiveUsers() ([]User, error) {
+	var users []User
+
+	if err := s.userTable.Find().All(&users); err != nil {
+		return nil, fmt.Errorf("error getting all users: %w", err)
+	}
+
+	return users, nil
 }
 
 func (s *nivekUserServiceImpl) GetUserById(id int) (*User, error) {

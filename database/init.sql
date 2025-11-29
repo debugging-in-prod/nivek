@@ -4,9 +4,9 @@ create SCHEMA IF NOT EXISTS nivek;
 -- Application-level table
 -- contains information unique to the bot itself
 create TABLE IF NOT EXISTS nivek.app (
-    id SERIAL PRIMARY KEY
+    id SERIAL PRIMARY KEY,
     last_wiped_at TIMESTAMP
-)
+);
 
 -- Create users table
 -- this table will represent every channel the twitch bot should join. The "users" of the twitch bot
@@ -32,7 +32,7 @@ create TABLE IF NOT EXISTS nivek.fish_score (
     trash_caught INT NOT NULL DEFAULT 0,
     times_fished INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
     -- Composite unique constraint
     CONSTRAINT unique_user_chatter UNIQUE (user_id, chattername)
@@ -44,13 +44,13 @@ ON nivek.fish_score(user_id, chattername);
 
 -- Table to track bread counts
 create TABLE IF NOT EXISTS nivek.bread (
-    id SERIAL PRIMARY KEY
+    id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
     chattername VARCHAR(255) NOT NULL,
-    count INT DEFAULT 0
+    count INT DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
     -- Composite unique constraint
     CONSTRAINT unique_user_chatter UNIQUE (user_id, chattername)
-)
+);
