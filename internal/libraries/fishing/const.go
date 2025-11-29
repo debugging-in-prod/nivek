@@ -4,6 +4,8 @@ const TableFishing = "fish_score"
 
 type FishScore struct {
 	Id          int    `json:"id"`
+	ChannelName string `json:"channelname"`
+	ChatterName string `json:"chattername"`
 	Score       int    `json:"score"`
 	Fish        []Fish `json:"fish"`
 	TrashCaught int    `json:"trash_caught"`

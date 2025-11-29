@@ -137,6 +137,8 @@ func (s *nivekFishingServiceImpl) getFishScore() (*FishScore, error) {
 		if err == db.ErrNoMoreRows {
 			// Record doesn't exist - create it
 			newFishScore := FishScore{
+				ChannelName: s.channel,
+				ChatterName: s.chatter,
 				Score:       0,
 				Fish:        []Fish{}, // Empty array
 				TrashCaught: 0,
