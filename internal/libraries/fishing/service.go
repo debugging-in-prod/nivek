@@ -8,7 +8,6 @@ import (
 	"github.com/labstack/gommon/log"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 	"github.com/upper/db/v4"
-	"gorm.io/datatypes"
 )
 
 type NivekFishingService interface {
@@ -141,7 +140,7 @@ func (s *nivekFishingServiceImpl) getFishScore() (*FishScore, error) {
 			newFishScore := FishScore{
 				ChannelName: s.channel,
 				ChatterName: s.chatter,
-				Fish:        datatypes.JSON(`[]`), // Empty array
+				Fish:        FishArray{}, // Empty array
 			}
 
 			// Insert the new record
