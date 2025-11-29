@@ -97,7 +97,7 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	username := message.User.Name
 	channel := message.Channel
 
-	so := b.autoShoutWhitelistCheck(username, channel)
+	so := b.autoShoutWhitelistCheck(username)
 	if so {
 		b.client.Say(channel, fmt.Sprintf("!so @%s", username))
 	}
@@ -115,23 +115,13 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	}
 }
 
-func (b *Bot) autoShoutWhitelistCheck(username, channel string) bool {
-	fmt.Println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-	fmt.Println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-	fmt.Println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-	fmt.Println("INCOMING USERNAME")
-	fmt.Println(username)
-	fmt.Println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-	fmt.Println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-	fmt.Println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+func (b *Bot) autoShoutWhitelistCheck(username string) bool {
 	var example = map[string]bool{
-		"ATHLTE": true,
+		"athlte":   true,
+		"whoqufad": true,
 	}
 
-	fmt.Println(example)
-	fmt.Println(example[username])
-
-	exists := example[username]
+	exists := example[strings.ToLower(username)]
 	if exists {
 		return true
 	}
