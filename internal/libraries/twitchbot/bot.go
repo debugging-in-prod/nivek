@@ -97,6 +97,10 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	username := message.User.Name
 	channel := message.Channel
 
+	if b.autoShoutWhitelistCheck(username, channel) {
+		b.client.Say(channel, fmt.Sprintf("!so @%s", username))
+	}
+
 	// Check for commands
 	switch msg {
 	case "!bread":
@@ -108,6 +112,19 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	case "!dad":
 		b.client.Say(channel, "still out getting milk!")
 	}
+}
+
+func (b *Bot) autoShoutWhitelistCheck(username, channel string) bool {
+	var example = map[string]bool{
+		"ATHLTE": true,
+	}
+
+	exists := example[username]
+	if exists {
+		return true
+	}
+
+	return false
 }
 
 func (b *Bot) handleBreadCommand(username, channel string) {
