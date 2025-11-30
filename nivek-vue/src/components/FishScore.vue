@@ -84,18 +84,25 @@ onMounted(() => {
 </script>
 
 <template>
+  <h3>Fish Scores!</h3>
   <h4>As Chatter: </h4>
   <div v-for="fishScore in fishScores.as_chatter" class="mb-5">
     <!-- Header Card -->
     <div class="card shadow-sm mb-4">
       <div class="card-body text-center bg-primary text-white">
-        <h5 class="card-title mb-0">
-          <strong>{{ fishScore.chattername }}</strong>
-          <small class="d-block fs-8 mt-1">in #{{ fishScore.channelname }}</small>
-        </h5>
-        <p class="fw-bold mb-0 mt-3">
-          Total Score: {{ fishScore.score }}
-        </p>
+        <div class="d-flex justify-content-between align-items-center">
+          <div class="text-start">
+            <h5 class="card-title mb-0">
+              <strong>{{ fishScore.chattername }}</strong>
+              <small class="d-block fs-8 mt-1">in #{{ fishScore.channelname }}</small>
+            </h5>
+          </div>
+          <div>
+            <p class="fw-bold mb-0">
+              {{ fishScore.score }}
+            </p>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -154,15 +161,19 @@ onMounted(() => {
   <h4>As Channel: </h4>
   <div v-for="fishScore in fishScores.as_channel" class="mb-5">
     <!-- Header Card -->
-    <div class="card shadow-sm mb-4">
-      <div class="card-body text-center bg-primary text-white">
-        <h5 class="card-title mb-0">
-          <strong>{{ fishScore.chattername }}</strong>
-          <small class="d-block fs-8 mt-1">in #{{ fishScore.channelname }}</small>
-        </h5>
-        <p class="fw-bold mb-0 mt-3">
-          Total Score: {{ fishScore.score }}
-        </p>
+    <div class="card-body text-center bg-primary text-white">
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="text-start">
+          <h5 class="card-title mb-0">
+            <strong>{{ fishScore.chattername }}</strong>
+            <small class="d-block fs-8 mt-1">in #{{ fishScore.channelname }}</small>
+          </h5>
+        </div>
+        <div>
+          <p class="fw-bold mb-0">
+            {{ fishScore.score }}
+          </p>
+        </div>
       </div>
     </div>
 
