@@ -59,7 +59,7 @@ function groupFishByName(fish: Fish[]) {
   return grouped
 }
 
-const totalFishCaught = (fishArray) => {
+const totalFishCaught = (fishArray: Fish[]) => {
   return fishArray.reduce((sum, f) => sum + 1, 0)
 }
 
