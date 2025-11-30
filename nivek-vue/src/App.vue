@@ -9,8 +9,8 @@ const auth = useAuthStore()
 <template>
   <header>
     <img alt="Vue logo" class="logo" src="./assets/pepelogo.jpg" width="125" height="125" />
-    <Navigation/>
   </header>
+  <Navigation/>
 
   <div v-if="auth.user"><Logout/></div>
 
@@ -35,7 +35,6 @@ header {
   header {
     display: flex;
     place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
   }
 
   .logo {
