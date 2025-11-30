@@ -12,6 +12,7 @@ import (
 
 type NivekFishingService interface {
 	GoFishing(chatter string) string
+	GetChannelFishScore() (*FishScore, error)
 	GetUserFishScore() (*FishScore, error)
 }
 
@@ -29,11 +30,25 @@ func NewService(service nivek.NivekService, channel string) NivekFishingService 
 	}
 }
 
-func (s *nivekFishingServiceImpl) GetUserFishScore() (*FishScore, error) {
+// GetChannelFishScore gets score of every chatter who has fished in this channel
+func (s *nivekFishingServiceImpl) GetChannelFishScore() (*FishScore, error) {
 	var fishScore FishScore
 
 	if err := s.fishingTable.Find(db.Cond{
 		"channelname": s.channel,
+	}).One(&fishScore); err != nil {
+		return nil, err
+	}
+
+	return &fishScore, nil
+}
+
+// GetUserFishScore gets this user's score from every chat they have fished in
+func (s *nivekFishingServiceImpl) GetUserFishScore() (*FishScore, error) {
+	var fishScore FishScore
+
+	if err := s.fishingTable.Find(db.Cond{
+		"chattername": s.channel,
 	}).One(&fishScore); err != nil {
 		return nil, err
 	}

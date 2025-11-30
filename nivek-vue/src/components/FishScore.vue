@@ -3,10 +3,24 @@
 const http = createHttpClient(AxiosAdapter)
 
 interface FishScore {
-
+  id: int
+  channelName: string
+  chatterName: string
+  score:       int
+  fish:        FishArray
+  trashCaught: int
+  timesFished: int
+  createdAt:   time
+  updatedAt:   time
 }
 
-let fishScore = ref<FishScore>({})
+interface Fish {
+  value:    int
+  name:     string
+  scarcity: int
+}
+
+let fishScores = ref<FishScore[]>({})
 
 async function getFishScore() {
   try {
@@ -16,7 +30,7 @@ async function getFishScore() {
       return;
     }
 
-    fishScore.value = resp.data
+    fishScores.value = resp.data
   } catch (err: unknown) {
     console.error("error fetching fish score: ", err)
   }
@@ -28,11 +42,16 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="text-center mb-5">
-    <h3>Your Fish Score</h3>
+  <div v-for="fishScore in fishScores" class="text-center mb-5">
+    <h3>Your Fish Score for <span>{{ fishScore.chatterName }}</span></h3>
+    <p>Total Score: <span>{{ fishScore.score }}</span></p>
     <h4>Fish Caught</h4>
     <ul>
-      <li ></li>
+      <li v-for="fish in fishScore.fish">
+        <p>{{ fish.name }}</p>
+        <p>{{ fish.value }}</p>
+        <p>{{ fish.scarcity }}</p>
+      </li>
     </ul>
   </div>
 </template>

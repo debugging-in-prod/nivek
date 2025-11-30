@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth'
 import Weather from '@/components/Weather.vue'
+import FishScore from "@/components/FishScore.vue";
 
 const auth = useAuthStore()
 
@@ -24,6 +25,7 @@ function getGreeting(date: Date = new Date()): string {
   </div>
 
   <Weather />
+  <FishScore />
 
 
 </template>
