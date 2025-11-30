@@ -9,14 +9,14 @@ const http = createHttpClient(AxiosAdapter)
 
 interface FishScore {
   id: int
-  channelName: string
-  chatterName: string
+  channelname: string
+  chattername: string
   score:       int
   fish:        FishArray
-  trashCaught: int
-  timesFished: int
-  createdAt:   time
-  updatedAt:   time
+  trash_caught: int
+  times_fished: int
+  created_at:   time
+  updated_at:   time
 }
 
 interface Fish {
@@ -67,7 +67,7 @@ onMounted(() => {
 <template>
   <div v-for="fishScore in fishScores" class="text-center mb-5">
     <pre>{{ fishScore }}</pre>
-    <h3>Your Fish Score for <span>{{ fishScore.chatterName }}</span></h3>
+    <h3>Your Fish Score for <span>{{ fishScore.chattername }}</span> fishing in <span>{{ fishScore.channelname }}</span></h3>
     <p>Total Score: <span>{{ fishScore.score }}</span></p>
     <h4>Fish Caught</h4>
     <ul class="list-group">
