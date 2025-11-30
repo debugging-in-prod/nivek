@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/upper/db/v4"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type LoginRequest struct {
@@ -12,10 +13,15 @@ type LoginRequest struct {
 }
 
 func (s *nivekUserServiceImpl) Login(request LoginRequest) (*User, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("error during login attempt - %s", err)
+	}
+
 	var usr User
-	err := s.userTable.Find(db.Cond{
+	err = s.userTable.Find(db.Cond{
 		"email":    request.Email,
-		"password": request.Password,
+		"password": hashedPassword,
 	}).One(&usr)
 
 	if err != nil {

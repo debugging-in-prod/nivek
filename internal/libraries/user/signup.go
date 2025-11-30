@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type SignupRequest struct {
@@ -13,6 +14,13 @@ type SignupRequest struct {
 }
 
 func (s *nivekUserServiceImpl) Signup(request SignupRequest) (bool, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return false, fmt.Errorf("error hashing password: %v", err)
+	}
+
+	request.Password = string(hashedPassword)
+
 	result, err := s.userTable.Insert(request)
 
 	if err != nil {
