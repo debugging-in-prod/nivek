@@ -60,6 +60,7 @@ function groupFishByName(fish: Fish[]) {
 }
 
 const totalFishCaught = (fishArray: Fish[]) => {
+  if (!fishArray?.length) return 0
   return fishArray.reduce((sum, f) => sum + 1, 0)
 }
 
