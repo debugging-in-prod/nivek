@@ -51,10 +51,9 @@ onMounted(() => {
     <h3>Your Fish Score for <span>{{ fishScore.chatterName }}</span></h3>
     <p>Total Score: <span>{{ fishScore.score }}</span></p>
     <h4>Fish Caught</h4>
-    <ul>
-      <li v-for="fish in fishScore.fish">
-        <p>{{ fish.name }}</p>
-        <p>{{ fish.value }}</p>
+    <ul class="list-group">
+      <li v-for="fish in fishScore.fish" class="list-group-item">
+        <p>🐟<span>{{ fish.name }}</span> - <span>{{ fish.value }}</span></p>
         <p>{{ fish.scarcity }}</p>
       </li>
     </ul>
