@@ -10,10 +10,11 @@ create TABLE IF NOT EXISTS nivek.app (
 
 -- Create users table
 -- this table will represent every channel the twitch bot should join. The "users" of the twitch bot
-create TABLE IF NOT EXISTS nivek.users (
+CREATE TABLE IF NOT EXISTS nivek.users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
-    email VARCHAR(100) NOT NULL UNIQUE, -- fib data. filler for now
+    email VARCHAR(100) NOT NULL UNIQUE, -- filler for now
+    password TEXT NOT NULL,             -- added password field
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
