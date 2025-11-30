@@ -21,13 +21,10 @@ function getGreeting(date: Date = new Date()): string {
 </script>
 
 <template>
-  <div class="text-center">
-    <h1 v-if="auth.user" class="green">{{ getGreeting() }} {{ auth.user?.username }}</h1>
-  </div>
+  <h1 v-if="auth.user" class="text-center green">{{ getGreeting() }} {{ auth.user?.username }}</h1>
 
   <Weather />
   <FishScore />
-
 
 </template>
 
