@@ -59,28 +59,100 @@ function groupFishByName(fish: Fish[]) {
   return grouped
 }
 
+const totalFishCaught = (fishArray) => {
+  return fishArray.reduce((sum, f) => sum + 1, 0)
+}
+
+const rarityBadgeClass = (rarity) => {
+  const classes = {
+    'Common': 'bg-secondary',
+    'Uncommon': 'bg-info',
+    'Rare': 'bg-primary',
+    'Epic': 'bg-warning text-dark',
+    'Legendary': 'bg-danger',
+    'Mythic': 'bg-dark text-white'
+  }
+  return ['badge', classes[rarity] || 'bg-light text-dark']
+}
+
 onMounted(() => {
   getFishScore()
 })
 </script>
 
 <template>
-  <div v-for="fishScore in fishScores" class="text-center mb-5">
-    <h3>Your Fish Score for <span>{{ fishScore.chattername }}</span> fishing in <span>{{ fishScore.channelname }}</span></h3>
-    <p>Total Score: <span>{{ fishScore.score }}</span></p>
-    <h4>Fish Caught</h4>
-    <ul class="list-group">
-      <li v-for="(groupedFish, name) in groupFishByName(fishScore.fish)"
-          :key="name"
-          class="list-group-item">
-        <p>🐟 <span>{{ name }}</span> × {{ groupedFish.count }} - <span>{{ groupedFish.value }}</span> points each</p>
-        <p>Rarity: {{ groupedFish.scarcity }}</p>
-      </li>
-    </ul>
+  <div v-for="fishScore in fishScores" :key="fishScore.id" class="mb-5">
+    <!-- Header Card -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-body text-center bg-primary text-white">
+        <h3 class="card-title mb-0">
+          Fish Score for <strong>{{ fishScore.chattername }}</strong>
+          <small class="d-block fs-5 mt-1">in #{{ fishScore.channelname }}</small>
+        </h3>
+        <p class="display-6 fw-bold mb-0 mt-3">
+          Total Score: {{ fishScore.score.toLocaleString() }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Fish Table -->
+    <h4 class="mb-3 text-primary">
+      <i class="bi bi-fish"></i> Fish Caught ({{ totalFishCaught(fishScore.fish) }})
+    </h4>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+        <tr>
+          <th>Fish</th>
+          <th class="text-center">Qty</th>
+          <th class="text-center">Value</th>
+          <th class="text-center">Total Points</th>
+          <th>Rarity</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr v-for="(groupedFish, name) in groupFishByName(fishScore.fish)" :key="name">
+          <td>
+            <strong>{{ name }}</strong>
+          </td>
+          <td class="text-center fw-bold">
+            <span class="badge bg-success fs-6">×{{ groupedFish.count }}</span>
+          </td>
+          <td class="text-center">{{ groupedFish.value }} pts</td>
+          <td class="text-center fw-bold text-primary">
+            {{ (groupedFish.count * groupedFish.value).toLocaleString() }}
+          </td>
+          <td>
+              <span :class="rarityBadgeClass(groupedFish.scarcity)">
+                {{ groupedFish.scarcity }}
+              </span>
+          </td>
+        </tr>
+        <tr v-if="Object.keys(groupFishByName(fishScore.fish)).length === 0">
+          <td colspan="5" class="text-center text-muted py-4">
+            No fish caught yet. Time to cast a line!
+          </td>
+        </tr>
+        </tbody>
+        <tfoot class="table-secondary">
+        <tr>
+          <th colspan="3">Grand Total</th>
+          <th class="text-center text-primary fw-bold">
+            {{ fishScore.score.toLocaleString() }}
+          </th>
+          <th></th>
+        </tr>
+        </tfoot>
+      </table>
+    </div>
   </div>
 </template>
 
 <style scoped>
+.bi-fish::before {
+  font-weight: 900 !important;
+}
 .list-group-item {
   background: unset;
   color: unset;
