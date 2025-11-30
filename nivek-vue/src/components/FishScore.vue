@@ -93,7 +93,7 @@ onMounted(() => {
           <strong>{{ fishScore.chattername }}</strong>
           <small class="d-block fs-8 mt-1">in #{{ fishScore.channelname }}</small>
         </h5>
-        <p class="display-6 fw-bold mb-0 mt-3">
+        <p class="fw-bold mb-0 mt-3">
           Total Score: {{ fishScore.score }}
         </p>
       </div>
@@ -160,7 +160,7 @@ onMounted(() => {
           <strong>{{ fishScore.chattername }}</strong>
           <small class="d-block fs-8 mt-1">in #{{ fishScore.channelname }}</small>
         </h5>
-        <p class="display-6 fw-bold mb-0 mt-3">
+        <p class="fw-bold mb-0 mt-3">
           Total Score: {{ fishScore.score }}
         </p>
       </div>
