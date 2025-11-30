@@ -16,6 +16,7 @@ function getGreeting(date: Date = new Date()): string {
   }
 }
 
+// @TODO::add interface for auto shoutout whitelist editing
 
 </script>
 

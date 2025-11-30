@@ -84,15 +84,15 @@ onMounted(() => {
 </script>
 
 <template>
-  <h5>As Chatter: </h5>
+  <h4>As Chatter: </h4>
   <div v-for="fishScore in fishScores.as_chatter" class="mb-5">
     <!-- Header Card -->
     <div class="card shadow-sm mb-4">
       <div class="card-body text-center bg-primary text-white">
-        <h3 class="card-title mb-0">
-          Fish Score for <strong>{{ fishScore.chattername }}</strong>
-          <small class="d-block fs-5 mt-1">in #{{ fishScore.channelname }}</small>
-        </h3>
+        <h5 class="card-title mb-0">
+          <strong>{{ fishScore.chattername }}</strong>
+          <small class="d-block fs-8 mt-1">in #{{ fishScore.channelname }}</small>
+        </h5>
         <p class="display-6 fw-bold mb-0 mt-3">
           Total Score: {{ fishScore.score }}
         </p>
@@ -100,9 +100,9 @@ onMounted(() => {
     </div>
 
     <!-- Fish Table -->
-    <h4 class="mb-3 text-primary">
+    <h6 class="mb-3 text-primary">
       <i class="bi bi-fish"></i> Fish Caught ({{ totalFishCaught(fishScore.fish) }})
-    </h4>
+    </h6>
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">
@@ -151,15 +151,15 @@ onMounted(() => {
       </table>
     </div>
   </div>
-  <h5>As Channel: </h5>
+  <h4>As Channel: </h4>
   <div v-for="fishScore in fishScores.as_channel" class="mb-5">
     <!-- Header Card -->
     <div class="card shadow-sm mb-4">
       <div class="card-body text-center bg-primary text-white">
-        <h3 class="card-title mb-0">
-          Fish Score for <strong>{{ fishScore.chattername }}</strong>
-          <small class="d-block fs-5 mt-1">in #{{ fishScore.channelname }}</small>
-        </h3>
+        <h5 class="card-title mb-0">
+          <strong>{{ fishScore.chattername }}</strong>
+          <small class="d-block fs-8 mt-1">in #{{ fishScore.channelname }}</small>
+        </h5>
         <p class="display-6 fw-bold mb-0 mt-3">
           Total Score: {{ fishScore.score }}
         </p>
@@ -167,9 +167,9 @@ onMounted(() => {
     </div>
 
     <!-- Fish Table -->
-    <h4 class="mb-3 text-primary">
+    <h6 class="mb-3 text-primary">
       <i class="bi bi-fish"></i> Fish Caught ({{ totalFishCaught(fishScore.fish) }})
-    </h4>
+    </h6>
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">
