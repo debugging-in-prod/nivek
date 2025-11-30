@@ -8,6 +8,7 @@ export const API_ROUTES: object = {
     Secure: {
         Profile: '/profile',
         Weather: '/weather',
+        GetFishScore: '/fishing',
         Tasks: {
             Create: (id: number) => `/user/${id}/task`,
             GetAll: (id: number) => `/user/${id}/task`
