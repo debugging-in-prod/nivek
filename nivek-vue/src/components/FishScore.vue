@@ -44,7 +44,7 @@ async function getFishScore() {
 // Group fish by name
 function groupFishByName(fish: Fish[]) {
   if (!fish?.length) return []
-  
+
   const grouped: Record<string, { count: number; value: number; scarcity: number }> = {}
 
   fish.forEach(f => {
@@ -85,7 +85,7 @@ onMounted(() => {
 
 <template>
   <h5>As Chatter: </h5>
-  <div v-for="fishScore in fishScores.as_chatter" :key="fishScore.id" class="mb-5">
+  <div v-for="fishScore in fishScores.as_chatter" class="mb-5">
     <!-- Header Card -->
     <div class="card shadow-sm mb-4">
       <div class="card-body text-center bg-primary text-white">
@@ -152,7 +152,7 @@ onMounted(() => {
     </div>
   </div>
   <h5>As Channel: </h5>
-  <div v-for="fishScore in fishScores.as_channel" :key="fishScore.id" class="mb-5">
+  <div v-for="fishScore in fishScores.as_channel" class="mb-5">
     <!-- Header Card -->
     <div class="card shadow-sm mb-4">
       <div class="card-body text-center bg-primary text-white">
