@@ -14,25 +14,17 @@ type LoginRequest struct {
 }
 
 func (s *nivekUserServiceImpl) Login(request LoginRequest) (*User, error) {
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
+	var usr User
+
+	// Find the user by email only
+	err := s.userTable.Find(db.Cond{"email": request.Email}).One(&usr)
 	if err != nil {
-		return nil, fmt.Errorf("error during login attempt - %s", err)
+		return nil, fmt.Errorf("user not found: %s", request.Email)
 	}
 
-	log.Printf("login attempt - %s", string(hashedPassword))
-
-	var usr User
-	err = s.userTable.Find(db.Cond{
-		"email":    request.Email,
-		"password": string(hashedPassword),
-	}).One(&usr)
-
+	err = bcrypt.CompareHashAndPassword([]byte(usr.Password), []byte(request.Password))
 	if err != nil {
-		return nil, fmt.Errorf(
-			"error during login attempt - %s: %s",
-			request.Email,
-			err.Error(),
-		)
+		return nil, fmt.Errorf("invalid password for user %s", request.Email)
 	}
 
 	return &usr, nil
