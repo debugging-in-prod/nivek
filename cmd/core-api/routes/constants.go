@@ -16,6 +16,7 @@ const (
 	PostFetchUserData  = "/profile"
 	GetUserTasks       = "/user/:id/task"
 	PostCreateUserTask = "/user/:id/task"
+	GetFishingScore    = "/fishing"
 
 	PostWeather = "/weather"
 )

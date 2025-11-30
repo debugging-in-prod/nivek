@@ -3,6 +3,7 @@ package routes
 import (
 	"github.com/labstack/echo/v4"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints"
+	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/fishing"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/task"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/user"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/user/auth"
@@ -44,6 +45,11 @@ func RegisterRoutes(nivek nivek.NivekService, e *echo.Echo) {
 
 	// weather
 	e.POST(PostWeather, weather.NewGetWeatherEndpoint(nivek),
+		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
+	)
+
+	// fishing
+	e.GET(GetFishingScore, fishing.NewGetFishingScoreEndpoint(nivek),
 		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
 	)
 }

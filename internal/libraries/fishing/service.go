@@ -11,27 +11,38 @@ import (
 )
 
 type NivekFishingService interface {
-	GoFishing() string
+	GoFishing(chatter string) string
+	GetUserFishScore() (*FishScore, error)
 }
 
 type nivekFishingServiceImpl struct {
 	channel      string
-	chatter      string
 	nivek        nivek.NivekService
 	fishingTable db.Collection
 }
 
-func NewService(service nivek.NivekService, channel, chatter string) NivekFishingService {
+func NewService(service nivek.NivekService, channel string) NivekFishingService {
 	return &nivekFishingServiceImpl{
 		channel:      channel,
-		chatter:      chatter,
 		nivek:        service,
 		fishingTable: service.Postgres().GetDefaultConnection().Collection(TableFishing),
 	}
 }
 
-func (s *nivekFishingServiceImpl) GoFishing() string {
-	fishScore, err := s.getFishScore()
+func (s *nivekFishingServiceImpl) GetUserFishScore() (*FishScore, error) {
+	var fishScore FishScore
+
+	if err := s.fishingTable.Find(db.Cond{
+		"channelname": s.channel,
+	}).One(&fishScore); err != nil {
+		return nil, err
+	}
+
+	return &fishScore, nil
+}
+
+func (s *nivekFishingServiceImpl) GoFishing(chatter string) string {
+	fishScore, err := s.getChatterFishScore(chatter)
 	if err != nil {
 		log.Errorf("error fetching fish score: %s", err.Error())
 		return "error fetching fish score"
@@ -125,12 +136,12 @@ func (s *nivekFishingServiceImpl) rollForFish() (*Fish, bool, bool) {
 	return nil, false, false
 }
 
-func (s *nivekFishingServiceImpl) getFishScore() (*FishScore, error) {
+func (s *nivekFishingServiceImpl) getChatterFishScore(chatter string) (*FishScore, error) {
 	var fishScore FishScore
 
 	err := s.fishingTable.Find(db.Cond{
 		"channelname": s.channel,
-		"chattername": s.chatter,
+		"chattername": chatter,
 	}).One(&fishScore)
 
 	if err != nil {
@@ -139,7 +150,7 @@ func (s *nivekFishingServiceImpl) getFishScore() (*FishScore, error) {
 			// Record doesn't exist - create it
 			newFishScore := FishScore{
 				ChannelName: s.channel,
-				ChatterName: s.chatter,
+				ChatterName: chatter,
 				Fish:        FishArray{}, // Empty array
 			}
 
