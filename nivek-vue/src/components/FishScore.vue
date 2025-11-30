@@ -86,9 +86,9 @@ onMounted(() => {
 <template>
   <h3>Fish Scores!</h3>
   <h4>As Chatter: </h4>
-  <div v-for="fishScore in fishScores.as_chatter" class="mb-5">
+  <div v-for="fishScore in fishScores.as_chatter" class="mb-2">
     <!-- Header Card -->
-    <div class="card shadow-sm mb-4">
+    <div class="card shadow-sm">
       <div class="card-body text-center bg-primary text-white">
         <div class="d-flex justify-content-between align-items-center">
           <div class="text-start">
@@ -156,7 +156,7 @@ onMounted(() => {
   <h4>As Channel: </h4>
   <div v-for="fishScore in fishScores.as_channel" class="mb-5">
     <!-- Header Card -->
-    <div class="card shadow-sm mb-4">
+    <div class="card shadow-sm">
       <div class="card-body text-center bg-primary text-white">
         <div class="d-flex justify-content-between align-items-center">
           <div class="text-start">
