@@ -2,7 +2,6 @@ package user
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/upper/db/v4"
 	"golang.org/x/crypto/bcrypt"
