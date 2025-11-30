@@ -23,7 +23,7 @@ const formData = reactive(<SignupFormData>{
 
 async function doSignup() {
   try {
-    const success = await http.post<User[]>(API_ROUTES.SIGNUP, formData)
+    const success = await http.post<User[]>(API_ROUTES.Signup, formData)
     if (success) {
       await router.push("/login")
     } else {
