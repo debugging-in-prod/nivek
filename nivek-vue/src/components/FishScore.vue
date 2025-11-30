@@ -91,7 +91,7 @@ onMounted(() => {
           <small class="d-block fs-5 mt-1">in #{{ fishScore.channelname }}</small>
         </h3>
         <p class="display-6 fw-bold mb-0 mt-3">
-          Total Score: {{ fishScore.score.toLocaleString() }}
+          Total Score: {{ fishScore.score }}
         </p>
       </div>
     </div>
@@ -122,7 +122,7 @@ onMounted(() => {
           </td>
           <td class="text-center">{{ groupedFish.value }} pts</td>
           <td class="text-center fw-bold text-primary">
-            {{ (groupedFish.count * groupedFish.value).toLocaleString() }}
+            {{ (groupedFish.count * groupedFish.value) }}
           </td>
           <td>
               <span :class="rarityBadgeClass(groupedFish.scarcity)">
@@ -140,7 +140,7 @@ onMounted(() => {
         <tr>
           <th colspan="3">Grand Total</th>
           <th class="text-center text-primary fw-bold">
-            {{ fishScore.score.toLocaleString() }}
+            {{ fishScore.score }}
           </th>
           <th></th>
         </tr>
@@ -158,7 +158,7 @@ onMounted(() => {
           <small class="d-block fs-5 mt-1">in #{{ fishScore.channelname }}</small>
         </h3>
         <p class="display-6 fw-bold mb-0 mt-3">
-          Total Score: {{ fishScore.score.toLocaleString() }}
+          Total Score: {{ fishScore.score }}
         </p>
       </div>
     </div>
@@ -189,7 +189,7 @@ onMounted(() => {
           </td>
           <td class="text-center">{{ groupedFish.value }} pts</td>
           <td class="text-center fw-bold text-primary">
-            {{ (groupedFish.count * groupedFish.value).toLocaleString() }}
+            {{ (groupedFish.count * groupedFish.value) }}
           </td>
           <td>
               <span :class="rarityBadgeClass(groupedFish.scarcity)">
@@ -207,7 +207,7 @@ onMounted(() => {
         <tr>
           <th colspan="3">Grand Total</th>
           <th class="text-center text-primary fw-bold">
-            {{ fishScore.score.toLocaleString() }}
+            {{ fishScore.score }}
           </th>
           <th></th>
         </tr>
