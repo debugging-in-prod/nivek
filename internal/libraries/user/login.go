@@ -21,7 +21,7 @@ func (s *nivekUserServiceImpl) Login(request LoginRequest) (*User, error) {
 	var usr User
 	err = s.userTable.Find(db.Cond{
 		"email":    request.Email,
-		"password": hashedPassword,
+		"password": string(hashedPassword),
 	}).One(&usr)
 
 	if err != nil {
