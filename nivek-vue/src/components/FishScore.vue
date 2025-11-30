@@ -28,13 +28,13 @@ interface Fish {
 let fishScores = ref<FishScore[]>({})
 
 async function getFishScore() {
-  console.log('getFishScore running')
   try {
     const resp = await http.get<string>(API_ROUTES.GetFishScore)
     if (!resp) {
       console.error('error fetching fish score')
       return;
     }
+    console.log(resp)
 
     fishScores.value = resp.data
   } catch (err: unknown) {
