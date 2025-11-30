@@ -66,6 +66,7 @@ onMounted(() => {
 
 <template>
   <div v-for="fishScore in fishScores" class="text-center mb-5">
+    <pre>{{ fishScore }}</pre>
     <h3>Your Fish Score for <span>{{ fishScore.chatterName }}</span></h3>
     <p>Total Score: <span>{{ fishScore.score }}</span></p>
     <h4>Fish Caught</h4>
