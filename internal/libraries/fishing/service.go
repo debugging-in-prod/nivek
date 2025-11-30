@@ -169,6 +169,8 @@ func (s *nivekFishingServiceImpl) getChatterFishScore(chatter string) (*FishScor
 				Fish:        FishArray{}, // Empty array
 			}
 
+			log.Printf("new fish record: %d", newFishScore.ID)
+
 			// Insert the new record
 			result, errInsert := s.fishingTable.Insert(newFishScore)
 			if errInsert != nil {
