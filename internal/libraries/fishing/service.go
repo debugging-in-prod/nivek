@@ -13,7 +13,7 @@ import (
 type NivekFishingService interface {
 	GoFishing(chatter string) string
 	GetChannelFishScore() (*FishScore, error)
-	GetUserFishScore() (*FishScore, error)
+	GetUserFishScore() ([]FishScore, error)
 }
 
 type nivekFishingServiceImpl struct {
@@ -44,16 +44,16 @@ func (s *nivekFishingServiceImpl) GetChannelFishScore() (*FishScore, error) {
 }
 
 // GetUserFishScore gets this user's score from every chat they have fished in
-func (s *nivekFishingServiceImpl) GetUserFishScore() (*FishScore, error) {
-	var fishScore FishScore
+func (s *nivekFishingServiceImpl) GetUserFishScore() ([]FishScore, error) {
+	var fishScore []FishScore
 
 	if err := s.fishingTable.Find(db.Cond{
 		"chattername": s.channel,
-	}).One(&fishScore); err != nil {
+	}).All(&fishScore); err != nil {
 		return nil, err
 	}
 
-	return &fishScore, nil
+	return fishScore, nil
 }
 
 func (s *nivekFishingServiceImpl) GoFishing(chatter string) string {
