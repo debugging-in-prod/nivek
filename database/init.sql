@@ -18,15 +18,10 @@ CREATE TABLE IF NOT EXISTS nivek.users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insert my channel
-insert into nivek.users (username, email)
-values ('timallenfanclubofficial', 'timallenfanclubofficial@nivek.com')
-ON CONFLICT (username) DO NOTHING;
-
 -- Table to track fishing scores per user
 create TABLE IF NOT EXISTS nivek.fish_score (
     id SERIAL PRIMARY KEY,
-    channelname VARCHAT(255) NOT NULL,
+    channelname VARCHAR(255) NOT NULL,
     chattername VARCHAR(255) NOT NULL,
     score INT NOT NULL DEFAULT 0,
     fish JSONB NOT NULL DEFAULT '[]',

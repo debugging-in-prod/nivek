@@ -170,11 +170,17 @@ func (s *nivekFishingServiceImpl) getChatterFishScore(chatter string) (*FishScor
 			}
 
 			// Insert the new record
-			if id, err := s.fishingTable.Insert(newFishScore); err != nil {
+			result, errInsert := s.fishingTable.Insert(newFishScore)
+			if errInsert != nil {
 				return nil, fmt.Errorf("failed to create fish score record: %w", err)
-			} else {
-				newFishScore.ID = int(id.ID().(int64))
 			}
+
+			// Get the auto-generated ID
+			insertedID, ok := result.ID().(int64)
+			if !ok {
+				return nil, fmt.Errorf("failed to get inserted ID")
+			}
+			newFishScore.ID = int(insertedID)
 
 			// Return the newly created record
 			return &newFishScore, nil
