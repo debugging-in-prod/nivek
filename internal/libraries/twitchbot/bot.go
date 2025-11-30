@@ -169,8 +169,8 @@ func (b *Bot) handlePissCommand(username, channel string) {
 }
 
 func (b *Bot) handleFishCommand(username, channel string) {
-	fishingService := fishing.NewService(b.nivek, username, channel)
-	response := fishingService.GoFishing()
+	fishingService := fishing.NewService(b.nivek, channel)
+	response := fishingService.GoFishing(username)
 
 	b.client.Say(channel, response)
 	log.Printf("[FISH] [%s] %s", channel, username)
