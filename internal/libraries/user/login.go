@@ -2,6 +2,7 @@ package user
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/upper/db/v4"
 	"golang.org/x/crypto/bcrypt"
@@ -17,6 +18,8 @@ func (s *nivekUserServiceImpl) Login(request LoginRequest) (*User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error during login attempt - %s", err)
 	}
+
+	log.Printf("login attempt - %s", string(hashedPassword))
 
 	var usr User
 	err = s.userTable.Find(db.Cond{
