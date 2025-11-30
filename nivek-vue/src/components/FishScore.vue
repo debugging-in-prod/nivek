@@ -29,12 +29,11 @@ let fishScores = ref<FishScore[]>({})
 
 async function getFishScore() {
   try {
-    const resp = await http.get<string>(API_ROUTES.GetFishScore)
+    const resp = await http.get<string>(API_ROUTES.Secure.GetFishScore)
     if (!resp) {
       console.error('error fetching fish score')
       return;
     }
-    console.log(resp)
 
     fishScores.value = resp.data
   } catch (err: unknown) {
