@@ -163,13 +163,11 @@ func (s *nivekFishingServiceImpl) getChatterFishScore(chatter string) (*FishScor
 		// Check if error is "not found"
 		if errors.Is(err, db.ErrNoMoreRows) {
 			// Record doesn't exist - create it
-			newFishScore := FishScore{
-				ChannelName: s.channel,
-				ChatterName: chatter,
-				Fish:        FishArray{}, // Empty array
+			newFishScore := map[string]any{
+				"channelname": s.channel,
+				"chattername": chatter,
+				"fish":        FishArray{},
 			}
-
-			log.Printf("new fish record: %d", newFishScore.ID)
 
 			// Insert the new record
 			result, errInsert := s.fishingTable.Insert(newFishScore)
@@ -182,10 +180,16 @@ func (s *nivekFishingServiceImpl) getChatterFishScore(chatter string) (*FishScor
 			if !ok {
 				return nil, fmt.Errorf("failed to get inserted ID")
 			}
-			newFishScore.ID = int(insertedID)
+
+			fishScoreReturn := FishScore{
+				ID:          int(insertedID),
+				ChannelName: s.channel,
+				ChatterName: chatter,
+				Fish:        FishArray{},
+			}
 
 			// Return the newly created record
-			return &newFishScore, nil
+			return &fishScoreReturn, nil
 		}
 
 		// Some other error occurred
