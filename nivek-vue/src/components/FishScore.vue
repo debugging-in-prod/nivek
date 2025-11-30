@@ -28,6 +28,7 @@ interface Fish {
 let fishScores = ref<FishScore[]>({})
 
 async function getFishScore() {
+  console.log('getFishScore running')
   try {
     const resp = await http.get<string>(API_ROUTES.GetFishScore)
     if (!resp) {
