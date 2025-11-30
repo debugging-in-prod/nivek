@@ -43,6 +43,8 @@ async function getFishScore() {
 
 // Group fish by name
 function groupFishByName(fish: Fish[]) {
+  if (!fish?.length) return []
+  
   const grouped: Record<string, { count: number; value: number; scarcity: number }> = {}
 
   fish.forEach(f => {
