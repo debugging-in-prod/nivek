@@ -34,9 +34,15 @@ func NewService(service nivek.NivekService, channel string) NivekFishingService 
 func (s *nivekFishingServiceImpl) GetChannelFishScore() ([]FishScore, error) {
 	var fishScore []FishScore
 
-	if err := s.fishingTable.Find(db.Cond{
-		"channelname": s.channel,
-	}).All(&fishScore); err != nil {
+	err := s.fishingTable.
+		Find(db.Cond{
+			"channelname":    s.channel,
+			"chattername !=": s.channel,
+		}).
+		OrderBy("-score"). // -score = descending (highest first)
+		All(&fishScore)
+
+	if err != nil {
 		return nil, err
 	}
 
