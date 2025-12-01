@@ -20,7 +20,8 @@ const (
 
 	PostWeather = "/weather"
 
-	GetAutoShoutChatters   = "/auto-shout"
-	PostAutoShoutChatter   = "/auto-shout"
-	DeleteAutoShoutChatter = "/auto-shout/:id/"
+	GetAutoShoutChatters       = "/auto-shout"
+	PostCreateAutoShoutChatter = "/auto-shout"
+	PostUpdateAutoShoutChatter = "/auto-shout/:id/"
+	DeleteAutoShoutChatter     = "/auto-shout/:id/"
 )

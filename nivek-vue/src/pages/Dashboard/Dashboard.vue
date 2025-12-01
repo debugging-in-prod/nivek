@@ -23,7 +23,7 @@ function getGreeting(date: Date = new Date()): string {
   <h1 v-if="auth.user" class="text-center green">{{ getGreeting() }} {{ auth.user?.username }}</h1>
   <Weather />
 
-  <div>
+  <div class="mb-5">
     <AutoShout />
   </div>
 

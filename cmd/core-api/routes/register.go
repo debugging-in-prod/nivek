@@ -58,7 +58,10 @@ func RegisterRoutes(nivek nivek.NivekService, e *echo.Echo) {
 	e.GET(GetAutoShoutChatters, autoshout.NewGetAutoShoutChattersEndpoint(nivek),
 		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
 	)
-	e.POST(PostAutoShoutChatter, autoshout.NewUpdateAutoShoutChatterEndpoint(nivek),
+	e.POST(PostCreateAutoShoutChatter, autoshout.NewCreateAutoShoutChatterEndpoint(nivek),
+		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
+	)
+	e.POST(PostUpdateAutoShoutChatter, autoshout.NewUpdateAutoShoutChatterEndpoint(nivek),
 		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
 	)
 	e.DELETE(DeleteAutoShoutChatter, autoshout.NewDeleteAutoShoutChatterEndpoint(nivek),
