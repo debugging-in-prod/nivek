@@ -21,11 +21,12 @@ type Config struct {
 }
 
 type Bot struct {
-	client   *twitch.Client
-	config   Config
-	counters *CounterManager
-	location *time.Location
-	nivek    nivek.NivekService
+	client    *twitch.Client
+	config    Config
+	counters  *CounterManager
+	location  *time.Location
+	nivek     nivek.NivekService
+	autoShout map[string]bool
 }
 
 func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
@@ -45,11 +46,12 @@ func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
 	client := twitch.NewClient(config.BotUsername, config.BotOAuth)
 
 	bot := &Bot{
-		client:   client,
-		config:   config,
-		counters: counters,
-		location: loc,
-		nivek:    nivek,
+		client:    client,
+		config:    config,
+		counters:  counters,
+		location:  loc,
+		nivek:     nivek,
+		autoShout: getAutoShoutList(),
 	}
 
 	// Register message handler
@@ -98,40 +100,43 @@ func (b *Bot) Stop() {
 func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	// Normalize message
 	msg := strings.TrimSpace(strings.ToLower(message.Message))
-	username := message.User.Name
+	chattername := message.User.Name
 	channel := message.Channel
 
-	so := b.autoShoutWhitelistCheck(username)
-	if so {
-		b.client.Say(channel, fmt.Sprintf("!so @%s", username))
+	if b.autoShout[chattername] {
+		b.autoShout[chattername] = false
+		b.client.Say(channel, fmt.Sprintf("!so %s", chattername))
 	}
 
 	// Check for commands
 	switch msg {
 	case "!bread":
-		b.handleBreadCommand(username, channel)
+		b.handleBreadCommand(chattername, channel)
 	case "!piss":
-		b.handlePissCommand(username, channel)
+		b.handlePissCommand(chattername, channel)
 	case "!fish":
-		b.handleFishCommand(username, channel)
+		b.handleFishCommand(chattername, channel)
 	case "!dad":
 		b.client.Say(channel, "still out getting milk!")
 	}
 }
 
-func (b *Bot) autoShoutWhitelistCheck(username string) bool {
-	var example = map[string]bool{
-		"athlte":       true,
-		"whoqufad":     true,
-		"itzmonsta420": true,
-	}
+func (b *Bot) checkAutoShoutList(chattername string) bool {
 
-	exists := example[strings.ToLower(username)]
+	exists := b.autoShout[strings.ToLower(chattername)]
 	if exists {
 		return true
 	}
 
 	return false
+}
+
+func getAutoShoutList() map[string]bool {
+	return map[string]bool{
+		"athlte":       true,
+		"whoqufad":     true,
+		"itzmonsta420": true,
+	}
 }
 
 func (b *Bot) handleBreadCommand(username, channel string) {
