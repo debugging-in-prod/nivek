@@ -19,17 +19,12 @@ let autoShoutChatters = ref<AutoShoutChatter[]>([])
 let chattername = ref('')
 
 async function getChatters() {
-  console.log('getting chatters')
-  console.log(API_ROUTES.Secure.GetAutoShoutChatters)
   try {
     const resp = await http.get<string>(API_ROUTES.Secure.GetAutoShoutChatters)
     if (!resp) {
       console.error('error fetching auto shout chatters')
       return;
     }
-
-    console.log('auto shout chatters response')
-    console.log(resp)
 
     autoShoutChatters.value = resp.data
   } catch (err: unknown) {
