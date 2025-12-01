@@ -53,7 +53,7 @@ func (s *nivekAutoShoutServiceImpl) GetAutoShoutChatter(channelname, chattername
 }
 
 func (s *nivekAutoShoutServiceImpl) CreateAutoShoutChatter(channelname, chattername string) (int, error) {
-	insertID, err := s.shoutTable.Insert(db.Cond{"channelname": channelname, "chattername": chattername})
+	result, err := s.shoutTable.Insert(db.Cond{"channelname": channelname, "chattername": chattername})
 	if err != nil {
 		return 0, fmt.Errorf(
 			"error creating auto shout chatter record for channel %s chatter %s - %s",
@@ -63,7 +63,12 @@ func (s *nivekAutoShoutServiceImpl) CreateAutoShoutChatter(channelname, chattern
 		)
 	}
 
-	return insertID.ID().(int), nil
+	insertedID, ok := result.ID().(int64)
+	if !ok {
+		return 0, fmt.Errorf("failed to get inserted ID")
+	}
+
+	return int(insertedID), nil
 }
 
 func (s *nivekAutoShoutServiceImpl) UpdateAutoShoutChatter(chatter *ShoutChatter) error {
