@@ -19,4 +19,8 @@ const (
 	GetFishingScore    = "/fishing"
 
 	PostWeather = "/weather"
+
+	GetAutoShoutChatters   = "/auto-shout"
+	PostAutoShoutChatter   = "/auto-shout"
+	DeleteAutoShoutChatter = "/auto-shout/:id/"
 )

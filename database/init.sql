@@ -50,3 +50,13 @@ create TABLE IF NOT EXISTS nivek.bread (
     -- Composite unique constraint
     CONSTRAINT unique_user_chatter UNIQUE (user_id, chattername)
 );
+
+-- Auto shoutout whitelist system
+CREATE TABLE IF NOT EXISTS nivek.auto_shout (
+    id SERIAL PRIMARY KEY,
+    channelname VARCHAR(255) NOT NULL,
+    chattername VARCHAR(255) NOT NULL,
+    shout_count int NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);

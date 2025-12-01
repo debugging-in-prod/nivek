@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth'
 import Weather from '@/components/Weather.vue'
+import AutoShout from "@/components/AutoShout.vue";
 import FishScore from "@/components/FishScore.vue";
 
 const auth = useAuthStore()
@@ -16,15 +17,19 @@ function getGreeting(date: Date = new Date()): string {
   }
 }
 
-// @TODO::add interface for auto shoutout whitelist editing
-
 </script>
 
 <template>
   <h1 v-if="auth.user" class="text-center green">{{ getGreeting() }} {{ auth.user?.username }}</h1>
-
   <Weather />
-  <FishScore />
+
+  <div>
+    <AutoShout />
+  </div>
+
+  <div>
+    <FishScore />
+  </div>
 
 </template>
 

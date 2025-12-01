@@ -83,6 +83,7 @@ onMounted(() => {
 })
 </script>
 
+<!-- @TODO::template this better -->
 <template>
   <h3>Fish Scores!</h3>
   <h4>As Chatter: </h4>

@@ -9,6 +9,8 @@ export const API_ROUTES: object = {
         Profile: '/profile',
         Weather: '/weather',
         GetFishScore: '/fishing',
+        GetAutoShoutChatters: '/auto-shout',
+        DeleteAutoShoutChatter: (id: number) => `/auto-shout/${id}`,
         Tasks: {
             Create: (id: number) => `/user/${id}/task`,
             GetAll: (id: number) => `/user/${id}/task`
