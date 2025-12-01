@@ -72,6 +72,7 @@ onMounted(() => {
 
 <template>
   <h2>Auto Shoutout Chatters</h2>
+  <p>These are chatters that will get automatic shoutouts for every 1st message they post in your chat when you go live</p>
   <form @submit.prevent="addNewChatter()" class="mb-3">
     <div class="form-group">
       <label for="chattername">Chatter Name</label>

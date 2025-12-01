@@ -95,7 +95,7 @@ onMounted(() => {
           <div class="text-start">
             <h5 class="card-title mb-0">
               <strong>{{ fishScore.chattername }}</strong>
-              <small class="d-block fs-8 mt-1">in #{{ fishScore.channelname }}</small>
+              <small class="d-block fs-8 mt-1">Fishing in #{{ fishScore.channelname }}'s chat</small>
             </h5>
           </div>
           <div>
@@ -163,7 +163,7 @@ onMounted(() => {
           <div class="text-start">
             <h5 class="card-title mb-0">
               <strong>{{ fishScore.chattername }}</strong>
-              <small class="d-block fs-8 mt-1">in #{{ fishScore.channelname }}</small>
+              <small class="d-block fs-8 mt-1">Fishing in #{{ fishScore.channelname }}'s chat</small>
             </h5>
           </div>
           <div>
