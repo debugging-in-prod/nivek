@@ -71,23 +71,21 @@ onMounted(() => {
 </script>
 
 <template>
-  <p>Auto Shoutout Chatters</p>
-  <div>
-    <form @submit.prevent="addNewChatter()">
-      <div class="form-group">
-        <label for="chattername">Chatter Name</label>
-        <input
-            type="text"
-            class="form-control"
-            id="chattername"
-            v-model="chattername"
-            placeholder="Enter chatter name"
-            required
-        />
-      </div>
-      <button type="submit" class="btn btn-primary mt-2">Add Chatter</button>
-    </form>
-  </div>
+  <h2>Auto Shoutout Chatters</h2>
+  <form @submit.prevent="addNewChatter()" class="mb-3">
+    <div class="form-group">
+      <label for="chattername">Chatter Name</label>
+      <input
+          type="text"
+          class="form-control"
+          id="chattername"
+          v-model="chattername"
+          placeholder="Enter chatter name"
+          required
+      />
+    </div>
+    <button type="submit" class="btn btn-primary mt-2">Add Chatter</button>
+  </form>
   <ul class="list-group">
     <li v-for="chatter in autoShoutChatters" :key="chatter.id" class="list-group-item">
       <p>{{ chatter.chattername }} shouts: <span>{{ chatter.shout_count }}</span></p>

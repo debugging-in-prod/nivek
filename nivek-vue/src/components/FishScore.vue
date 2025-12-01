@@ -85,8 +85,8 @@ onMounted(() => {
 
 <!-- @TODO::template this better -->
 <template>
-  <h3>Fish Scores!</h3>
-  <h4>As Chatter: </h4>
+  <h2>Fish Scores!</h2>
+  <p>As Chatter: </p>
   <div v-for="fishScore in fishScores.as_chatter" class="mb-2">
     <!-- Header Card -->
     <div class="card shadow-sm">
@@ -154,8 +154,8 @@ onMounted(() => {
       </table>
     </div>
   </div>
-  <h4>As Channel: </h4>
-  <div v-for="fishScore in fishScores.as_channel" class="mb-5">
+  <p>As Channel: </p>
+  <div v-for="fishScore in fishScores.as_channel">
     <!-- Header Card -->
     <div class="card shadow-sm">
       <div class="card-body text-center bg-primary text-white">
