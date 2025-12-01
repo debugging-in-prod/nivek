@@ -100,7 +100,7 @@ onMounted(() => {
 <style scoped>
 .auto-shout-list li {
   background: inherit;
-  border-color: var(--vt-c-text-dark-2);
+  border-color: var(--color-text);
   color: inherit;
 }
 </style>
