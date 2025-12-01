@@ -39,7 +39,7 @@ async function getChatters() {
 
 async function addNewChatter() {
   try {
-    const resp = await http.post(API_ROUTES.Secure.CreateAutoShoutChatter, {
+    const resp = await http.post(API_ROUTES.Secure.PostCreateAutoShoutChatter, {
       chattername: chattername.value
     })
     if (!resp) {
