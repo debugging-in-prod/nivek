@@ -37,6 +37,8 @@ async function removeChatter(id: int) {
       console.error('error deleting auto shout chatter')
       return;
     }
+  } catch (err: unknown) {
+    console.error("error fetching auto shout chatters: ", err)
   }
 }
 
