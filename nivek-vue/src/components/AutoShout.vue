@@ -20,7 +20,7 @@ let chattername = ref('')
 
 async function getChatters() {
   try {
-    const resp = await http.get<AutoShoutChatter[]>(API_ROUTES.GetAutoShoutChatters)
+    const resp = await http.get<string>(API_ROUTES.GetAutoShoutChatters)
     if (!resp) {
       console.error('error fetching auto shout chatters')
       return;
