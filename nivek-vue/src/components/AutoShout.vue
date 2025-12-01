@@ -91,7 +91,7 @@ onMounted(() => {
       <div>{{ chatter.chattername }}</div>
       <div class="text-end">
         <div>{{ chatter.shout_count }}</div>
-        <button @click="removeChatter(chatter.id)" class="btn btn-sm btn-danger mt-1">Remove</button>
+        <button @click="removeChatter(chatter.id)" class="btn btn-sm btn-danger mt-1 mb-2">Remove</button>
       </div>
     </li>
   </ul>
