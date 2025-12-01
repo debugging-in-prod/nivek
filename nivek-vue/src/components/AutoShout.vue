@@ -86,8 +86,8 @@ onMounted(() => {
     </div>
     <button type="submit" class="btn btn-primary mt-2">Add Chatter</button>
   </form>
-  <ul class="list-group">
-    <li v-for="chatter in autoShoutChatters" :key="chatter.id" class="list-group-item d-flex justify-content-between align-items-start">
+  <ul class="list-group list-group-flush">
+    <li v-for="chatter in autoShoutChatters" :key="chatter.id" class="list-group-item list-group-item-action d-flex justify-content-between align-items-start">
       <div>{{ chatter.chattername }}</div>
       <div class="text-end">
         <div>{{ chatter.shout_count }}</div>
