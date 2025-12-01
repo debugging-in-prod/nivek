@@ -20,9 +20,9 @@ let chattername = ref('')
 
 async function getChatters() {
   console.log('getting chatters')
-  console.log(API_ROUTES.GetAutoShoutChatters)
+  console.log(API_ROUTES.Secure.GetAutoShoutChatters)
   try {
-    const resp = await http.get<string>(API_ROUTES.GetAutoShoutChatters)
+    const resp = await http.get<string>(API_ROUTES.Secure.GetAutoShoutChatters)
     if (!resp) {
       console.error('error fetching auto shout chatters')
       return;
@@ -39,7 +39,7 @@ async function getChatters() {
 
 async function addNewChatter() {
   try {
-    const resp = await http.post(API_ROUTES.CreateAutoShoutChatter, {
+    const resp = await http.post(API_ROUTES.Secure.CreateAutoShoutChatter, {
       chattername: chattername.value
     })
     if (!resp) {
@@ -57,7 +57,7 @@ async function addNewChatter() {
 
 async function removeChatter(id: number) {
   try {
-    const resp = await http.delete(API_ROUTES.DeleteAutoShoutChatter(id))
+    const resp = await http.delete(API_ROUTES.Secure.DeleteAutoShoutChatter(id))
     if (!resp) {
       console.error('error deleting auto shout chatter')
       return;
