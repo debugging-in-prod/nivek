@@ -2,6 +2,7 @@ package autoshout
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -18,6 +19,8 @@ func NewGetAutoShoutChattersEndpoint(nivek nivek.NivekService) echo.HandlerFunc 
 				"error": "internal server error",
 			})
 		}
+
+		log.Printf("hello world -- testing ci/cd automated building")
 
 		autoShoutService := autoShoutSvc.NewService(nivek)
 		chatters, errChat := autoShoutService.GetAutoShoutChatters(user.Username)
