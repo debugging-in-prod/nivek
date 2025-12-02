@@ -2,7 +2,6 @@ package autoshout
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -28,8 +27,6 @@ func NewUpdateAutoShoutChatterEndpoint(nivek nivek.NivekService) echo.HandlerFun
 		}
 
 		autoShoutService := autoShoutSvc.NewService(nivek)
-
-		log.Printf("hello world -- testing ci/cd automated building")
 
 		// get chatter record to make sure they exist first @TODO::update this to use a smaller fetch
 		chatter, errFetch := autoShoutService.GetAutoShoutChatter(user.Username, updatedChatter.ChatterName)
