@@ -1,11 +1,17 @@
-FROM golang:1.24-alpine AS builder
-WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN go build -o main ./cmd/core-api
-
 FROM alpine:latest
+
+# Install ca-certificates for HTTPS requests
+RUN apk --no-cache add ca-certificates
+
 WORKDIR /app
-COPY --from=builder /app/main .
-CMD ["./main"]
+
+# Copy pre-built binary
+COPY bin/core-api /app/core-api
+
+# Make it executable
+RUN chmod +x /app/core-api
+
+EXPOSE 8080
+
+CMD ["./core-api"]
+

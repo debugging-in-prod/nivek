@@ -22,6 +22,6 @@ const (
 
 	GetAutoShoutChatters       = "/auto-shout"
 	PostCreateAutoShoutChatter = "/auto-shout"
-	PostUpdateAutoShoutChatter = "/auto-shout/:id/"
-	DeleteAutoShoutChatter     = "/auto-shout/:id/"
+	PostUpdateAutoShoutChatter = "/auto-shout/:id"
+	DeleteAutoShoutChatter     = "/auto-shout/:id"
 )
