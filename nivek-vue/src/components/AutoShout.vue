@@ -52,7 +52,7 @@ async function addNewChatter() {
 
 async function removeChatter(id: number) {
   try {
-    const resp = await http.delete(API_ROUTES.Secure.DeleteAutoShoutChatter(id))
+    const resp = await http.del(API_ROUTES.Secure.DeleteAutoShoutChatter(id))
     if (!resp) {
       console.error('error deleting auto shout chatter')
       return;
