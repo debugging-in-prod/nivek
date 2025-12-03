@@ -26,23 +26,22 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.24'
 
       - name: Build for ARM64
         run: |
           mkdir -p bin
           GOOS=linux GOARCH=arm64 go build -o bin/core-api ./cmd/core-api
 
-      - name: Commit and push binary
-        run: |
-          git config user.name "GitHub Actions Bot"
-          git config user.email "actions@github.com"
-          git add bin/core-api
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update core-api binary [skip ci]" && git push)
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-api-arm64
+          path: bin/core-api
 
   deploy:
     needs: build  # Wait for build to finish
-    runs-on: self-hosted  # Runs on your Pi!
+    runs-on: self-hosted  # Runs on host machine
 
     steps:
       - name: Checkout latest code
