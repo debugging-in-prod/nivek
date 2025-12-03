@@ -21,7 +21,7 @@ func NewGetAutoShoutChattersEndpoint(nivek nivek.NivekService) echo.HandlerFunc 
 		}
 
 		log.Printf("hello world -- testing ci/cd automated building")
-		log.Printf("hello worldX3 -- testing ci/cd automated building")
+		log.Printf("hello worldX4 -- testing ci/cd automated building")
 
 		autoShoutService := autoShoutSvc.NewService(nivek)
 		chatters, errChat := autoShoutService.GetAutoShoutChatters(user.Username)
