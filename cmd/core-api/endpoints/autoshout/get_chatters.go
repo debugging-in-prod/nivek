@@ -2,7 +2,6 @@ package autoshout
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -20,8 +19,8 @@ func NewGetAutoShoutChattersEndpoint(nivek nivek.NivekService) echo.HandlerFunc 
 			})
 		}
 
-		log.Printf("hello world -- testing ci/cd automated building")
-		log.Printf("hello worldX5 -- testing ci/cd automated building")
+		fmt.Println("hello world -- testing ci/cd automated building")
+		fmt.Println("hello worldX5 -- testing ci/cd automated building")
 
 		autoShoutService := autoShoutSvc.NewService(nivek)
 		chatters, errChat := autoShoutService.GetAutoShoutChatters(user.Username)
