@@ -1,9 +1,5 @@
-# This is a basic workflow that is manually triggered
+name: Build and Deploy Core API
 
-name: Build and Push
-
-# Controls when the action will run. Workflow runs when manually triggered using the UI
-# or API.
 on:
   push:
     branches: [main]
@@ -14,28 +10,41 @@ on:
       - 'go.mod'
       - 'go.sum'
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
   build:
-    runs-on: ubuntu-latest
-    
+    runs-on: ubuntu-latest  # Build on GitHub's servers
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'  # Adjust to your Go version
-      
-      - name: Build for ARM64 (Raspberry Pi)
+          go-version: '1.21'
+
+      - name: Build for ARM64
         run: |
+          mkdir -p bin
           GOOS=linux GOARCH=arm64 go build -o bin/core-api ./cmd/core-api
-      
-      - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: core-api-arm64
-          path: bin/core-api
-          retention-days: 30
+
+      - name: Commit and push binary
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add bin/core-api
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update core-api binary [skip ci]" && git push)
+
+  deploy:
+    needs: build  # Wait for build to finish
+    runs-on: self-hosted  # Runs on your Pi!
+
+    steps:
+      - name: Checkout latest code
+        uses: actions/checkout@v4
+
+      - name: Deploy with Docker Compose
+        run: |
+          docker compose up -d --force-recreate core-api
