@@ -42,6 +42,9 @@ jobs:
   deploy:
     needs: build  # Wait for build to finish
     runs-on: self-hosted  # Runs on host machine
+    defaults:
+      run:
+        working-directory: /home/nut/nivek
 
     steps:
       - name: Pull latest code
