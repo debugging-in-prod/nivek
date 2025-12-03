@@ -2,7 +2,6 @@ environments/*
 .env
 
 bin/*
-!bin/core-api
 data/*
 
 vendor/*
