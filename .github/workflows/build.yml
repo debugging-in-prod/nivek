@@ -51,4 +51,4 @@ jobs:
           path: /home/nut/nivek/bin/
 
       - name: Run deploy script
-        run: ./deploy-core-api.sh
+        run: /home/nut/actions-runner/deploy-core-api.sh
