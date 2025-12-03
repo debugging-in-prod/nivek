@@ -42,14 +42,22 @@ jobs:
   deploy:
     needs: build  # Wait for build to finish
     runs-on: self-hosted  # Runs on host machine
-    defaults:
-      run:
-        working-directory: /home/nut/nivek
 
     steps:
-      - name: Checkout latest code
-        uses: actions/checkout@v4
+      - name: Pull latest code
+        working-directory: /home/nut/nivek
+        run: git pull
+
+      - name: Download binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: core-api-arm64
+          path: /home/nut/nivek/bin/
+
+      - name: Make binary executable
+        run: chmod +x /home/nut/nivek/bin/core-api
 
       - name: Deploy with Docker Compose
+        working-directory: /home/nut/nivek
         run: |
           docker compose up -d --force-recreate core-api

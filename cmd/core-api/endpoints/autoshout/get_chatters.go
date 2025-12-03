@@ -20,7 +20,7 @@ func NewGetAutoShoutChattersEndpoint(nivek nivek.NivekService) echo.HandlerFunc 
 		// these debug lines aren't printing
 
 		fmt.Println("hello world -- testing ci/cd automated building")
-		fmt.Println("hello worldX5 -- testing ci/cd automated building")
+		fmt.Println("hello worldX6 -- testing ci/cd automated building")
 
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 
