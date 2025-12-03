@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { createHttpClient } from '@/services/HttpClient'
 import { AxiosAdapter } from '@/services/AxiosAdapter'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, reactive } from 'vue'
 import { API_ROUTES } from '@/constants'
 
 const http = createHttpClient(AxiosAdapter)
@@ -15,8 +15,12 @@ interface AutoShoutChatter {
   updated_at: string
 }
 
+// list of chatters
 let autoShoutChatters = ref<AutoShoutChatter[]>([])
 let chattername = ref('')
+
+// track which chatter is awaiting delete confirmation
+let confirmingDelete = reactive<Record<number, boolean>>({})
 
 async function getChatters() {
   try {
@@ -27,6 +31,8 @@ async function getChatters() {
     }
 
     autoShoutChatters.value = resp.data
+    // reset confirmation states
+    autoShoutChatters.value.forEach(c => confirmingDelete[c.id] = false)
   } catch (err: unknown) {
     console.error("error fetching auto shout chatters: ", err)
   }
@@ -91,8 +97,22 @@ onMounted(() => {
     <li v-for="chatter in autoShoutChatters" :key="chatter.id" class="list-group-item d-flex justify-content-between align-items-start">
       <div>{{ chatter.chattername }}</div>
       <div class="text-end">
-        <div>{{ chatter.shout_count }}</div>
-        <button @click="removeChatter(chatter.id)" class="btn btn-sm btn-danger mt-1 mb-2">Remove</button>
+        <div>Shouts: <span>{{ chatter.shout_count }}</span></div>
+
+        <!-- Conditional rendering for delete confirmation -->
+        <div v-if="!confirmingDelete[chatter.id]">
+          <button @click="confirmingDelete[chatter.id] = true" class="btn btn-sm btn-danger mt-1 mb-2">
+            Remove
+          </button>
+        </div>
+        <div v-else>
+          <button @click="removeChatter(chatter.id)" class="btn btn-sm btn-success mt-1 mb-2 me-1">
+            YES
+          </button>
+          <button @click="confirmingDelete[chatter.id] = false" class="btn btn-sm btn-secondary mt-1 mb-2">
+            NO
+          </button>
+        </div>
       </div>
     </li>
   </ul>
