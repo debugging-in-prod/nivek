@@ -1,9 +1,10 @@
 package config
 
 import (
+	"log"
+
 	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/sirupsen/logrus"
 )
 
 var staticConfig *Config
@@ -18,9 +19,8 @@ func GetConfig() Config {
 }
 
 func Parse() (config Config) {
-	err := godotenv.Load(".env")
-	if err != nil {
-		logrus.Warningf("Error loading .env file: %s", err.Error())
+	if err := godotenv.Load(); err != nil {
+		log.Print("No .env file found, using environment variables")
 	}
 	envconfig.MustProcess("", &config)
 	return config
