@@ -10,6 +10,9 @@ on:
       - 'go.mod'
       - 'go.sum'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest  # Build on GitHub's servers
