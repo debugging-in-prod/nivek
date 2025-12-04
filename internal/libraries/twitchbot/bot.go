@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gempir/go-twitch-irc/v4"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/autoshout"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/fishing"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 )
@@ -21,13 +22,46 @@ type Config struct {
 }
 
 type Bot struct {
-	client    *twitch.Client
-	config    Config
-	counters  *CounterManager
-	location  *time.Location
-	nivek     nivek.NivekService
-	autoShout map[string]bool
+	client            *twitch.Client
+	config            Config
+	counters          *CounterManager
+	location          *time.Location
+	nivek             nivek.NivekService
+	autoShoutChatters map[string]map[string]interface{}
 }
+
+// @TODO::overhaul this substantially
+// I think NewBot should work more like
+// - twitch client
+// - pull active users
+// - create bots for each user based on their user tier
+// - !bread and !piss are examples of free-tier commands while !fish and autoshout could be superuser
+// imagining like
+/**
+
+this is just a basic bot
+type Bot struct {
+    client *twitch.Client // basic twitch connectivity
+	config Config         // basic config -- currently this is where "chats to join" lives
+	location *time.Location  // used for counters and time-based events
+	nivek nivek.NivekService // db connections
+}
+
+then we could have an extended bot
+type MidTierBot struct {
+	Bot
+	autoShout autoshout.NivekAutoShoutService
+}
+
+type PremiumBot struct {
+	MidTierBot
+	fishService fishing.NewNivekFishingService
+}
+
+so this premium bot still has core bot functionality, but extends that and offers extra functionality, like the
+auto-shout system. With this architecture, I can limit new feature accessibility extensively
+
+*/
 
 func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
 	// Load timezone
@@ -42,16 +76,23 @@ func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
 		return nil, fmt.Errorf("failed to create counter manager: %w", err)
 	}
 
+	// Fetch all auto-shout chatters
+	autoShout := autoshout.NewService(nivek)
+	shoutChatters, err := autoShout.GetAllAutoShoutChatters()
+	if err != nil {
+		log.Printf("Failed to get all auto shouts: %s", err.Error())
+	}
+
 	// Create Twitch IRC client
 	client := twitch.NewClient(config.BotUsername, config.BotOAuth)
 
 	bot := &Bot{
-		client:    client,
-		config:    config,
-		counters:  counters,
-		location:  loc,
-		nivek:     nivek,
-		autoShout: getAutoShoutList(),
+		client:            client,
+		config:            config,
+		counters:          counters,
+		location:          loc,
+		nivek:             nivek,
+		autoShoutChatters: formatAutoShoutChatters(shoutChatters),
 	}
 
 	// Register message handler
@@ -103,9 +144,11 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	chattername := message.User.Name
 	channel := message.Channel
 
-	if b.autoShout[chattername] {
-		b.autoShout[chattername] = false
-		b.client.Say(channel, fmt.Sprintf("!so %s", chattername))
+	if _, channelExists := b.autoShoutChatters[channel]; channelExists {
+		if _, chatterExists := b.autoShoutChatters[channel][chattername]; chatterExists {
+			b.client.Say(channel, fmt.Sprintf("!so %s", chattername))
+			delete(b.autoShoutChatters[channel], chattername)
+		}
 	}
 
 	// Check for commands
@@ -121,23 +164,10 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	}
 }
 
-func (b *Bot) checkAutoShoutList(chattername string) bool {
-
-	exists := b.autoShout[strings.ToLower(chattername)]
-	if exists {
-		return true
-	}
-
-	return false
-}
-
-func getAutoShoutList() map[string]bool {
-	return map[string]bool{
-		"athlte":       true,
-		"whoqufad":     true,
-		"itzmonsta420": true,
-	}
-}
+// @TODO::autoshout still needs bot integration. The frontend/backend of the website part are functional
+// but the bot also needs to do this per-streamer, and with the current setup it would pull every row from this table
+// Ideally it will only pull for whoever is live, and even then maybe use a shorter-term data store to indicate shoutout
+// status rather than keeping it in application code as map[string]bool. This is likely the least efficient use of dat
 
 func (b *Bot) handleBreadCommand(username, channel string) {
 	userCount := b.counters.IncrementBread(username)
@@ -186,4 +216,18 @@ func pluralize(count int) string {
 		return ""
 	}
 	return "s"
+}
+
+func formatAutoShoutChatters(shoutChatters []autoshout.ShoutChatter) map[string]map[string]interface{} {
+	result := make(map[string]map[string]interface{})
+
+	for _, chatter := range shoutChatters {
+		if _, exists := result[chatter.ChannelName]; !exists {
+			result[chatter.ChannelName] = make(map[string]interface{})
+		}
+
+		result[chatter.ChannelName][chatter.ChatterName] = nil
+	}
+
+	return result
 }
