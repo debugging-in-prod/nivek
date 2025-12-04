@@ -2,12 +2,14 @@ package autoshout
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 	"github.com/upper/db/v4"
 )
 
 type NivekAutoShoutService interface {
+	OnMessage(channel, chatter string) bool
 	GetAllAutoShoutChatters() ([]ShoutChatter, error)
 	GetAutoShoutChatters(channelname string) ([]ShoutChatter, error)
 	GetAutoShoutChatter(channelname, chattername string) (*ShoutChatter, error)
@@ -19,13 +21,42 @@ type NivekAutoShoutService interface {
 type nivekAutoShoutServiceImpl struct {
 	nivek      nivek.NivekService
 	shoutTable db.Collection
+	chatters   map[string]map[string]interface{}
 }
 
 func NewService(service nivek.NivekService) NivekAutoShoutService {
+	svcImpl := &nivekAutoShoutServiceImpl{
+		nivek:      service,
+		shoutTable: service.Postgres().GetDefaultConnection().Collection(TableShout),
+	}
+
+	svcImpl.init()
+
 	return &nivekAutoShoutServiceImpl{
 		nivek:      service,
 		shoutTable: service.Postgres().GetDefaultConnection().Collection(TableShout),
 	}
+}
+
+func (s *nivekAutoShoutServiceImpl) OnMessage(channel, chatter string) bool {
+	if _, channelExists := s.chatters[channel]; channelExists {
+		if _, chatterExists := s.chatters[channel][chatter]; chatterExists {
+			s.incrementShoutCount(channel, chatter)
+			delete(s.chatters[channel], chatter)
+			return true
+		}
+	}
+
+	return false
+}
+
+func (s *nivekAutoShoutServiceImpl) init() {
+	shoutChatters, err := s.GetAllAutoShoutChatters()
+	if err != nil {
+		log.Printf("Failed to get all auto shouts: %s", err.Error())
+	}
+
+	s.chatters = formatAutoShoutChatters(shoutChatters)
 }
 
 func (s *nivekAutoShoutServiceImpl) GetAllAutoShoutChatters() ([]ShoutChatter, error) {
@@ -100,4 +131,34 @@ func (s *nivekAutoShoutServiceImpl) DeleteAutoShoutChatter(channelname string, i
 	}
 
 	return nil
+}
+
+func (s *nivekAutoShoutServiceImpl) incrementShoutCount(channel, chatter string) {
+	chatterRecord, err := s.GetAutoShoutChatter(channel, chatter)
+	if err != nil {
+		log.Println(fmt.Sprintf("failed to increment chatter score! %s", err.Error()))
+		return
+	}
+
+	chatterRecord.ShoutCount++
+
+	err = s.UpdateAutoShoutChatter(chatterRecord)
+	if err != nil {
+		log.Println(fmt.Sprintf("failed to save incremented chatter score to the db! %s", err.Error()))
+		return
+	}
+}
+
+func formatAutoShoutChatters(shoutChatters []ShoutChatter) map[string]map[string]interface{} {
+	result := make(map[string]map[string]interface{})
+
+	for _, chatter := range shoutChatters {
+		if _, exists := result[chatter.ChannelName]; !exists {
+			result[chatter.ChannelName] = make(map[string]interface{})
+		}
+
+		result[chatter.ChannelName][chatter.ChatterName] = nil
+	}
+
+	return result
 }
