@@ -8,6 +8,7 @@ import (
 )
 
 type NivekAutoShoutService interface {
+	GetAllAutoShoutChatters() ([]ShoutChatter, error)
 	GetAutoShoutChatters(channelname string) ([]ShoutChatter, error)
 	GetAutoShoutChatter(channelname, chattername string) (*ShoutChatter, error)
 	CreateAutoShoutChatter(channelname, chattername string) (int, error)
@@ -25,6 +26,16 @@ func NewService(service nivek.NivekService) NivekAutoShoutService {
 		nivek:      service,
 		shoutTable: service.Postgres().GetDefaultConnection().Collection(TableShout),
 	}
+}
+
+func (s *nivekAutoShoutServiceImpl) GetAllAutoShoutChatters() ([]ShoutChatter, error) {
+	var chatters []ShoutChatter
+
+	if err := s.shoutTable.Find().All(&chatters); err != nil {
+		return nil, fmt.Errorf("error fetching all auto shout chatters %s", err.Error())
+	}
+
+	return chatters, nil
 }
 
 func (s *nivekAutoShoutServiceImpl) GetAutoShoutChatters(channelname string) ([]ShoutChatter, error) {

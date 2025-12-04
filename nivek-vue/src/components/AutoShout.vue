@@ -15,6 +15,18 @@ interface AutoShoutChatter {
   updated_at: string
 }
 
+// @TODO::add ci/cd for vue
+// @TODO::identify which files need rebuild and which just need recreate
+// other than this it's just nginx running, but that runs off an official image with very basic config
+// so no big need for a pipeline there
+// and PSQL does the same & uses a mounted volume for data persistence
+// still, it would feel strange if I need to manually pull after a hypothetical 3-9 years goes by without an update
+// and after automated pipelines have managed the other two services for those 3-9 years
+// But if those other pipelines do any amount of git pull, and the nginx.conf is tracked by that
+// then all I'd need is a manual reboot instead of full manual deploy
+// neither of these are a big deal
+// but in the event that you forget these steps, it becomes a big deal
+
 // list of chatters
 let autoShoutChatters = ref<AutoShoutChatter[]>([])
 let chattername = ref('')

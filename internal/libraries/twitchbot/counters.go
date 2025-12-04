@@ -23,6 +23,9 @@ type CounterManager struct {
 	mu          sync.RWMutex
 }
 
+// @TODO::remove this file
+// bread and piss counters need to be migrated to postgres
+
 func NewCounterManager(storagePath string, location *time.Location) (*CounterManager, error) {
 	cm := &CounterManager{
 		storagePath: storagePath,
