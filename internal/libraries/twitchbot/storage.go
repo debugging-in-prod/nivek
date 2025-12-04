@@ -51,13 +51,5 @@ func (cm *CounterManager) Load() error {
 		return fmt.Errorf("failed to unmarshal data: %w", err)
 	}
 
-	// Initialize maps if nil (shouldn't happen, but defensive)
-	if cm.data.BreadCounts == nil {
-		cm.data.BreadCounts = make(map[string]int)
-	}
-	if cm.data.PissCounts == nil {
-		cm.data.PissCounts = make(map[string]int)
-	}
-
 	return nil
 }
