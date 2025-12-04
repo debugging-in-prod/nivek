@@ -100,8 +100,10 @@ func (s *nivekFishingServiceImpl) GoFishing(chatter string) string {
 		log.Errorf("error updating fish score: %s", err)
 	}
 
+	totalScoreAllChats := s.getChatterFishScoreAcrossAllChats(chatter)
+
 	return fmt.Sprintf(
-		"%s You've caught %d fish, and %d trash. Your total score is %d",
+		"%s You've caught %d fish, and %d trash. Your total score for this chat is %d",
 		msg,
 		len(fishScore.Fish),
 		fishScore.TrashCaught,
@@ -155,6 +157,23 @@ func (s *nivekFishingServiceImpl) rollForFish() (*Fish, bool, bool) {
 	}
 
 	return nil, false, false
+}
+
+func (s *nivekFishingServiceImpl) getChatterFishScoreAcrossAllChats(chatter string) int {
+	var result struct {
+		Total int `db:"total"`
+	}
+
+	err := s.fishingTable.Find(db.Cond{"chattername": chatter}).
+		Select(db.Raw("COALESCE(SUM(score), 0) AS total")).
+		One(&result)
+
+	if err != nil {
+		log.Errorf("error getting fish score for chatter %s: %s", chatter, err.Error())
+		return 0
+	}
+
+	return result.Total
 }
 
 func (s *nivekFishingServiceImpl) getChatterFishScore(chatter string) (*FishScore, error) {
