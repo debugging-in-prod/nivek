@@ -59,8 +59,12 @@ type Fish struct {
 // rather than hardcode in static db table, just leave in code where it's easier to find
 func (s *nivekFishingServiceImpl) initFish() []Fish {
 	return []Fish{
+		{Value: 5, Name: "Blue Tang", Scarcity: 1},
 		{Value: 10, Name: "Trout", Scarcity: 1},
-		{Value: 25, Name: "Redfish", Scarcity: 10},
-		{Value: 50, Name: "Snook", Scarcity: 100},
+		{Value: 25, Name: "Redfish", Scarcity: 5},
+		{Value: 30, Name: "Black Grouper", Scarcity: 10},
+		{Value: 50, Name: "Snook", Scarcity: 50},
+		{Value: 100, Name: "Doctorfish", Scarcity: 100},
+		{Value: 1000, Name: "Goliath Grouper", Scarcity: 1000},
 	}
 }
