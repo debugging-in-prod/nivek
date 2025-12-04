@@ -1,7 +1,11 @@
 
 # To-Dos
 
+##
+##
 ### Realtime joining chat when streams start and stop
+##
+##
 
   - event-subscriber
     - pros
@@ -30,22 +34,18 @@
  What are the possible issues that the bot may run into by being always-connected? Does that open up the bot to hacks?
  Does it violate twitch terms & conditions?
 
+##
+##
 ### Auto-Shout functionality
+##
+##
 
- - have the bot automatically give shoutouts to qualifying users when they post their 1st message in your stream after
-   you've gone live
- - Qualifying chatters should get 1 shoutout per stream. How will the bot keep track? Is there a limit to how many chatters
-   can be "qualified" for a shoutout per stream?
+Implemented. Seems to be working
 
-I think the simplest functionality here would be to pull the DB rows for the given streamer at startup. This functionality
-will need to move into the event-subscriber when that functionality is eventually added. So currently, this will pull all
-records from the auto-shout table.
-
-The bot will keep the list of qualified chatters as a map[string]map[string]interface. The [string] will be the streamers
-name so that we may support multiple streamers here, and the nested map[string] will be the chatters names. The interface{}
-will be nil. When a qualified chatter posts a message, we find them in the map tree and remove them when we perform the
-shout out.
-
-The DB currently also supports a count() for number-of-shouts per chatter, so this should be incremented as well.
-
+##
+##
 ### Convert legacy commands to PSQL from the old counter system
+##
+##
+
+Bread command mostly converted. Still need to migrate TIMER and AUTOWIPE system
