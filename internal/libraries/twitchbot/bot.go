@@ -27,41 +27,9 @@ type Bot struct {
 	counters          *CounterManager
 	location          *time.Location
 	nivek             nivek.NivekService
+	autoShout         autoshout.NivekAutoShoutService
 	autoShoutChatters map[string]map[string]interface{}
 }
-
-// @TODO::overhaul this substantially
-// I think NewBot should work more like
-// - twitch client
-// - pull active users
-// - create bots for each user based on their user tier
-// - !bread and !piss are examples of free-tier commands while !fish and autoshout could be superuser
-// imagining like
-/**
-
-this is just a basic bot
-type Bot struct {
-    client *twitch.Client // basic twitch connectivity
-	config Config         // basic config -- currently this is where "chats to join" lives
-	location *time.Location  // used for counters and time-based events
-	nivek nivek.NivekService // db connections
-}
-
-then we could have an extended bot
-type MidTierBot struct {
-	Bot
-	autoShout autoshout.NivekAutoShoutService
-}
-
-type PremiumBot struct {
-	MidTierBot
-	fishService fishing.NewNivekFishingService
-}
-
-so this premium bot still has core bot functionality, but extends that and offers extra functionality, like the
-auto-shout system. With this architecture, I can limit new feature accessibility extensively
-
-*/
 
 func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
 	// Load timezone
@@ -76,23 +44,18 @@ func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
 		return nil, fmt.Errorf("failed to create counter manager: %w", err)
 	}
 
-	// Fetch all auto-shout chatters
 	autoShout := autoshout.NewService(nivek)
-	shoutChatters, err := autoShout.GetAllAutoShoutChatters()
-	if err != nil {
-		log.Printf("Failed to get all auto shouts: %s", err.Error())
-	}
 
 	// Create Twitch IRC client
 	client := twitch.NewClient(config.BotUsername, config.BotOAuth)
 
 	bot := &Bot{
-		client:            client,
-		config:            config,
-		counters:          counters,
-		location:          loc,
-		nivek:             nivek,
-		autoShoutChatters: formatAutoShoutChatters(shoutChatters),
+		client:    client,
+		config:    config,
+		counters:  counters,
+		location:  loc,
+		nivek:     nivek,
+		autoShout: autoShout,
 	}
 
 	// Register message handler
@@ -144,11 +107,8 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	chattername := message.User.Name
 	channel := message.Channel
 
-	if _, channelExists := b.autoShoutChatters[channel]; channelExists {
-		if _, chatterExists := b.autoShoutChatters[channel][chattername]; chatterExists {
-			b.client.Say(channel, fmt.Sprintf("!so %s", chattername))
-			delete(b.autoShoutChatters[channel], chattername)
-		}
+	if b.autoShout.OnMessage(channel, chattername) {
+		b.client.Say(channel, fmt.Sprintf("!so %s", chattername))
 	}
 
 	// Check for commands
@@ -216,18 +176,4 @@ func pluralize(count int) string {
 		return ""
 	}
 	return "s"
-}
-
-func formatAutoShoutChatters(shoutChatters []autoshout.ShoutChatter) map[string]map[string]interface{} {
-	result := make(map[string]map[string]interface{})
-
-	for _, chatter := range shoutChatters {
-		if _, exists := result[chatter.ChannelName]; !exists {
-			result[chatter.ChannelName] = make(map[string]interface{})
-		}
-
-		result[chatter.ChannelName][chatter.ChatterName] = nil
-	}
-
-	return result
 }
