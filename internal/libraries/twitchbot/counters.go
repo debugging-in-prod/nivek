@@ -5,15 +5,10 @@ import (
 	"log"
 	"sync"
 	"time"
-
-	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/fishing"
 )
 
 type CounterData struct {
-	BreadCounts map[string]int                `json:"bread_counts"`
-	PissCounts  map[string]int                `json:"piss_counts"`
-	FishCounts  map[string]*fishing.FishScore `json:"fish_counts"`
-	LastReset   time.Time                     `json:"last_reset"`
+	LastReset time.Time `json:"last_reset"`
 }
 
 type CounterManager struct {
@@ -31,10 +26,7 @@ func NewCounterManager(storagePath string, location *time.Location) (*CounterMan
 		storagePath: storagePath,
 		location:    location,
 		data: &CounterData{
-			BreadCounts: make(map[string]int),
-			PissCounts:  make(map[string]int),
-			FishCounts:  make(map[string]*fishing.FishScore),
-			LastReset:   time.Now().In(location),
+			LastReset: time.Now().In(location),
 		},
 	}
 
@@ -52,54 +44,6 @@ func NewCounterManager(storagePath string, location *time.Location) (*CounterMan
 	}
 
 	return cm, nil
-}
-
-func (cm *CounterManager) IncrementBread(username string) int {
-	cm.mu.Lock()
-	defer cm.mu.Unlock()
-
-	cm.data.BreadCounts[username]++
-	count := cm.data.BreadCounts[username]
-
-	// Save after each increment
-	go cm.Save()
-
-	return count
-}
-
-func (cm *CounterManager) IncrementPiss(username string) int {
-	cm.mu.Lock()
-	defer cm.mu.Unlock()
-
-	cm.data.PissCounts[username]++
-	count := cm.data.PissCounts[username]
-
-	// Save after each increment
-	go cm.Save()
-
-	return count
-}
-
-func (cm *CounterManager) GetTotalBread() int {
-	cm.mu.RLock()
-	defer cm.mu.RUnlock()
-
-	total := 0
-	for _, count := range cm.data.BreadCounts {
-		total += count
-	}
-	return total
-}
-
-func (cm *CounterManager) GetTotalPiss() int {
-	cm.mu.RLock()
-	defer cm.mu.RUnlock()
-
-	total := 0
-	for _, count := range cm.data.PissCounts {
-		total += count
-	}
-	return total
 }
 
 func (cm *CounterManager) StartResetTimer(ctx context.Context) {
@@ -143,8 +87,7 @@ func (cm *CounterManager) reset() {
 	defer cm.mu.Unlock()
 
 	// Clear all counters
-	cm.data.BreadCounts = make(map[string]int)
-	cm.data.PissCounts = make(map[string]int)
+	// @TODO::add db call to clear the counters on the db
 	cm.data.LastReset = time.Now().In(cm.location)
 
 	log.Printf("Counters reset at %s", cm.data.LastReset.Format("2006-01-02 15:04:05 MST"))

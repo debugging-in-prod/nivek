@@ -60,3 +60,12 @@ CREATE TABLE IF NOT EXISTS nivek.auto_shout (
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS nivek.bread (
+    id SERIAL PRIMARY KEY,
+    channelname VARCHAR(255) NOT NULL,
+    chattername VARCHAR(255) NOT NULL,
+    bread_count int NOT NULL DEFAULT 0,
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);

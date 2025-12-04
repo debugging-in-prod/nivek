@@ -9,6 +9,7 @@ import (
 
 	"github.com/gempir/go-twitch-irc/v4"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/autoshout"
+	bread2 "github.com/tim-the-toolman-taylor/nivek/internal/libraries/bread"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/fishing"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 )
@@ -22,13 +23,13 @@ type Config struct {
 }
 
 type Bot struct {
-	client            *twitch.Client
-	config            Config
-	counters          *CounterManager
-	location          *time.Location
-	nivek             nivek.NivekService
-	autoShout         autoshout.NivekAutoShoutService
-	autoShoutChatters map[string]map[string]interface{}
+	client    *twitch.Client
+	config    Config
+	counters  *CounterManager
+	location  *time.Location
+	nivek     nivek.NivekService
+	autoShout autoshout.NivekAutoShoutService
+	bread     bread2.NivekBreadService
 }
 
 func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
@@ -45,6 +46,7 @@ func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
 	}
 
 	autoShout := autoshout.NewService(nivek)
+	bread := bread2.NewService(nivek)
 
 	// Create Twitch IRC client
 	client := twitch.NewClient(config.BotUsername, config.BotOAuth)
@@ -56,6 +58,7 @@ func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
 		location:  loc,
 		nivek:     nivek,
 		autoShout: autoShout,
+		bread:     bread,
 	}
 
 	// Register message handler
@@ -115,8 +118,6 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	switch msg {
 	case "!bread":
 		b.handleBreadCommand(chattername, channel)
-	case "!piss":
-		b.handlePissCommand(chattername, channel)
 	case "!fish":
 		b.handleFishCommand(chattername, channel)
 	case "!dad":
@@ -124,43 +125,27 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	}
 }
 
-// @TODO::autoshout still needs bot integration. The frontend/backend of the website part are functional
-// but the bot also needs to do this per-streamer, and with the current setup it would pull every row from this table
-// Ideally it will only pull for whoever is live, and even then maybe use a shorter-term data store to indicate shoutout
-// status rather than keeping it in application code as map[string]bool. This is likely the least efficient use of dat
-
 func (b *Bot) handleBreadCommand(username, channel string) {
-	userCount := b.counters.IncrementBread(username)
-	totalCount := b.counters.GetTotalBread()
+	count, err := b.bread.IncrementCount(channel, username)
+	if err != nil {
+		return
+	}
+	totalCount, err := b.bread.GetTotalBreadForChannel(channel)
+	if err != nil {
+		return
+	}
 
 	response := fmt.Sprintf(
 		"@%s has baked %d loaf%s of bread today! 🍞 This chat has baked %d loaf%s total in the last 24 hours.",
 		username,
-		userCount,
-		pluralize(userCount),
+		count,
+		pluralize(count),
 		totalCount,
 		pluralize(totalCount),
 	)
 
 	b.client.Say(channel, response)
-	log.Printf("[BREAD] [%s] %s: %d (Total: %d)", channel, username, userCount, totalCount)
-}
-
-func (b *Bot) handlePissCommand(username, channel string) {
-	userCount := b.counters.IncrementPiss(username)
-	totalCount := b.counters.GetTotalPiss()
-
-	response := fmt.Sprintf(
-		"@%s has pissed %d time%s today! 💦 This chat has pissed %d time%s total in the last 24 hours.",
-		username,
-		userCount,
-		pluralize(userCount),
-		totalCount,
-		pluralize(totalCount),
-	)
-
-	b.client.Say(channel, response)
-	log.Printf("[PISS] [%s] %s: %d (Total: %d)", channel, username, userCount, totalCount)
+	log.Printf("[BREAD] [%s] %s: %d (Total: %d)", channel, username, count, totalCount)
 }
 
 func (b *Bot) handleFishCommand(username, channel string) {
