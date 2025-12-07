@@ -41,17 +41,30 @@ func (s *nivekBreadServiceImpl) GetTotalBreadForChannel(channel string) (int, er
 }
 
 func (s *nivekBreadServiceImpl) IncrementCount(channel, chatter string) (int, error) {
-	dbConditions := db.Cond{"channelname": channel, "chattername": chatter}
-	if err := s.breadTable.Find(dbConditions).
-		Update(db.Raw("bread_count = bread_count + 1")); err != nil {
-		return 0, fmt.Errorf("error incrementing bread count: %v", err)
+	var result struct {
+		Count int `db:"bread_count"`
 	}
 
-	// Fetch the updated count
-	var bread Bread
-	if err := s.breadTable.Find(dbConditions).One(&bread); err != nil {
-		return 0, fmt.Errorf("error getting updated bread count: %v", err)
+	query := `
+        INSERT INTO bread (channelname, chattername, bread_count, created_at, updated_at)
+        VALUES ($1, $2, 1, NOW(), NOW())
+        ON CONFLICT (channelname, chattername)
+        DO UPDATE SET 
+            bread_count = bread.bread_count + 1,
+            updated_at = NOW()
+        RETURNING bread_count
+    `
+
+	res, err := s.breadTable.Session().SQL().
+		QueryRow(query, channel, chatter)
+
+	if err != nil {
+		return 0, fmt.Errorf("error upserting bread count: %v", err)
 	}
 
-	return bread.Count, nil
+	if errScan := res.Scan(&result.Count); errScan != nil {
+		return 0, fmt.Errorf("error formatting updated bread count: %v", err)
+	}
+
+	return result.Count, nil
 }
