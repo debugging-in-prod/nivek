@@ -130,10 +130,12 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 func (b *Bot) handleBreadCommand(username, channel string) {
 	count, err := b.bread.IncrementCount(channel, username)
 	if err != nil {
+		log.Printf("error incrementing bread count for channel [%s] chatter [%s]: %s", channel, username, err.Error())
 		return
 	}
 	totalCount, err := b.bread.GetTotalBreadForChannel(channel)
 	if err != nil {
+		log.Printf("error getting total bread count for channel [%s] chatter [%s]: %s", channel, username, err.Error())
 		return
 	}
 
