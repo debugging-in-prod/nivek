@@ -81,6 +81,14 @@ func (s *nivekFishingServiceImpl) GoFishing(chatter string) string {
 		fishScore.Fish = append(fishScore.Fish, *fsh)
 		fishScore.Score = fishScore.Score + fsh.Value
 		msg = fmt.Sprintf("🎣 You caught a %s worth %d points!", fsh.Name, fsh.Value)
+
+		// leaderboard update message
+		msg, err = s.leaderboardUpdateMessage(chatter, msg)
+		if err != nil {
+			log.Errorf("error calculating leaderboard update message chan [%s] chatter [%s] - %s",
+				s.channel, chatter, err.Error(),
+			)
+		}
 	}
 
 	if trashCaught {
@@ -111,6 +119,43 @@ func (s *nivekFishingServiceImpl) GoFishing(chatter string) string {
 		fishScore.Score,
 		totalScoreAllChats,
 	)
+}
+
+func (s *nivekFishingServiceImpl) leaderboardUpdateMessage(chatter string, msg string) (string, error) {
+	lastPlaceLeaderScore, err := s.fetchLastPlaceLeaderboard()
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch last place leader score chan [%s] chatter [%s]: %s",
+			s.channel, chatter, err.Error(),
+		)
+	}
+
+	if lastPlaceLeaderScore <
+}
+
+// fetch the lowest score on the leaderboard. Leaderboard may be top 5, 10, 100, this method will fetch the 5th,
+// 10th, or 100th players score respectively
+//
+// In the future this method may take a "place" as an arg to allow different channels to have differnt leaderboard sizes
+//
+// fetchLastPlaceLeaderboard
+func (s *nivekFishingServiceImpl) fetchLastPlaceLeaderboard() (int, error) {
+	var result struct {
+		Score int `db:"score"`
+	}
+
+	err := s.fishingTable.Find(db.Cond{"channelname": s.channel}).
+		Select("score").
+		OrderBy("-score"). // Descending order (highest scores first)
+		Offset(4).         // Skip first 4 (0-indexed, so position 4 is 5th place)
+		Limit(1).
+		One(&result)
+
+	if err != nil {
+		// No 5th place exists (less than 5 chatters)
+		return 0, nil
+	}
+
+	return result.Score, nil
 }
 
 // returns: fishCaught, trashCaught, nothingCaught, error

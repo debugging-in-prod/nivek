@@ -67,5 +67,8 @@ CREATE TABLE IF NOT EXISTS nivek.bread (
     chattername VARCHAR(255) NOT NULL,
     bread_count int NOT NULL DEFAULT 0,
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT bread_channel_chatter_unique
+    UNIQUE (channelname, chattername)
 );
