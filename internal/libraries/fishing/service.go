@@ -103,8 +103,9 @@ func (s *nivekFishingServiceImpl) GoFishing(chatter string) string {
 	totalScoreAllChats := s.getChatterFishScoreAcrossAllChats(chatter)
 
 	return fmt.Sprintf(
-		"%s You've caught %d fish, and %d trash. Your total score for this chat is %d and your total score across all chats is %d",
+		"%s @%s caught %d fish, and %d trash. Your total score for this chat is %d and your total score across all chats is %d",
 		msg,
+		chatter,
 		len(fishScore.Fish),
 		fishScore.TrashCaught,
 		fishScore.Score,
