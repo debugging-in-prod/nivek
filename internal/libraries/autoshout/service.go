@@ -73,6 +73,10 @@ func (s *nivekAutoShoutServiceImpl) GetAllAutoShoutChatters() ([]ShoutChatter, e
 		return nil, fmt.Errorf("[AutoShout] error fetching all auto shout chatters %s", err.Error())
 	}
 
+	for _, chatter := range chatters {
+		log.Printf("[AutoShout] chatter found: %s", chatter.ChatterName)
+	}
+
 	return chatters, nil
 }
 
