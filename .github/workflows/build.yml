@@ -20,12 +20,11 @@ jobs:
     runs-on: [self-hosted, linux, prod]  # Vultr runner labels
 
     steps:
-      - name: Checkout repository into live directory
+      - name: Checkout repository (default workspace)
         uses: actions/checkout@v4
-        with:
-          # Path to project
-          path: /home/deploy/apps
 
       - name: List pulled files (sanity check)
         run: |
-          echo "Repository pulled to /home/deploy/apps"
+          echo "Repository pulled to runner workspace"
+          pwd
+          ls -la
