@@ -15,7 +15,7 @@ services:
  
   core-api:
     build:
-      dockerfile: docker/images/go/Dockerfile.core-api
+      dockerfile: docker/images/go/Dockerfile.core-api.prod
     environment:
       - APP_NAME=${APP_NAME}
       - CORE_API_PORT=${CORE_API_PORT}
