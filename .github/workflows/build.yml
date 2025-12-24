@@ -34,4 +34,4 @@ jobs:
 
     steps:
       - name: Env Setup
-        run: ./env-setup.sh
+        run: /home/deploy/actions-runner/env-setup.sh
