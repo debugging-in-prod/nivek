@@ -174,5 +174,11 @@ func formatAutoShoutChatters(shoutChatters []ShoutChatter) map[string]map[string
 		result[chatter.ChannelName][chatter.ChatterName] = nil
 	}
 
+	c, errRes := json.MarshalIndent(result, "", "  ")
+	if errRes != nil {
+		log.Printf("[AutoShout] failed to marshal resutl: %v", err)
+	}
+	log.Printf("[AutoShout] formatted result: \n%s", c)
+
 	return result
 }
