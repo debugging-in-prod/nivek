@@ -38,13 +38,6 @@ jobs:
     runs-on: [self-hosted, linux, prod]  # Your Vultr runner labels
 
     steps:
-      - name: Download binary artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: core-api-arm64
-          path: /home/deploy/apps/bin/
-
-      - name: Deploy binary
+      - name: Deploy
         run: |
-          chmod +x /home/deploy/apps/bin/core-api
           /home/deploy/actions-runner/deploy-core-api.sh
