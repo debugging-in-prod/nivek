@@ -31,7 +31,7 @@ func NewService(service nivek.NivekService) NivekAutoShoutService {
 		shoutTable: service.Postgres().GetDefaultConnection().Collection(TableShout),
 	}
 
-	svcImpl.init()
+	svcImpl.chatters = svcImpl.init()
 
 	b, err := json.MarshalIndent(svcImpl.chatters, "", "  ")
 	if err != nil {
@@ -68,13 +68,13 @@ func (s *nivekAutoShoutServiceImpl) OnMessage(channel, chatter string) bool {
 	return false
 }
 
-func (s *nivekAutoShoutServiceImpl) init() {
+func (s *nivekAutoShoutServiceImpl) init() map[string]map[string]bool {
 	shoutChatters, err := s.GetAllAutoShoutChatters()
 	if err != nil {
 		log.Printf("[AutoShout] failed to get all auto shouts: %s", err.Error())
 	}
 
-	s.chatters = formatAutoShoutChatters(shoutChatters)
+	return formatAutoShoutChatters(shoutChatters)
 }
 
 func (s *nivekAutoShoutServiceImpl) GetAllAutoShoutChatters() ([]ShoutChatter, error) {
