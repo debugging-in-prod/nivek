@@ -1,43 +1,31 @@
-name: Build and Deploy Core API
+name: Pull Core API Updates
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'cmd/core-api/**' # if any of these paths are updated, then trigger a workflow run
-      - 'internal/**'
-      - 'pkg/**'
-      - 'go.mod'
-      - 'go.sum'
+    branches:
+      - main
+    # Optional: limit triggers to certain paths if you want
+    # paths:
+    #   - 'cmd/core-api/**'
+    #   - 'internal/**'
+    #   - 'pkg/**'
+    #   - 'go.mod'
+    #   - 'go.sum'
 
 permissions:
   contents: write
 
 jobs:
-  build:
-    runs-on: ubuntu-latest  # Build on GitHub's servers
+  pull:
+    runs-on: [self-hosted, linux, prod]  # Vultr runner labels
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository into live directory
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Path to project
+          path: /home/deploy/apps
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24'
-
-      - name: Build for ARM64
+      - name: List pulled files (sanity check)
         run: |
-          mkdir -p bin
-          GOOS=linux GOARCH=arm64 go build -o bin/core-api ./cmd/core-api
-
-  deploy:
-    needs: build
-    runs-on: [self-hosted, linux, prod]  # Your Vultr runner labels
-
-    steps:
-      - name: Deploy
-        run: |
-          /home/deploy/actions-runner/deploy-core-api.sh
+          echo "Repository pulled to /home/deploy/apps"

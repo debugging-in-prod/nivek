@@ -35,7 +35,7 @@ func main() {
 			}
 
 			fmt.Println("====================================================")
-			fmt.Println("Hello World! Signed - ", nivek.CommonConfig().AppName)
+			fmt.Println("Hello World! - ", nivek.CommonConfig().AppName)
 			fmt.Println("====================================================")
 
 			//
