@@ -1,12 +1,33 @@
+# Stage 1: Build the Go binary
+FROM golang:1.24-alpine AS builder
+
+# Install ca-certificates
+RUN apk --no-cache add ca-certificates git
+
+WORKDIR /app
+
+# Copy Go modules manifests first (for caching)
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy the rest of the code
+COPY . .
+
+# Build the binary for Linux
+RUN GOOS=linux GOARCH=arm64 go build -o core-api ./cmd/core-api
+
+# Stage 2: Minimal runtime image
 FROM alpine:latest
 
-# Install ca-certificates for HTTPS requests
+# Install ca-certificates
 RUN apk --no-cache add ca-certificates
 
 WORKDIR /app
 
-# Copy pre-built binary
-COPY bin/core-api /app/core-api
+# Copy the binary from the builder stage
+COPY --from=builder /app/core-api /app/core-api
 
 # Make it executable
 RUN chmod +x /app/core-api
@@ -14,4 +35,3 @@ RUN chmod +x /app/core-api
 EXPOSE 8080
 
 CMD ["./core-api"]
-
