@@ -33,12 +33,6 @@ jobs:
           mkdir -p bin
           GOOS=linux GOARCH=arm64 go build -o bin/core-api ./cmd/core-api
 
-      - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: core-api-arm64
-          path: bin/core-api
-
   deploy:
     needs: build
     runs-on: [self-hosted, linux, prod]  # Your Vultr runner labels
