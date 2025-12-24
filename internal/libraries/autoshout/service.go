@@ -22,7 +22,7 @@ type NivekAutoShoutService interface {
 type nivekAutoShoutServiceImpl struct {
 	nivek      nivek.NivekService
 	shoutTable db.Collection
-	chatters   map[string]map[string]interface{}
+	chatters   map[string]map[string]bool
 }
 
 func NewService(service nivek.NivekService) NivekAutoShoutService {
@@ -41,14 +41,16 @@ func NewService(service nivek.NivekService) NivekAutoShoutService {
 
 func (s *nivekAutoShoutServiceImpl) OnMessage(channel, chatter string) bool {
 
-	log.Println(channel)
-	log.Println(s.chatters)
-	log.Println(s.chatters[channel])
+	log.Printf("[AutoShout] incoming message from %s!", channel)
+	log.Printf("[AutoShout] shout chatters for %s: [%+v]", channel, s.chatters)
 
 	if _, channelExists := s.chatters[channel]; channelExists {
 		if _, chatterExists := s.chatters[channel][chatter]; chatterExists {
+
+			log.Printf("[AutoShout] chatter found! shoutout dispensed =D")
+
 			s.incrementShoutCount(channel, chatter)
-			delete(s.chatters[channel], chatter)
+			// delete(s.chatters[channel], chatter)
 			return true
 		}
 	}
