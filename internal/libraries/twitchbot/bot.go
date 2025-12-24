@@ -45,7 +45,11 @@ func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
 		return nil, fmt.Errorf("failed to create counter manager: %w", err)
 	}
 
+	// auto shout service
 	autoShout := autoshout.NewService(nivek)
+	log.Println("[TwitchBot] created auto shout service")
+
+	// bread service
 	bread := bread2.NewService(nivek)
 
 	// Create Twitch IRC client
