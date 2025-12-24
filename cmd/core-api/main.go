@@ -34,15 +34,13 @@ func main() {
 				panic("failed to assert custom config")
 			}
 
-			fmt.Println("\\//")
-			fmt.Println("")
+			fmt.Println("//")
 			fmt.Println("====================================================")
 			fmt.Println("====================================================")
 			fmt.Println("Hello World! Signed - ", nivek.CommonConfig().AppName)
 			fmt.Println("====================================================")
 			fmt.Println("====================================================")
-			fmt.Println("")
-			fmt.Println("\\//")
+			fmt.Println("//")
 
 			//
 			// Start the API server
