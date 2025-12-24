@@ -1,6 +1,7 @@
 package autoshout
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 
@@ -61,8 +62,6 @@ func (s *nivekAutoShoutServiceImpl) init() {
 		log.Printf("[AutoShout] failed to get all auto shouts: %s", err.Error())
 	}
 
-	log.Printf("[AutoShout] got all auto shouts: %s", shoutChatters[0].ChatterName)
-
 	s.chatters = formatAutoShoutChatters(shoutChatters)
 }
 
@@ -71,10 +70,6 @@ func (s *nivekAutoShoutServiceImpl) GetAllAutoShoutChatters() ([]ShoutChatter, e
 
 	if err := s.shoutTable.Find().All(&chatters); err != nil {
 		return nil, fmt.Errorf("[AutoShout] error fetching all auto shout chatters %s", err.Error())
-	}
-
-	for _, chatter := range chatters {
-		log.Printf("[AutoShout] chatter found: %s", chatter.ChatterName)
 	}
 
 	return chatters, nil
@@ -161,6 +156,16 @@ func (s *nivekAutoShoutServiceImpl) incrementShoutCount(channel, chatter string)
 }
 
 func formatAutoShoutChatters(shoutChatters []ShoutChatter) map[string]map[string]interface{} {
+
+	log.Printf("[AutoShout] formatting auto shout chatters: %+v", shoutChatters)
+	b, err := json.Marshal(shoutChatters)
+	if err != nil {
+		log.Printf("[AutoShout] failed to marshal auto shout chatters: %s", err.Error())
+		return make(map[string]map[string]interface{})
+	} else {
+		log.Printf("[AutoShout] marshalled auto shout chatters: %s", string(b))
+	}
+
 	result := make(map[string]map[string]interface{})
 
 	for _, chatter := range shoutChatters {
