@@ -40,12 +40,14 @@ func NewService(service nivek.NivekService) NivekAutoShoutService {
 
 func (s *nivekAutoShoutServiceImpl) OnMessage(channel, chatter string) bool {
 	if _, channelExists := s.chatters[channel]; channelExists {
-		if _, chatterExists := s.chatters[channel][chatter]; chatterExists {
+		if flagged, chatterExists := s.chatters[channel][chatter]; chatterExists && flagged {
 
 			log.Printf("[AutoShout] chatter found! shoutout dispensed =D")
 
 			s.incrementShoutCount(channel, chatter)
+			s.chatters[channel][chatter] = true
 			// delete(s.chatters[channel], chatter)
+
 			return true
 		}
 	}
