@@ -47,6 +47,7 @@ func NewService(service nivek.NivekService) NivekAutoShoutService {
 
 func (s *nivekAutoShoutServiceImpl) OnMessage(channel, chatter string) bool {
 	log.Printf("[AutoShout] incoming message in channel %s chatter %s", channel, chatter)
+	log.Printf("[AutoShout] Searching for chatter in tree - %+v", s.chatters)
 	if _, channelExists := s.chatters[channel]; channelExists {
 		if flagged, chatterExists := s.chatters[channel][chatter]; chatterExists && flagged {
 
