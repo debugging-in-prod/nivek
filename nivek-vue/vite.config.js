@@ -9,7 +9,8 @@ export default defineConfig({
     server: {
         allowedHosts: [
             '.nivek.com',
-            '.ngrok-free.app'
+            '.ngrok-free.app',
+            'nivek.local'
         ]
     },
     plugins: [

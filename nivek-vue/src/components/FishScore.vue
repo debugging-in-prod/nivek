@@ -1,35 +1,41 @@
 <script setup lang="ts">
 import { createHttpClient } from '@/services/HttpClient'
 import { AxiosAdapter } from '@/services/AxiosAdapter'
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { API_ROUTES } from '@/constants'
-import { ref } from 'vue'
 
 const http = createHttpClient(AxiosAdapter)
 
 interface FishScore {
-  id: int
+  id: number
   channelname: string
   chattername: string
-  score:       int
+  score:       number
   fish:        FishArray
-  trash_caught: int
-  times_fished: int
-  created_at:   time
-  updated_at:   time
+  trash_caught: number
+  times_fished: number
+  created_at:   string
+  updated_at:   string
 }
 
 interface Fish {
-  value:    int
+  value:    number
   name:     string
-  scarcity: int
+  scarcity: number
 }
 
-let fishScores = ref<FishScore[]>({})
+const expandedRows = ref<Record<string | number, boolean>>({})
+
+function toggleRow(id: string | number) {
+  expandedRows.value[id] = !expandedRows.value[id]
+}
+
+
+let fishScores = ref<FishScore[]>([])
 
 async function getFishScore() {
   try {
-    const resp = await http.get<string>(API_ROUTES.Secure.GetFishScore)
+    const resp = await http.get(API_ROUTES.Secure.GetFishScore)
     if (!resp) {
       console.error('error fetching fish score')
       return;
