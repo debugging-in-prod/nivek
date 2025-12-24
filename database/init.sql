@@ -34,10 +34,6 @@ create TABLE IF NOT EXISTS nivek.fish_score (
     CONSTRAINT unique_user_chatter UNIQUE (channelname, chattername)
 );
 
--- Optional: Create index for faster lookups
-CREATE INDEX IF NOT EXISTS idx_fish_score_user_chatter
-ON nivek.fish_score(user_id, chattername);
-
 -- Table to track bread counts
 create TABLE IF NOT EXISTS nivek.bread (
     id SERIAL PRIMARY KEY,
