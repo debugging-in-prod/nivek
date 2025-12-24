@@ -1,6 +1,7 @@
 package autoshout
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 
@@ -156,7 +157,12 @@ func (s *nivekAutoShoutServiceImpl) incrementShoutCount(channel, chatter string)
 
 func formatAutoShoutChatters(shoutChatters []ShoutChatter) map[string]map[string]interface{} {
 
-	log.Printf("[AutoShout] formatting auto shout chatters: %+v", shoutChatters)
+	b, err := json.MarshalIndent(shoutChatters, "", "  ")
+	if err != nil {
+		log.Printf("[AutoShout] failed to marshal shoutChatters: %v", err)
+	}
+
+	log.Printf("[AutoShout] formatting auto shout chatters:\n%s", b)
 
 	result := make(map[string]map[string]interface{})
 
