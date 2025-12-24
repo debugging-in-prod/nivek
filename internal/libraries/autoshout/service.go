@@ -60,6 +60,8 @@ func (s *nivekAutoShoutServiceImpl) OnMessage(channel, chatter string) bool {
 		} else {
 			log.Printf("chatter not found: %s %s, %v, %v", channel, chatter, chatterExists, flagged)
 		}
+	} else {
+		log.Printf("[AutoShout] channel not found - %s - %v", channel, channelExists)
 	}
 
 	return false
