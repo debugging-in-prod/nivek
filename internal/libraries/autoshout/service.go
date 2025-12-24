@@ -1,7 +1,6 @@
 package autoshout
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 
@@ -40,10 +39,6 @@ func NewService(service nivek.NivekService) NivekAutoShoutService {
 }
 
 func (s *nivekAutoShoutServiceImpl) OnMessage(channel, chatter string) bool {
-
-	log.Printf("[AutoShout] incoming message from %s!", channel)
-	log.Printf("[AutoShout] shout chatters for %s: [%+v]", channel, s.chatters)
-
 	if _, channelExists := s.chatters[channel]; channelExists {
 		if _, chatterExists := s.chatters[channel][chatter]; chatterExists {
 
@@ -158,14 +153,6 @@ func (s *nivekAutoShoutServiceImpl) incrementShoutCount(channel, chatter string)
 }
 
 func formatAutoShoutChatters(shoutChatters []ShoutChatter) map[string]map[string]bool {
-
-	b, err := json.MarshalIndent(shoutChatters, "", "  ")
-	if err != nil {
-		log.Printf("[AutoShout] failed to marshal shoutChatters: %v", err)
-	}
-
-	log.Printf("[AutoShout] formatting auto shout chatters:\n%s", b)
-
 	result := make(map[string]map[string]bool)
 
 	for _, chatter := range shoutChatters {
@@ -175,12 +162,6 @@ func formatAutoShoutChatters(shoutChatters []ShoutChatter) map[string]map[string
 
 		result[chatter.ChannelName][chatter.ChatterName] = true
 	}
-
-	c, errRes := json.MarshalIndent(result, "", "  ")
-	if errRes != nil {
-		log.Printf("[AutoShout] failed to marshal resutl: %v", err)
-	}
-	log.Printf("[AutoShout] formatted result: \n%s", c)
 
 	return result
 }
