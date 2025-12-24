@@ -155,7 +155,7 @@ func (s *nivekAutoShoutServiceImpl) incrementShoutCount(channel, chatter string)
 	}
 }
 
-func formatAutoShoutChatters(shoutChatters []ShoutChatter) map[string]map[string]interface{} {
+func formatAutoShoutChatters(shoutChatters []ShoutChatter) map[string]map[string]bool {
 
 	b, err := json.MarshalIndent(shoutChatters, "", "  ")
 	if err != nil {
@@ -164,14 +164,14 @@ func formatAutoShoutChatters(shoutChatters []ShoutChatter) map[string]map[string
 
 	log.Printf("[AutoShout] formatting auto shout chatters:\n%s", b)
 
-	result := make(map[string]map[string]interface{})
+	result := make(map[string]map[string]bool)
 
 	for _, chatter := range shoutChatters {
 		if _, exists := result[chatter.ChannelName]; !exists {
-			result[chatter.ChannelName] = make(map[string]interface{})
+			result[chatter.ChannelName] = make(map[string]bool)
 		}
 
-		result[chatter.ChannelName][chatter.ChatterName] = nil
+		result[chatter.ChannelName][chatter.ChatterName] = true
 	}
 
 	c, errRes := json.MarshalIndent(result, "", "  ")
