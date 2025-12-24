@@ -1,0 +1,17 @@
+# Stage 1: Build Go binary
+FROM golang:1.24-alpine AS builder
+RUN apk --no-cache add ca-certificates git
+WORKDIR /workspace
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN go build -o core-api ./cmd/core-api
+
+# Stage 2: Minimal runtime image
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates
+WORKDIR /workspace
+COPY --from=builder /workspace/core-api ./core-api
+RUN chmod +x ./core-api
+EXPOSE 8080
+CMD ["./core-api"]
