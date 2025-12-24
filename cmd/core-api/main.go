@@ -34,6 +34,7 @@ func main() {
 				panic("failed to assert custom config")
 			}
 
+			fmt.Println("\\//")
 			fmt.Println("")
 			fmt.Println("====================================================")
 			fmt.Println("====================================================")
@@ -41,6 +42,7 @@ func main() {
 			fmt.Println("====================================================")
 			fmt.Println("====================================================")
 			fmt.Println("")
+			fmt.Println("\\//")
 
 			//
 			// Start the API server
