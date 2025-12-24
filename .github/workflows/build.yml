@@ -28,3 +28,10 @@ jobs:
           echo "Repository pulled to runner workspace"
           pwd
           ls -la
+  deploy:
+    needs: pull
+    runs-on: self-hosted
+
+    steps:
+      - name: Env Setup
+        run: ./env-setup.sh
