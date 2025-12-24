@@ -11,7 +11,7 @@ interface FishScore {
   channelname: string
   chattername: string
   score:       number
-  fish:        FishArray
+  fish:        Fish[]
   trash_caught: number
   times_fished: number
   created_at:   string
@@ -95,7 +95,11 @@ onMounted(() => {
   <p>As Chatter: </p>
   <div v-for="fishScore in fishScores.as_chatter" class="mb-2">
     <!-- Header Card -->
-    <div class="card shadow-sm">
+    <div
+      class="card shadow-sm"
+      role="button"
+      @click="toggleRow(fishScore.id)"
+    >
       <div class="card-body text-center">
         <div class="d-flex justify-content-between align-items-center">
           <div class="text-start">
@@ -113,7 +117,10 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="table-responsive">
+    <div
+      class="table-responsive"
+      v-show="expandedRows[fishScore.id]"
+    >
       <table class="table table-hover align-middle">
         <thead class="table-light">
         <tr>
@@ -231,6 +238,12 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.card {
+  cursor: pointer;
+}
+.card:hover {
+  background-color: rgb(100, 100, 100);
+}
 .bi-fish::before {
   font-weight: 900 !important;
 }
