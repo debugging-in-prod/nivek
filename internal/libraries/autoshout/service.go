@@ -1,6 +1,7 @@
 package autoshout
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 
@@ -32,6 +33,12 @@ func NewService(service nivek.NivekService) NivekAutoShoutService {
 
 	svcImpl.init()
 
+	b, err := json.MarshalIndent(svcImpl.chatters, "", "  ")
+	if err != nil {
+		log.Printf("[AutoShout] failed to marshal formatted chatters: %v", err)
+	}
+	log.Printf("[AutoShout] chatters initialized: \n%s", b)
+
 	return &nivekAutoShoutServiceImpl{
 		nivek:      service,
 		shoutTable: service.Postgres().GetDefaultConnection().Collection(TableShout),
@@ -42,13 +49,15 @@ func (s *nivekAutoShoutServiceImpl) OnMessage(channel, chatter string) bool {
 	if _, channelExists := s.chatters[channel]; channelExists {
 		if flagged, chatterExists := s.chatters[channel][chatter]; chatterExists && flagged {
 
-			log.Printf("[AutoShout] chatter found! shoutout dispensed =D")
+			log.Printf("\033[31m[AutoShout] chatter found! shoutout dispensed =D\033[0m]")
 
 			s.incrementShoutCount(channel, chatter)
-			s.chatters[channel][chatter] = true
+			s.chatters[channel][chatter] = false
 			// delete(s.chatters[channel], chatter)
 
 			return true
+		} else {
+			log.Printf("chatter not found: %s %s, %v, %v", channel, chatter, chatterExists, flagged)
 		}
 	}
 
