@@ -31,7 +31,7 @@ func NewService(service nivek.NivekService) NivekAutoShoutService {
 		shoutTable: service.Postgres().GetDefaultConnection().Collection(TableShout),
 	}
 
-	svcImpl.chatters = svcImpl.init()
+	chatters := svcImpl.init()
 
 	b, err := json.MarshalIndent(svcImpl.chatters, "", "  ")
 	if err != nil {
@@ -42,6 +42,7 @@ func NewService(service nivek.NivekService) NivekAutoShoutService {
 	return &nivekAutoShoutServiceImpl{
 		nivek:      service,
 		shoutTable: service.Postgres().GetDefaultConnection().Collection(TableShout),
+		chatters:   chatters,
 	}
 }
 
