@@ -42,7 +42,7 @@ func (s *nivekAutoShoutServiceImpl) OnMessage(channel, chatter string) bool {
 
 	log.Println(channel)
 	log.Println(s.chatters)
-	log.Println(s.channel[chatter])
+	log.Println(s.chatters[channel])
 
 	if _, channelExists := s.chatters[channel]; channelExists {
 		if _, chatterExists := s.chatters[channel][chatter]; chatterExists {
