@@ -1,0 +1,37 @@
+name: Prod Service Deployment
+
+on:
+  push:
+    branches:
+      - main
+    # Optional: limit triggers to certain paths if you want
+    # paths:
+    #   - 'cmd/core-api/**'
+    #   - 'internal/**'
+    #   - 'pkg/**'
+    #   - 'go.mod'
+    #   - 'go.sum'
+
+permissions:
+  contents: write
+
+jobs:
+  pull:
+    runs-on: [self-hosted, linux, prod]  # Vultr runner labels
+
+    steps:
+      - name: Checkout repository (default workspace)
+        uses: actions/checkout@v4
+
+      - name: List pulled files (sanity check)
+        run: |
+          echo "Repository pulled to runner workspace"
+          pwd
+          ls -la
+  deploy:
+    needs: pull
+    runs-on: self-hosted
+
+    steps:
+      - name: Env Setup
+        run: /home/deploy/actions-runner/env-setup.sh
