@@ -128,7 +128,13 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 		b.handleFishCommand(chattername, channel)
 	case "!dad":
 		b.client.Say(channel, "still out getting milk!")
+	case "!lurk":
+		b.handleLurkCommand(chattername, channel)
 	}
+}
+
+func (b *Bot) handleLurkCommand(username, channel string) {
+
 }
 
 func (b *Bot) handleBreadCommand(username, channel string) {

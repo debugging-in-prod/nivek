@@ -1,7 +1,6 @@
 package autoshout
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 
@@ -33,11 +32,11 @@ func NewService(service nivek.NivekService) NivekAutoShoutService {
 
 	chatters := svcImpl.init()
 
-	b, err := json.MarshalIndent(svcImpl.chatters, "", "  ")
-	if err != nil {
-		log.Printf("[AutoShout] failed to marshal formatted chatters: %v", err)
-	}
-	log.Printf("[AutoShout] chatters initialized: \n%s", b)
+	// b, err := json.MarshalIndent(svcImpl.chatters, "", "  ")
+	// if err != nil {
+	// 	log.Printf("[AutoShout] failed to marshal formatted chatters: %v", err)
+	// }
+	// log.Printf("[AutoShout] chatters initialized: \n%s", b)
 
 	return &nivekAutoShoutServiceImpl{
 		nivek:      service,
@@ -47,23 +46,14 @@ func NewService(service nivek.NivekService) NivekAutoShoutService {
 }
 
 func (s *nivekAutoShoutServiceImpl) OnMessage(channel, chatter string) bool {
-	log.Printf("[AutoShout] incoming message in channel %s chatter %s", channel, chatter)
-	log.Printf("[AutoShout] Searching for chatter in tree - %+v", s.chatters)
 	if _, channelExists := s.chatters[channel]; channelExists {
 		if flagged, chatterExists := s.chatters[channel][chatter]; chatterExists && flagged {
 
-			log.Printf("\033[31m[AutoShout] chatter found! shoutout dispensed =D\033[0m]")
-
 			s.incrementShoutCount(channel, chatter)
 			s.chatters[channel][chatter] = false
-			// delete(s.chatters[channel], chatter)
 
 			return true
-		} else {
-			log.Printf("chatter not found: %s %s, %v, %v", channel, chatter, chatterExists, flagged)
 		}
-	} else {
-		log.Printf("[AutoShout] channel not found - %s - %v", channel, channelExists)
 	}
 
 	return false
