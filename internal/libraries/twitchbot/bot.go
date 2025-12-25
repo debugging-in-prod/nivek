@@ -134,7 +134,7 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 }
 
 func (b *Bot) handleLurkCommand(username, channel string) {
-
+	b.client.Say(channel, fmt.Sprintf("thank you for the lurk! @%s", username))
 }
 
 func (b *Bot) handleBreadCommand(username, channel string) {
