@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 	"time"
 
@@ -130,7 +131,22 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 		b.client.Say(channel, "still out getting milk!")
 	case "!lurk":
 		b.handleLurkCommand(chattername, channel)
+	case "!punch":
+		b.client.Say(channel, fmt.Sprintf(
+			"@%s punches @%s",
+			chattername,
+			extractUser(msg),
+		))
 	}
+}
+
+func extractUser(message string) string {
+	re := regexp.MustCompile(`@([A-Za-z0-9_]+)`)
+	match := re.FindStringSubmatch(message)
+	if len(match) > 1 {
+		return match[1] // without the @
+	}
+	return ""
 }
 
 func (b *Bot) handleLurkCommand(username, channel string) {
