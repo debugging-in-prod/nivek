@@ -45,7 +45,7 @@ server {
 
     # Serve Vue static files
     location / {
-        try_files $uri $uri/ /index.html;  # SPA fallback
+        try_files $uri $uri/ /index.html =404;  # SPA fallback
     }
 
     location /api/ {
