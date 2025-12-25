@@ -38,10 +38,7 @@ services:
     build:
       dockerfile: docker/images/nginx/Dockerfile
     volumes:
-      - './nivek-vue:/app'
       - ./docker/nginx:/etc/nginx/conf.d:ro
-      - '/home/deploy/certs/nivek.com.crt:/etc/ssl/certs/nivek.com.crt:ro'
-      - '/home/deploy/certs/nivek.com.key:/etc/ssl/private/nivek.com.key:ro'
     networks:
       - app-network
     restart: unless-stopped

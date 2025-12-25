@@ -1,22 +1,13 @@
 upstream vue      { server vue:5173; }
 upstream core-api { server core-api:8080; }
 
-# Redirect HTTP to HTTPS
 server {
-    listen 80;
-    listen [::]:80;
-    server_name nivek.life;
-    return 301 https://$host$request_uri;
-}
+    listen 3443 ssl http2;
+    listen [::]:3443 ssl http2;
+    server_name nivek.local;
 
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name nivek.life;
-
-    # Your existing certs (self-signed or real — both work)
-    ssl_certificate     /etc/letsencrypt/live/nivek.life/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/nivek.life/privkey.pem;
+    ssl_certificate     /etc/ssl/certs/nivek.local.crt;
+    ssl_certificate_key /etc/ssl/private/nivek.local.key:ro;
 
     # SSL Security Settings
     ssl_protocols       TLSv1.2 TLSv1.3;

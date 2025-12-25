@@ -4,6 +4,7 @@ import Logout from '@/components/Logout.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
+const headerLogo = computed(() => auth.user ? '' : '')
 </script>
 
 <template>
