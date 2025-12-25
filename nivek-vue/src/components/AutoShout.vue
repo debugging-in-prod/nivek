@@ -31,6 +31,8 @@ interface AutoShoutChatter {
 let autoShoutChatters = ref<AutoShoutChatter[]>([])
 let chattername = ref('')
 
+let displayList = ref(false)
+
 // track which chatter is awaiting delete confirmation
 let confirmingDelete = reactive<Record<number, boolean>>({})
 
@@ -90,44 +92,52 @@ onMounted(() => {
 
 <template>
   <h2>Auto Shoutout Chatters</h2>
-  <p>These are chatters that will get automatic shoutouts for every 1st message they post in your chat when you go live</p>
-  <form @submit.prevent="addNewChatter()" class="mb-3">
-    <div class="form-group">
-      <label for="chattername">Chatter Name</label>
-      <input
-          type="text"
-          class="form-control"
-          id="chattername"
-          v-model="chattername"
-          placeholder="Enter chatter name"
-          required
-      />
-    </div>
-    <button type="submit" class="btn btn-primary mt-2">Add Chatter</button>
-  </form>
-  <ul class="auto-shout-list list-group">
-    <li v-for="chatter in autoShoutChatters" :key="chatter.id" class="list-group-item d-flex justify-content-between align-items-start">
-      <div>{{ chatter.chattername }}</div>
-      <div class="text-end">
-        <div>Shouts: <span>{{ chatter.shout_count }}</span></div>
-
-        <!-- Conditional rendering for delete confirmation -->
-        <div v-if="!confirmingDelete[chatter.id]">
-          <button @click="confirmingDelete[chatter.id] = true" class="btn btn-sm btn-danger mt-1 mb-2">
-            Remove
-          </button>
-        </div>
-        <div v-else>
-          <button @click="removeChatter(chatter.id)" class="btn btn-sm btn-success mt-1 mb-2 me-1">
-            YES
-          </button>
-          <button @click="confirmingDelete[chatter.id] = false" class="btn btn-sm btn-secondary mt-1 mb-2">
-            NO
-          </button>
-        </div>
+  <button class="btn btn-primary" @click="displayList = !displayList">
+    <span>Click here to {{ displayList ? 'hide' : 'show'}}</span>
+  </button>
+  <div :class="[{ hidden: !displayList }]">
+    <p>These are chatters that will get automatic shoutouts for every 1st message they post in your chat when you go live</p>
+    <form @submit.prevent="addNewChatter()" class="mb-3">
+      <div class="form-group">
+        <label for="chattername">Chatter Name</label>
+        <input
+            type="text"
+            class="form-control"
+            id="chattername"
+            v-model="chattername"
+            placeholder="Enter chatter name"
+            required
+        />
       </div>
-    </li>
-  </ul>
+      <button type="submit" class="btn btn-primary mt-2">Add Chatter</button>
+    </form>
+    <ul class="auto-shout-list list-group">
+      <li v-for="chatter in autoShoutChatters" 
+        :key="chatter.id" 
+        class="list-group-item d-flex justify-content-between align-items-start"
+      >
+        <div>{{ chatter.chattername }}</div>
+        <div class="text-end">
+          <div>Shouts: <span>{{ chatter.shout_count }}</span></div>
+
+          <!-- Conditional rendering for delete confirmation -->
+          <div v-if="!confirmingDelete[chatter.id]">
+            <button @click="confirmingDelete[chatter.id] = true" class="btn btn-sm btn-danger mt-1 mb-2">
+              Remove
+            </button>
+          </div>
+          <div v-else>
+            <button @click="removeChatter(chatter.id)" class="btn btn-sm btn-success mt-1 mb-2 me-1">
+              YES
+            </button>
+            <button @click="confirmingDelete[chatter.id] = false" class="btn btn-sm btn-secondary mt-1 mb-2">
+              NO
+            </button>
+          </div>
+        </div>
+      </li>
+    </ul>
+  </div>
 </template>
 
 <style scoped>
@@ -135,5 +145,8 @@ onMounted(() => {
   background: inherit;
   border-color: var(--color-text);
   color: inherit;
+}
+.hidden {
+  display: none !important;
 }
 </style>
