@@ -91,7 +91,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <h2>Auto Shoutout Chatters</h2>
+  <h2>AutoShout</h2>
   <button class="btn btn-primary" @click="displayList = !displayList">
     <span>Click here to {{ displayList ? 'hide' : 'show'}}</span>
   </button>

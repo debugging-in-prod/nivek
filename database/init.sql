@@ -68,3 +68,15 @@ CREATE TABLE IF NOT EXISTS nivek.bread (
     CONSTRAINT bread_channel_chatter_unique
     UNIQUE (channelname, chattername)
 );
+
+CREATE TABLE lurk (
+  id SERIAL PRIMARY KEY,
+  channelname   TEXT NOT NULL,
+  chattername   TEXT NOT NULL,
+  lurk_count    INTEGER NOT NULL DEFAULT 0,
+  created       TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated       TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    -- Composite unique constraint
+    CONSTRAINT unique_lurker UNIQUE (channelname, chattername)
+);
