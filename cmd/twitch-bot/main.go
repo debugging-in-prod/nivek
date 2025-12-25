@@ -27,7 +27,6 @@ func main() {
 			},
 		},
 		func(nivek nivek.NivekService, ctx context.Context) error {
-
 			config := twitchbot.Config{
 				BotUsername: getEnv("TWITCH_BOT_USERNAME", ""),
 				BotOAuth:    getEnv("TWITCH_BOT_OAUTH", ""),
