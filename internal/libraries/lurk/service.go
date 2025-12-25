@@ -44,7 +44,7 @@ func (s *nivekLurkServiceImpl) OnMessage(channel, chatter string) int {
 func (s *nivekLurkServiceImpl) incrementLurkCount(lurker *Lurker) (*Lurker, error) {
 	lurker.LurkCount = lurker.LurkCount + 1
 
-	_, err := s.lurkTable.Insert(lurker)
+	err := s.lurkTable.UpdateReturning(lurker)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update lurk record [%s - %s]: %w", lurker.ChannelName, lurker.ChatterName, err)
 	}
