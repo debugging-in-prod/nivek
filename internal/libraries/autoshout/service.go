@@ -3,6 +3,7 @@ package autoshout
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 	"github.com/upper/db/v4"
@@ -21,7 +22,7 @@ type NivekAutoShoutService interface {
 type nivekAutoShoutServiceImpl struct {
 	nivek      nivek.NivekService
 	shoutTable db.Collection
-	chatters   map[string]map[string]bool
+	chatters   map[string]map[string]time.Time
 }
 
 func NewService(service nivek.NivekService) NivekAutoShoutService {
@@ -45,27 +46,66 @@ func NewService(service nivek.NivekService) NivekAutoShoutService {
 	}
 }
 
-func (s *nivekAutoShoutServiceImpl) OnMessage(channel, chatter string) bool {
-	if _, channelExists := s.chatters[channel]; channelExists {
-		if flagged, chatterExists := s.chatters[channel][chatter]; chatterExists && flagged {
-
-			s.incrementShoutCount(channel, chatter)
-			s.chatters[channel][chatter] = false
-
-			return true
-		}
-	}
-
-	return false
-}
-
-func (s *nivekAutoShoutServiceImpl) init() map[string]map[string]bool {
+func (s *nivekAutoShoutServiceImpl) init() map[string]map[string]time.Time {
 	shoutChatters, err := s.GetAllAutoShoutChatters()
 	if err != nil {
 		log.Printf("[AutoShout] failed to get all auto shouts: %s", err.Error())
 	}
 
 	return formatAutoShoutChatters(shoutChatters)
+}
+
+func formatAutoShoutChatters(shoutChatters []ShoutChatter) map[string]map[string]time.Time {
+	result := make(map[string]map[string]time.Time)
+
+	for _, chatter := range shoutChatters {
+		if _, exists := result[chatter.ChannelName]; !exists {
+			result[chatter.ChannelName] = make(map[string]time.Time)
+		}
+
+		result[chatter.ChannelName][chatter.ChatterName] = chatter.UpdatedAt
+	}
+
+	return result
+}
+
+func (s *nivekAutoShoutServiceImpl) OnMessage(channel, chatter string) bool {
+	channelChatters, channelExists := s.chatters[channel]
+	if !channelExists {
+		return false
+	}
+
+	lastShoutTime, chatterExists := channelChatters[chatter]
+	if !chatterExists {
+		return false
+	}
+
+	// Only shout if more than 24 hours have passed
+	if time.Since(lastShoutTime) > 24*time.Hour {
+		shoutTime := time.Now()
+
+		s.incrementShoutCount(channel, chatter, shoutTime)
+		s.chatters[channel][chatter] = shoutTime
+	}
+
+	return true
+}
+
+func (s *nivekAutoShoutServiceImpl) incrementShoutCount(channel, chatter string, lastShoutTime time.Time) {
+	chatterRecord, err := s.GetAutoShoutChatter(channel, chatter)
+	if err != nil {
+		log.Printf("[AutoShout] failed to increment chatter score! %s", err.Error())
+		return
+	}
+
+	chatterRecord.ShoutCount++
+	chatterRecord.UpdatedAt = lastShoutTime
+
+	err = s.UpdateAutoShoutChatter(chatterRecord)
+	if err != nil {
+		log.Printf("[AutoShout] failed to save incremented chatter score to the db! %s", err.Error())
+		return
+	}
 }
 
 func (s *nivekAutoShoutServiceImpl) GetAllAutoShoutChatters() ([]ShoutChatter, error) {
@@ -140,34 +180,4 @@ func (s *nivekAutoShoutServiceImpl) DeleteAutoShoutChatter(channelname string, i
 	}
 
 	return nil
-}
-
-func (s *nivekAutoShoutServiceImpl) incrementShoutCount(channel, chatter string) {
-	chatterRecord, err := s.GetAutoShoutChatter(channel, chatter)
-	if err != nil {
-		log.Printf("[AutoShout] failed to increment chatter score! %s", err.Error())
-		return
-	}
-
-	chatterRecord.ShoutCount++
-
-	err = s.UpdateAutoShoutChatter(chatterRecord)
-	if err != nil {
-		log.Printf("[AutoShout] failed to save incremented chatter score to the db! %s", err.Error())
-		return
-	}
-}
-
-func formatAutoShoutChatters(shoutChatters []ShoutChatter) map[string]map[string]bool {
-	result := make(map[string]map[string]bool)
-
-	for _, chatter := range shoutChatters {
-		if _, exists := result[chatter.ChannelName]; !exists {
-			result[chatter.ChannelName] = make(map[string]bool)
-		}
-
-		result[chatter.ChannelName][chatter.ChatterName] = true
-	}
-
-	return result
 }
