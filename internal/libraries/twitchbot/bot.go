@@ -132,10 +132,11 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	case "!lurk":
 		b.handleLurkCommand(chattername, channel)
 	case "!punch":
+		tgt := extractUser(msg)
 		b.client.Say(channel, fmt.Sprintf(
 			"@%s punches @%s",
 			chattername,
-			extractUser(msg),
+			tgt,
 		))
 	}
 }
