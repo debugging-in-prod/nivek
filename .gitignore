@@ -1,6 +1,7 @@
 environments/*
 .env
 
+docker/nginx/nginx.conf
 docker-compose.override.yml
 
 bin/*
