@@ -11,6 +11,7 @@ import (
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/autoshout"
 	bread2 "github.com/tim-the-toolman-taylor/nivek/internal/libraries/bread"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/fishing"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/lurk"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 )
 
@@ -30,6 +31,7 @@ type Bot struct {
 	nivek     nivek.NivekService
 	autoShout autoshout.NivekAutoShoutService
 	bread     bread2.NivekBreadService
+	lurkSvc   lurk.NivekLurkService
 }
 
 func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
@@ -52,6 +54,9 @@ func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
 	// bread service
 	bread := bread2.NewService(nivek)
 
+	// lurk service
+	lurkSvc := lurk.NewService(nivek)
+
 	// Create Twitch IRC client
 	client := twitch.NewClient(config.BotUsername, config.BotOAuth)
 
@@ -63,6 +68,7 @@ func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
 		nivek:     nivek,
 		autoShout: autoShout,
 		bread:     bread,
+		lurkSvc:   lurkSvc,
 	}
 
 	// Register message handler
@@ -130,28 +136,17 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 		b.client.Say(channel, "still out getting milk!")
 	case "!lurk":
 		b.handleLurkCommand(chattername, channel)
-	case "!punch":
-		log.Print("punt!!punt!!punt!!punt!!punt!!punt!!punt!!punt!!punt!!punt!!punt!!!!")
-		// tgt := extractUser(msg)
-		// b.client.Say(channel, fmt.Sprintf(
-		// 	"@%s punches @%s",
-		// 	chattername,
-		// 	tgt,
-		// ))
 	}
 }
 
-// func extractUser(message string) string {
-// 	re := regexp.MustCompile(`@([A-Za-z0-9_]+)`)
-// 	match := re.FindStringSubmatch(message)
-// 	if len(match) > 1 {
-// 		return match[1] // without the @
-// 	}
-// 	return ""
-// }
-
 func (b *Bot) handleLurkCommand(username, channel string) {
-	b.client.Say(channel, fmt.Sprintf("thank you for the lurk! @%s", username))
+	if count := b.lurkSvc.OnMessage(channel, username); count > 0 {
+		b.client.Say(channel, fmt.Sprintf(
+			"thank you for the lurk! @%s You have lurked %d times",
+			username,
+			count,
+		))
+	}
 }
 
 func (b *Bot) handleBreadCommand(username, channel string) {
@@ -176,7 +171,7 @@ func (b *Bot) handleBreadCommand(username, channel string) {
 	)
 
 	b.client.Say(channel, response)
-	log.Printf("[BREAD] [%s] %s: %d (Total: %d)", channel, username, count, totalCount)
+	// log.Printf("[BREAD] [%s] %s: %d (Total: %d)", channel, username, count, totalCount)
 }
 
 func (b *Bot) handleFishCommand(username, channel string) {
@@ -184,7 +179,7 @@ func (b *Bot) handleFishCommand(username, channel string) {
 	response := fishingService.GoFishing(username)
 
 	b.client.Say(channel, response)
-	log.Printf("[FISH] [%s] %s", channel, username)
+	// log.Printf("[FISH] [%s] %s", channel, username)
 }
 
 func pluralize(count int) string {
