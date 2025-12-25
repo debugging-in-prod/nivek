@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"regexp"
 	"strings"
 	"time"
 
@@ -133,23 +132,23 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 		b.handleLurkCommand(chattername, channel)
 	case "!punch":
 		log.Print("punt!!punt!!punt!!punt!!punt!!punt!!punt!!punt!!punt!!punt!!punt!!!!")
-		tgt := extractUser(msg)
-		b.client.Say(channel, fmt.Sprintf(
-			"@%s punches @%s",
-			chattername,
-			tgt,
-		))
+		// tgt := extractUser(msg)
+		// b.client.Say(channel, fmt.Sprintf(
+		// 	"@%s punches @%s",
+		// 	chattername,
+		// 	tgt,
+		// ))
 	}
 }
 
-func extractUser(message string) string {
-	re := regexp.MustCompile(`@([A-Za-z0-9_]+)`)
-	match := re.FindStringSubmatch(message)
-	if len(match) > 1 {
-		return match[1] // without the @
-	}
-	return ""
-}
+// func extractUser(message string) string {
+// 	re := regexp.MustCompile(`@([A-Za-z0-9_]+)`)
+// 	match := re.FindStringSubmatch(message)
+// 	if len(match) > 1 {
+// 		return match[1] // without the @
+// 	}
+// 	return ""
+// }
 
 func (b *Bot) handleLurkCommand(username, channel string) {
 	b.client.Say(channel, fmt.Sprintf("thank you for the lurk! @%s", username))
