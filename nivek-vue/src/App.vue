@@ -6,7 +6,6 @@ import { computed } from 'vue'
 
 const auth = useAuthStore()
 const headerLogo = computed(() =>  !!auth.user)
-console.log(headerLogo.value)
 </script>
 
 <template>
