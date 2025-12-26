@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import Weather from '@/components/Weather.vue'
 import AutoShout from "@/components/AutoShout.vue";
@@ -17,6 +18,8 @@ function getGreeting(date: Date = new Date()): string {
   }
 }
 
+let hideAutoShout = ref(true)
+let hideFishing = ref(true)
 </script>
 
 <template>
@@ -27,27 +30,43 @@ function getGreeting(date: Date = new Date()): string {
 
   <div class="container">
     <div class="row">
-      <div class="col-md-6 mb-5">
-        <AutoShout />
+      <div class="col-md-2">
+        <ul class="command-config-nav">
+          <li @click="hideAutoShout = !hideAutoShout">AutoShout</li>
+          <li @click="hideFishing = !hideFishing">Fishing</li>
+        </ul>
       </div>
 
-      <div class="col-md-6">
-        <FishScore />
+      <div class="col-md-8 pt-1 pb-5">
+        <p :class="{ hidden: (!hideAutoShout || !hideFishing) }">Select a command on the left</p>
+        <div :class="{ hidden: hideAutoShout }"><AutoShout /></div>
+        <div :class="{ hidden: hideFishing }"div><FishScore /></div>
       </div>
     </div>
   </div>
-
-  <p class="small text-center disclaimer">
-    This bot is in very early stages of active development. Expect bugs, errors, failures, letdowns, mischeif, mayhem
-    disappointments, heartbreaks, debauchery, trickery, and general disruptive behavior
-  </p>
 </template>
 
 <style scoped>
-.disclaimer {
-  bottom: 2rem;
-  left: 0;
-  position: absolute;
-  width: 100vw;
+.hidden { 
+  display: none !important;
+}
+.container {
+  border: 2px solid grey;
+  border-radius: 5px;
+}
+.container .row > *:first-child {
+  border-right: 2px solid grey;
+}
+.container .row {
+  min-height: 500px;
+}
+
+.command-config-nav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.command-config-nav > *:not(:last-child) {
+  border-bottom: 2px solid grey;
 }
 </style>

@@ -1,5 +1,4 @@
 <script setup>
-import AnonMessager from "@/components/AnonMessager.vue";
 </script>
 
 <template>
@@ -7,8 +6,6 @@ import AnonMessager from "@/components/AnonMessager.vue";
     <h1 class="green">Welcome</h1>
     <p>Welcome to my Programming Playground. <br />Feel free to have a look around</p>
   </div>
-
-  <AnonMessager/>
 </template>
 
 <style scoped>
