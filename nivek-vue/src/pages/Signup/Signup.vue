@@ -38,7 +38,9 @@ async function doSignup() {
 <template>
   <div class="form-signup m-auto">
     <h1 class="green mb-4">Sign Up</h1>
-    <form @submit.prevent="doSignup">
+    <p>Right now the only function of this website is to allow you to control a twitch chatbot known as @peanutbudderbot.</p>
+    <p>If you sign up with your <b>twitch username</b> as your <b>'username'</b> here, then the bot will join your chat next time its rebooted (dm me to get this done faster)</p>
+    <form class="pb-3" @submit.prevent="doSignup">
       <div class="form-group mb-1">
         <label for="usernameInput">Username</label>
         <input type="text"
@@ -74,7 +76,12 @@ async function doSignup() {
         >
       </div>
       <button type="submit" class="btn btn-primary">Submit</button>
-    </form>
+    </form>    
+    <p>Your email and password are safe. Your 'email' here does not need to be a real email, it just needs to look like an email. 
+      I recommend doing [your-twitch-username]@nivek.life. At some point in the future, I plan on updating this to use real email verification. 
+    </p>
+    <p>Do not be concerned about losing access to your account or data. This <b class="text-decoration-underline">will</b> happen. It is a question of when, not if. Just don't be concerned :)</p>
+    <p>This bot is in very early stages of active development. Expect bugs, errors, failures, letdowns, disappointments, heartbreaks, and disruptive behavior</p>
   </div>
 </template>
 
