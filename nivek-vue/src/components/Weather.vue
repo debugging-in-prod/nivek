@@ -41,7 +41,7 @@ onMounted(() => {
 
 <template>
   <div class="text-center mb-5">
-    <p>Weather Report for {{ weatherReport.city }}: <span class="green">{{ weatherReport.temp }}</span></p>
+    <p>Weather in {{ weatherReport.city }}: <span class="green">{{ weatherReport.temp }}</span></p>
   </div>
 </template>
 
