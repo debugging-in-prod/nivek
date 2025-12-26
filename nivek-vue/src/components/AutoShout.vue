@@ -89,10 +89,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <h4>AutoShout</h4>
+  <h4 class="title">AutoShout</h4>
   <div>
-    <p>These are chatters that will get automatic shoutouts for every 1st message they post in your chat when you go live</p>
-    <form @submit.prevent="addNewChatter()" class="mb-3">
+    <p class="mb-2">These are chatters that will get automatic shoutouts for every 1st message they post in your chat when you go live</p>
+    <form @submit.prevent="addNewChatter()" class="mb-3 py-3">
       <div class="form-group">
         <label for="chattername">Chatter Name</label>
         <input
@@ -111,21 +111,22 @@ onMounted(() => {
         :key="chatter.id" 
         class="list-group-item d-flex justify-content-between align-items-start"
       >
-        <div>{{ chatter.chattername }}</div>
-        <div class="text-end">
+        <div>
+          <span>{{ chatter.chattername }}</span>
           <div>Shouts: <span>{{ chatter.shout_count }}</span></div>
-
+        </div>
+        <div class="text-end">
           <!-- Conditional rendering for delete confirmation -->
           <div v-if="!confirmingDelete[chatter.id]">
-            <button @click="confirmingDelete[chatter.id] = true" class="btn btn-sm btn-danger mt-1 mb-2">
+            <button @click="confirmingDelete[chatter.id] = true" class="btn btn-sm btn-danger">
               Remove
             </button>
           </div>
           <div v-else>
-            <button @click="removeChatter(chatter.id)" class="btn btn-sm btn-success mt-1 mb-2 me-1">
+            <button @click="removeChatter(chatter.id)" class="btn btn-sm btn-success">
               YES
             </button>
-            <button @click="confirmingDelete[chatter.id] = false" class="btn btn-sm btn-secondary mt-1 mb-2">
+            <button @click="confirmingDelete[chatter.id] = false" class="btn btn-sm btn-secondary">
               NO
             </button>
           </div>
@@ -136,12 +137,41 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.title {
+  border-bottom: 2px solid grey;
+}
+.auto-shout-list {
+  max-height: 600px;
+  overflow-y: scroll;
+}
 .auto-shout-list li {
   background: inherit;
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
   border-color: var(--color-text);
   color: inherit;
 }
 .hidden {
   display: none !important;
+}
+.form-control {
+  background-color: unset;
+  border: 0;
+  color:unset;
+}
+input.form-control::placeholder {
+  color: unset;
+  font-style: italic;
+  opacity: 0.6;
+}
+.btn.btn-primary {
+  background-color: transparent;
+  border: 1px solid gray;
+  color: inherit;
+}
+form {
+  border-top: 2px solid gray;
+  border-bottom: 2px solid gray;
 }
 </style>
