@@ -1,0 +1,265 @@
+<script setup lang="ts">
+import { ref } from 'vue'
+
+interface Message {
+    sender:     string
+    message:    string
+    created_at: string
+}
+let messages = ref<Message[]>([])
+let testmessages = ref<Message[]>([
+    {
+        sender: 'test',
+        message: 'message test',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'tim',
+        message: 'message rest',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'ben',
+        message: 'bear test',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'nate',
+        message: 'test mssggg test',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'jerry',
+        message: 'f tom',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'test',
+        message: 'message test',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'tim',
+        message: 'message rest',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'ben',
+        message: 'bear test',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'nate',
+        message: 'test mssggg test',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'jerry',
+        message: 'f tom',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'test',
+        message: 'message test',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'tim',
+        message: 'message rest',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'ben',
+        message: 'bear test',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'nate',
+        message: 'test mssggg test',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'jerry',
+        message: 'f tom',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'test',
+        message: 'message test',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'tim',
+        message: 'message rest',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'ben',
+        message: 'bear test',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'nate',
+        message: 'test mssggg test',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'jerry',
+        message: 'f tom',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'test',
+        message: 'message test',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'tim',
+        message: 'message rest',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'ben',
+        message: 'bear test',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'nate',
+        message: 'test mssggg test',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'jerry',
+        message: 'f tom',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'test',
+        message: 'message test',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'tim',
+        message: 'message rest',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'ben',
+        message: 'bear test',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'nate',
+        message: 'test mssggg test',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'jerry',
+        message: 'f tom',
+        created_at: '2025-12-25'
+    },
+    {
+        sender: 'tom',
+        message: 'jerry is fat',
+        created_at: '2025-12-25'
+    }
+])
+
+let displayComponent = ref(true)
+let displayNewMessage = ref(false)
+let displayMessageList = ref(true)
+</script>
+
+<template>
+    <div class="anon-messenger">
+        <div class="head px-2 clickme" @click="displayComponent = !displayComponent">
+            <span class="pe-2">Messages</span>
+            <span :class="['triangle', { open: displayComponent }]">&#9654;</span>
+        </div>
+        <div :class="['body pt-3', { hidden: !displayComponent }]">
+            <div class="new-message-form-container pb-3 mb-3">
+                <p class="small px-2 clickme" @click="displayNewMessage = !displayNewMessage">
+                    Write a message...<span :class="['triangle ps-2', { open: displayNewMessage }]">&#9654;</span>
+                </p>
+                <form :class="['new-message px-2', { hidden: !displayNewMessage }]" @submit.prevent="">
+                    <div><input type="text" name="name" placeholder="Your name here"></div>
+                    <div><textarea type="text" name="message" placeholder="Your message here"></textarea></div>
+                    <button type="submit">Send</button>
+                </form>
+            </div>
+            <div class="message-list-container">
+                <p class="small px-2 clickme" @click="displayMessageList = !displayMessageList">
+                    Read some messages...<span :class="['triangle ps-2', { open: displayMessageList }]">&#9654;</span>
+                </p>
+                <ol :class="['message-list', { hidden: !displayMessageList }]">
+                    <li v-for="message in testmessages" class="p-2">
+                        <p>{{  message.message }}</p>
+                        <div class="d-flex justify-content-between small">
+                            <span><i>From: {{ message.sender }}</i></span>
+                            <span><i>Sent: {{ message.created_at }}</i></span>
+                        </div>
+                    </li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</template>
+
+<style scoped>
+.clickme:hover {
+    cursor: pointer;
+}
+.anon-messenger .hidden {
+    display: none !important;
+}
+.anon-messenger .triangle {
+    display: inline-block;
+}
+.anon-messenger .triangle.open {
+    transform: rotate(90deg);
+}
+.anon-messenger {
+    border: 2px solid gray;
+    border-radius: 10px;
+    display: inline-block;
+    min-width: 400px;
+    padding: 0;
+}
+
+.anon-messenger .head {
+    border-bottom: 2px solid gray;
+    min-height: 50px;
+    padding-top: 10px;
+}
+.anon-messenger .new-message-form-container {
+    border-bottom: 2px solid gray;
+}
+.anon-messenger .new-message-form-container > p {
+    margin-bottom: 0;
+}
+.anon-messenger .new-message * {
+    background: transparent;
+    border: 0;
+    margin: 5px 0;
+}
+.anon-messenger .new-message > *:not(:last-child) > * {
+    border-bottom: 2px solid gray;
+    color: gray;
+}
+.anon-messenger .new-message > *:last-child {
+    background: darkgray;
+    border-radius: 30px;
+    font-style: italic;
+}
+.anon-messenger .message-list {
+    border-top: 2px solid gray;
+    list-style: none;
+    margin: 10px 0 0;
+    max-height: 450px;
+    overflow-y: scroll;
+    padding: 0;
+}
+.anon-messenger .message-list > *:not(:last-child) {
+    border-bottom: 2px solid gray;
+}
+</style>
