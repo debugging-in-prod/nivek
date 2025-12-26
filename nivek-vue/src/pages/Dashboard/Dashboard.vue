@@ -39,7 +39,7 @@ let hideFishing = ref(true)
       </div>
 
       <div class="col-md-8 pt-1 pb-5">
-        <p :class="{ hidden: (!hideAutoShout || !hideFishing) }">Select a command on the left</p>
+        <p :class="{ hidden: (!hideAutoShout || !hideFishing) }">Select a command on the left to start</p>
         <div :class="{ hidden: hideAutoShout }"><AutoShout /></div>
         <div :class="{ hidden: hideFishing }"div><FishScore /></div>
       </div>
