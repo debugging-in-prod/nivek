@@ -106,7 +106,7 @@ function formatDate(date: string): string {
                 </form>
             </div>
             <div class="message-list-container">
-                <p class="small clickme" @click="displayMessageList = !displayMessageList">
+                <p class="small clickme mb-0" @click="displayMessageList = !displayMessageList">
                     Messages<span :class="['triangle ps-2', { open: displayMessageList }]">&#9654;</span>
                 </p>
                 <ol :class="['message-list', { hidden: !displayMessageList }]">
