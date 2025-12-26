@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import Weather from '@/components/Weather.vue'
 import AutoShout from "@/components/AutoShout.vue";
 import FishScore from "@/components/FishScore.vue";
+import AnonMessager from '@/components/AnonMessager.vue';
 
 const auth = useAuthStore()
 
@@ -37,10 +38,13 @@ let hideFishing = ref(true)
         </ul>
       </div>
 
-      <div class="col-md-10 pt-1 pb-5">
+      <div class="col-md-8 pt-1 pb-5">
         <p :class="{ hidden: (!hideAutoShout || !hideFishing) }">Select a command on the left</p>
         <div :class="{ hidden: hideAutoShout }"><AutoShout /></div>
         <div :class="{ hidden: hideFishing }"div><FishScore /></div>
+      </div>
+      <div class="col-md-2">
+        <AnonMessager />
       </div>
     </div>
   </div>
@@ -54,7 +58,7 @@ let hideFishing = ref(true)
   border: 2px solid grey;
   border-radius: 5px;
 }
-.container .row > *:first-child {
+.container .row > *:not(:last-child) {
   border-right: 2px solid grey;
 }
 .container .row {
