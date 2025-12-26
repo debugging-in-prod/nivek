@@ -37,7 +37,7 @@ let hideFishing = ref(true)
         </ul>
       </div>
 
-      <div class="col-md-8 pt-1 pb-5">
+      <div class="col-md-10 pt-1 pb-5">
         <p :class="{ hidden: (!hideAutoShout || !hideFishing) }">Select a command on the left</p>
         <div :class="{ hidden: hideAutoShout }"><AutoShout /></div>
         <div :class="{ hidden: hideFishing }"div><FishScore /></div>
@@ -65,6 +65,9 @@ let hideFishing = ref(true)
   list-style: none;
   margin: 0;
   padding: 0;
+}
+.command-config-nav > *:hover {
+  cursor: pointer;
 }
 .command-config-nav > *:not(:last-child) {
   border-bottom: 2px solid grey;
