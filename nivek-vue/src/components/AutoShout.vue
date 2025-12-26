@@ -31,8 +31,6 @@ interface AutoShoutChatter {
 let autoShoutChatters = ref<AutoShoutChatter[]>([])
 let chattername = ref('')
 
-let displayList = ref(false)
-
 // track which chatter is awaiting delete confirmation
 let confirmingDelete = reactive<Record<number, boolean>>({})
 
@@ -91,11 +89,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <h2>AutoShout</h2>
-  <button class="btn btn-primary" @click="displayList = !displayList">
-    <span>Click here to {{ displayList ? 'hide' : 'show'}}</span>
-  </button>
-  <div :class="[{ hidden: !displayList }]">
+  <h4>AutoShout</h4>
+  <div>
     <p>These are chatters that will get automatic shoutouts for every 1st message they post in your chat when you go live</p>
     <form @submit.prevent="addNewChatter()" class="mb-3">
       <div class="form-group">
