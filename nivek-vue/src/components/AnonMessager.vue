@@ -172,32 +172,32 @@ let displayMessageList = ref(true)
 
 <template>
     <div class="anon-messenger">
-        <div class="head px-2 clickme" @click="displayComponent = !displayComponent">
+        <div class="head clickme" @click="displayComponent = !displayComponent">
             <span class="pe-2">Messages</span>
             <span :class="['triangle', { open: displayComponent }]">&#9654;</span>
         </div>
-        <div :class="['body pt-3', { hidden: !displayComponent }]">
-            <div class="new-message-form-container pb-3 mb-3">
-                <p class="small px-2 clickme" @click="displayNewMessage = !displayNewMessage">
+        <div :class="['body', { hidden: !displayComponent }]">
+            <div class="new-message-form-container">
+                <p class="small clickme" @click="displayNewMessage = !displayNewMessage">
                     Write a message...<span :class="['triangle ps-2', { open: displayNewMessage }]">&#9654;</span>
                 </p>
-                <form :class="['new-message px-2', { hidden: !displayNewMessage }]" @submit.prevent="">
+                <form :class="['new-message pb-2', { hidden: !displayNewMessage }]" @submit.prevent="">
                     <div><input type="text" name="name" placeholder="Your name here"></div>
                     <div><textarea type="text" name="message" placeholder="Your message here"></textarea></div>
                     <button type="submit">Send</button>
                 </form>
             </div>
             <div class="message-list-container">
-                <p class="small px-2 clickme" @click="displayMessageList = !displayMessageList">
-                    Read some messages...<span :class="['triangle ps-2', { open: displayMessageList }]">&#9654;</span>
+                <p class="small clickme" @click="displayMessageList = !displayMessageList">
+                    Read some messages<span :class="['triangle ps-2', { open: displayMessageList }]">&#9654;</span>
                 </p>
                 <ol :class="['message-list', { hidden: !displayMessageList }]">
-                    <li v-for="message in testmessages" class="p-2">
-                        <p>{{  message.message }}</p>
+                    <li v-for="message in testmessages">
                         <div class="d-flex justify-content-between small">
-                            <span><i>From: {{ message.sender }}</i></span>
-                            <span><i>Sent: {{ message.created_at }}</i></span>
+                            <span class="text-secondary">ッ⃝<strong>{{ message.sender }}</strong></span>
+                            <span class="text-secondary">{{ message.created_at }}</span>
                         </div>
+                        <p class="m-0">{{  message.message }}</p>
                     </li>
                 </ol>
             </div>
@@ -219,17 +219,14 @@ let displayMessageList = ref(true)
     transform: rotate(90deg);
 }
 .anon-messenger {
-    border: 2px solid gray;
-    border-radius: 10px;
     display: inline-block;
-    min-width: 400px;
+    max-width: 100%;
+    min-width: 100%;
+    overflow: hidden;
     padding: 0;
 }
-
 .anon-messenger .head {
     border-bottom: 2px solid gray;
-    min-height: 50px;
-    padding-top: 10px;
 }
 .anon-messenger .new-message-form-container {
     border-bottom: 2px solid gray;
@@ -240,7 +237,10 @@ let displayMessageList = ref(true)
 .anon-messenger .new-message * {
     background: transparent;
     border: 0;
-    margin: 5px 0;
+}
+.anon-messenger .new-message input,
+.anon-messenger .new-message textarea {
+    width: 100%;
 }
 .anon-messenger .new-message > *:not(:last-child) > * {
     border-bottom: 2px solid gray;
@@ -251,6 +251,7 @@ let displayMessageList = ref(true)
     border-radius: 30px;
     font-style: italic;
 }
+
 .anon-messenger .message-list {
     border-top: 2px solid gray;
     list-style: none;
@@ -258,6 +259,9 @@ let displayMessageList = ref(true)
     max-height: 450px;
     overflow-y: scroll;
     padding: 0;
+}
+.anon-messenger .message-list::-webkit-scrollbar {
+    display: none;
 }
 .anon-messenger .message-list > *:not(:last-child) {
     border-bottom: 2px solid gray;
