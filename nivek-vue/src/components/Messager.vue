@@ -57,6 +57,29 @@ onMounted(() => {
 let displayComponent = ref(true)
 let displayNewMessage = ref(false)
 let displayMessageList = ref(true)
+
+function formatDate(date: string): string {
+    const d = new Date(date);
+
+    // Get the components of the date and time
+    const month = d.getMonth() + 1; // Months are zero-based
+    const day = d.getDate();
+    const year = d.getFullYear() % 100; // Get last two digits of the year
+    const hours = d.getHours();
+    const minutes = d.getMinutes();
+
+    // Pad single digits with a leading zero
+    const formattedMonth = month < 10 ? `0${month}` : month;
+    const formattedDay = day < 10 ? `0${day}` : day;
+    const formattedYear = year < 10 ? `0${year}` : year;
+    const formattedHours = hours < 10 ? `0${hours}` : hours;
+    const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+
+    // Format the string as MM/DD/YY HH:MM
+    return `${formattedMonth}/${formattedDay}/${formattedYear} ${formattedHours}:${formattedMinutes}`;
+}
+
+
 </script>
 
 <template>
@@ -68,7 +91,7 @@ let displayMessageList = ref(true)
         <div :class="['body', { hidden: !displayComponent }]">
             <div class="new-message-form-container">
                 <p class="small clickme" @click="displayNewMessage = !displayNewMessage">
-                    Write a message...<span :class="['triangle ps-2', { open: displayNewMessage }]">&#9654;</span>
+                    New message...<span :class="['triangle ps-2', { open: displayNewMessage }]">&#9654;</span>
                 </p>
                 <form :class="['new-message pb-2', { hidden: !displayNewMessage }]" @submit.prevent="createMessage">
                     <div><input type="text" name="name" 
@@ -84,15 +107,15 @@ let displayMessageList = ref(true)
             </div>
             <div class="message-list-container">
                 <p class="small clickme" @click="displayMessageList = !displayMessageList">
-                    Read some messages<span :class="['triangle ps-2', { open: displayMessageList }]">&#9654;</span>
+                    Messages<span :class="['triangle ps-2', { open: displayMessageList }]">&#9654;</span>
                 </p>
                 <ol :class="['message-list', { hidden: !displayMessageList }]">
                     <li v-for="message in messages">
                         <div class="d-flex justify-content-between small">
-                            <span class="text-secondary">ッ⃝<strong>{{ message.sender }}</strong></span>
-                            <span class="text-secondary">{{ message.created_at }}</span>
+                            <span class="text-secondary"><strong>{{ message.sender }}</strong></span>
+                            <span class="text-secondary date">{{ formatDate(message.created_at) }}</span>
                         </div>
-                        <p class="m-0">{{  message.message }}</p>
+                        <p class="m-0 small">{{  message.message }}</p>
                     </li>
                 </ol>
             </div>
@@ -160,5 +183,8 @@ let displayMessageList = ref(true)
 }
 .messenger .message-list > *:not(:last-child) {
     border-bottom: 2px solid gray;
+}
+.date {
+    text-wrap:nowrap;
 }
 </style>
