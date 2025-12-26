@@ -2,16 +2,14 @@
 import Navigation from "@/components/Navigation.vue"
 import Logout from '@/components/Logout.vue'
 import { useAuthStore } from '@/stores/auth'
-import { computed } from 'vue'
 
 const auth = useAuthStore()
-const headerLogo = computed(() =>  !!auth.user)
-console.log(headerLogo.value)
 </script>
 
 <template>
   <header>
-    <img alt="Vue logo" class="logo" src="./assets/pepelogo.jpg" width="125" height="125" />
+    <img v-if="auth.user" class="logo" src="./assets/munk.gif" width="125" height="125"/>
+    <img v-else class="logo" src="./assets/pepelogo.jpg" width="125" height="125">
   </header>
   <Navigation/>
 
