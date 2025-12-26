@@ -26,4 +26,5 @@ const (
 	DeleteAutoShoutChatter     = "/auto-shout/:id"
 
 	PostCreateMessage = "/message"
+	GetMessages       = "/message"
 )

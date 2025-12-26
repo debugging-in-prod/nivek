@@ -9,6 +9,7 @@ import (
 
 type NivekMessagerService interface {
 	CreateMessage(message Message) error
+	GetMessages() ([]Message, error)
 }
 
 type nivekMessagerServiceImpl struct {
@@ -29,4 +30,14 @@ func (s *nivekMessagerServiceImpl) CreateMessage(newMessage Message) error {
 	}
 
 	return nil
+}
+
+func (s *nivekMessagerServiceImpl) GetMessages() ([]Message, error) {
+	var messages []Message
+
+	if err := s.messageTable.Find().All(&messages); err != nil {
+		return nil, fmt.Errorf("[Messenger] failed to fetch all messages: %w", err)
+	}
+
+	return messages, nil
 }
