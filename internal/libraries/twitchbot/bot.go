@@ -136,9 +136,9 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 		b.handleLurkCommand(chattername, channel)
 	}
 }
-
 func (b *Bot) handleLurkCommand(username, channel string) {
 	if count := b.lurkSvc.OnMessage(channel, username); count > 0 {
+
 		b.client.Say(channel, fmt.Sprintf(
 			"thank you for the lurk! @%s You have lurked %d times",
 			username,
