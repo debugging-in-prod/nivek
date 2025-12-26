@@ -93,7 +93,7 @@ function formatDate(date: string): string {
                 <p class="small clickme" @click="displayNewMessage = !displayNewMessage">
                     New message...<span :class="['triangle ps-2', { open: displayNewMessage }]">&#9654;</span>
                 </p>
-                <form :class="['new-message pb-2', { hidden: !displayNewMessage }]" @submit.prevent="createMessage">
+                <form :class="['new-message pb-4 small', { hidden: !displayNewMessage }]" @submit.prevent="createMessage">
                     <div><input type="text" name="name" 
                         placeholder="Your name here"
                         v-model="newMessage.sender"
@@ -124,6 +124,9 @@ function formatDate(date: string): string {
 </template>
 
 <style scoped>
+    .message-list-container > p {
+        border-bottom: 2px solid gray;
+    }
 .clickme:hover {
     cursor: pointer;
 }
@@ -171,7 +174,6 @@ function formatDate(date: string): string {
 }
 
 .messenger .message-list {
-    border-top: 2px solid gray;
     list-style: none;
     margin: 10px 0 0;
     max-height: 450px;
