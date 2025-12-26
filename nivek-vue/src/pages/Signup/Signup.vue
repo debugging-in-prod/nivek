@@ -77,11 +77,18 @@ async function doSignup() {
       </div>
       <button type="submit" class="btn btn-primary">Submit</button>
     </form>    
-    <p>Your email and password are safe. Your 'email' here does not need to be a real email, it just needs to look like an email. 
+    <p>
+      Your email and password are safe. Your 'email' here does not need to be a real email, it just needs to look like an email. 
       I recommend doing [your-twitch-username]@nivek.life. At some point in the future, I plan on updating this to use real email verification. 
     </p>
-    <p>Do not be concerned about losing access to your account or data. This <b class="text-decoration-underline">will</b> happen. It is a question of when, not if. Just don't be concerned :)</p>
-    <p>This bot is in very early stages of active development. Expect bugs, errors, failures, letdowns, disappointments, heartbreaks, and disruptive behavior</p>
+    <p>
+      Do not be concerned about losing access to your account or data. This <b class="text-decoration-underline">will</b> happen. 
+      It is a question of when, not if. Just don't be concerned
+    </p>
+    <p>
+      This bot is in very early stages of active development. Expect bugs, errors, failures, letdowns, mischeif, mayhem
+      disappointments, heartbreaks, debauchery, trickery, and general disruptive behavior
+    </p>
   </div>
 </template>
 

@@ -2,10 +2,8 @@
 import Navigation from "@/components/Navigation.vue"
 import Logout from '@/components/Logout.vue'
 import { useAuthStore } from '@/stores/auth'
-import { computed } from 'vue'
 
 const auth = useAuthStore()
-const headerLogo = computed(() =>  !!auth.user)
 </script>
 
 <template>
