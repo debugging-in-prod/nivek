@@ -5,7 +5,7 @@ import (
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/autoshout"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/fishing"
-	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/messager"
+	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/messenger"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/task"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/user"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/user/auth"
@@ -70,7 +70,10 @@ func RegisterRoutes(nivek nivek.NivekService, e *echo.Echo) {
 	)
 
 	// messager
-	e.POST(PostCreateMessage, messager.NewCreateMesageEndpoint(nivek),
+	e.POST(PostCreateMessage, messenger.NewCreateMesageEndpoint(nivek),
+		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
+	)
+	e.GET(GetMessages, messenger.NewGetMessagesEndpoint(nivek),
 		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
 	)
 }
