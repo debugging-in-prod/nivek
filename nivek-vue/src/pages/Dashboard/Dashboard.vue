@@ -37,8 +37,17 @@ function getGreeting(date: Date = new Date()): string {
     </div>
   </div>
 
+  <p class="small text-center disclaimer">
+    This bot is in very early stages of active development. Expect bugs, errors, failures, letdowns, mischeif, mayhem
+    disappointments, heartbreaks, debauchery, trickery, and general disruptive behavior
+  </p>
 </template>
 
 <style scoped>
-
+.disclaimer {
+  bottom: 2rem;
+  left: 0;
+  position: absolute;
+  width: 100vw;
+}
 </style>
