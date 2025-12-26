@@ -70,13 +70,21 @@ CREATE TABLE IF NOT EXISTS nivek.bread (
 );
 
 CREATE TABLE lurk (
-  id SERIAL PRIMARY KEY,
-  channelname   TEXT NOT NULL,
-  chattername   TEXT NOT NULL,
-  lurk_count    INTEGER NOT NULL DEFAULT 0,
-  created       TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated       TIMESTAMP NOT NULL DEFAULT NOW(),
+    id SERIAL PRIMARY KEY,
+    channelname   TEXT NOT NULL,
+    chattername   TEXT NOT NULL,
+    lurk_count    INTEGER NOT NULL DEFAULT 0,
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
     -- Composite unique constraint
     CONSTRAINT unique_lurker UNIQUE (channelname, chattername)
+);
+
+CREATE TABLE message (
+    id SERIAL PRIMARY KEY,
+    sender VARCHAR(255) NOT NULL,
+    message varchar(255) NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

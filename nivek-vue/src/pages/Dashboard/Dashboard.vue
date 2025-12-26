@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import Weather from '@/components/Weather.vue'
 import AutoShout from "@/components/AutoShout.vue";
 import FishScore from "@/components/FishScore.vue";
-import AnonMessager from '@/components/AnonMessager.vue';
+import Messager from '@/components/Messager.vue';
 
 const auth = useAuthStore()
 
@@ -44,7 +44,7 @@ let hideFishing = ref(true)
         <div :class="{ hidden: hideFishing }"div><FishScore /></div>
       </div>
       <div class="col-md-2">
-        <AnonMessager />
+        <Messager />
       </div>
     </div>
   </div>
