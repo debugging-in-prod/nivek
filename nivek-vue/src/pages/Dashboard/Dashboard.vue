@@ -38,8 +38,8 @@ function getGreeting(date: Date = new Date()): string {
   </div>
 
   <p class="small text-center disclaimer">
-    This bot is in very early stages of active development. Expect bugs, errors, failures, letdowns, 
-    disappointments, heartbreaks, and disruptive behavior
+    This bot is in very early stages of active development. Expect bugs, errors, failures, letdowns, mischeif, mayhem
+    disappointments, heartbreaks, debauchery, trickery, and general disruptive behavior
   </p>
 </template>
 
