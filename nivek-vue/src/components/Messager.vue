@@ -1,47 +1,39 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { createHttpClient } from '@/services/HttpClient'
+import { AxiosAdapter } from '@/services/AxiosAdapter'
+import { onMounted, ref } from 'vue'
+import { API_ROUTES } from '@/constants'
+
+const http = createHttpClient(AxiosAdapter)
 
 interface Message {
     sender:     string
     message:    string
     created_at: string
+    updated_at: string
 }
 let messages = ref<Message[]>([])
-let testmessages = ref<Message[]>([
-    {
-        sender: 'test',
-        message: 'message test',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'tim',
-        message: 'message rest',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'ben',
-        message: 'bear test',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'nate',
-        message: 'test mssggg test',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'jerry',
-        message: 'f tom',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'test',
-        message: 'message test',
-        created_at: '2025-12-25'
-    }
-])
 
 // for later...
 // API_ROUTES.Secure.PostCreateMessage
+// API_ROUTES.Secure.GetMessages
+async function getMessages() {
+  try {
+    const resp = await http.get<string>(API_ROUTES.Secure.GetMessages)
+    if (!resp) {
+      console.error('error fetching auto shout chatters')
+      return;
+    }
+
+    messages.value = resp.data
+  } catch (err: unknown) {
+    console.error("error fetching auto shout chatters: ", err)
+  }
+}
+
+onMounted(() => {
+  getMessages()
+})
 
 let displayComponent = ref(true)
 let displayNewMessage = ref(false)
@@ -70,7 +62,7 @@ let displayMessageList = ref(true)
                     Read some messages<span :class="['triangle ps-2', { open: displayMessageList }]">&#9654;</span>
                 </p>
                 <ol :class="['message-list', { hidden: !displayMessageList }]">
-                    <li v-for="message in testmessages">
+                    <li v-for="message in messages">
                         <div class="d-flex justify-content-between small">
                             <span class="text-secondary">ッ⃝<strong>{{ message.sender }}</strong></span>
                             <span class="text-secondary">{{ message.created_at }}</span>
