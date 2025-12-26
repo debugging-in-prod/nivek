@@ -13,10 +13,29 @@ interface Message {
     updated_at: string
 }
 let messages = ref<Message[]>([])
+let newMessage = ref<Message>([])
 
 // for later...
 // API_ROUTES.Secure.PostCreateMessage
 // API_ROUTES.Secure.GetMessages
+async function createMessage() {
+  try {
+    const resp = await http.post(API_ROUTES.Secure.PostCreateMessage, {
+        sender: newMessage.value.sender,
+        message: newMessage.value.message
+    })
+    if (!resp) {
+      console.error('error creating message')
+      return;
+    }
+
+    // Refresh the list and clear input
+    await getMessages()
+  } catch (err: unknown) {
+    console.error("error creating message: ", err)
+  }
+}
+
 async function getMessages() {
   try {
     const resp = await http.get<string>(API_ROUTES.Secure.GetMessages)
@@ -51,9 +70,15 @@ let displayMessageList = ref(true)
                 <p class="small clickme" @click="displayNewMessage = !displayNewMessage">
                     Write a message...<span :class="['triangle ps-2', { open: displayNewMessage }]">&#9654;</span>
                 </p>
-                <form :class="['new-message pb-2', { hidden: !displayNewMessage }]" @submit.prevent="">
-                    <div><input type="text" name="name" placeholder="Your name here"></div>
-                    <div><textarea type="text" name="message" placeholder="Your message here"></textarea></div>
+                <form :class="['new-message pb-2', { hidden: !displayNewMessage }]" @submit.prevent="createMessage">
+                    <div><input type="text" name="name" 
+                        placeholder="Your name here"
+                        v-model="newMessage.sender"
+                    ></div>
+                    <div><textarea type="text" name="message" 
+                        placeholder="Your message here"
+                        v-model="newMessage.message"
+                    ></textarea></div>
                     <button type="submit">Send</button>
                 </form>
             </div>
