@@ -37,131 +37,6 @@ let testmessages = ref<Message[]>([
         sender: 'test',
         message: 'message test',
         created_at: '2025-12-25'
-    },
-    {
-        sender: 'tim',
-        message: 'message rest',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'ben',
-        message: 'bear test',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'nate',
-        message: 'test mssggg test',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'jerry',
-        message: 'f tom',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'test',
-        message: 'message test',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'tim',
-        message: 'message rest',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'ben',
-        message: 'bear test',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'nate',
-        message: 'test mssggg test',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'jerry',
-        message: 'f tom',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'test',
-        message: 'message test',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'tim',
-        message: 'message rest',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'ben',
-        message: 'bear test',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'nate',
-        message: 'test mssggg test',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'jerry',
-        message: 'f tom',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'test',
-        message: 'message test',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'tim',
-        message: 'message rest',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'ben',
-        message: 'bear test',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'nate',
-        message: 'test mssggg test',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'jerry',
-        message: 'f tom',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'test',
-        message: 'message test',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'tim',
-        message: 'message rest',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'ben',
-        message: 'bear test',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'nate',
-        message: 'test mssggg test',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'jerry',
-        message: 'f tom',
-        created_at: '2025-12-25'
-    },
-    {
-        sender: 'tom',
-        message: 'jerry is fat',
-        created_at: '2025-12-25'
     }
 ])
 
@@ -171,7 +46,7 @@ let displayMessageList = ref(true)
 </script>
 
 <template>
-    <div class="anon-messenger">
+    <div class="messenger">
         <div class="head clickme" @click="displayComponent = !displayComponent">
             <span class="pe-2">Messages</span>
             <span :class="['triangle', { open: displayComponent }]">&#9654;</span>
@@ -209,50 +84,50 @@ let displayMessageList = ref(true)
 .clickme:hover {
     cursor: pointer;
 }
-.anon-messenger .hidden {
+.messenger .hidden {
     display: none !important;
 }
-.anon-messenger .triangle {
+.messenger .triangle {
     display: inline-block;
 }
-.anon-messenger .triangle.open {
+.messenger .triangle.open {
     transform: rotate(90deg);
 }
-.anon-messenger {
+.messenger {
     display: inline-block;
     max-width: 100%;
     min-width: 100%;
     overflow: hidden;
     padding: 0;
 }
-.anon-messenger .head {
+.messenger .head {
     border-bottom: 2px solid gray;
 }
-.anon-messenger .new-message-form-container {
+.messenger .new-message-form-container {
     border-bottom: 2px solid gray;
 }
-.anon-messenger .new-message-form-container > p {
+.messenger .new-message-form-container > p {
     margin-bottom: 0;
 }
-.anon-messenger .new-message * {
+.messenger .new-message * {
     background: transparent;
     border: 0;
 }
-.anon-messenger .new-message input,
-.anon-messenger .new-message textarea {
+.messenger .new-message input,
+.messenger .new-message textarea {
     width: 100%;
 }
-.anon-messenger .new-message > *:not(:last-child) > * {
+.messenger .new-message > *:not(:last-child) > * {
     border-bottom: 2px solid gray;
     color: gray;
 }
-.anon-messenger .new-message > *:last-child {
+.messenger .new-message > *:last-child {
     background: darkgray;
     border-radius: 30px;
     font-style: italic;
 }
 
-.anon-messenger .message-list {
+.messenger .message-list {
     border-top: 2px solid gray;
     list-style: none;
     margin: 10px 0 0;
@@ -260,10 +135,10 @@ let displayMessageList = ref(true)
     overflow-y: scroll;
     padding: 0;
 }
-.anon-messenger .message-list::-webkit-scrollbar {
+.messenger .message-list::-webkit-scrollbar {
     display: none;
 }
-.anon-messenger .message-list > *:not(:last-child) {
+.messenger .message-list > *:not(:last-child) {
     border-bottom: 2px solid gray;
 }
 </style>
