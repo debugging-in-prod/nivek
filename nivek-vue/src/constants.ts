@@ -13,6 +13,7 @@ export const API_ROUTES: object = {
         PostCreateAutoShoutChatter: '/auto-shout',
         PostUpdateAutoShoutChatter: (id: number) => `/auto-shout/${id}`,
         DeleteAutoShoutChatter: (id: number) => `/auto-shout/${id}`,
+        PostCreateMessage: '/message',
         Tasks: {
             Create: (id: number) => `/user/${id}/task`,
             GetAll: (id: number) => `/user/${id}/task`
