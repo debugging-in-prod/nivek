@@ -25,7 +25,12 @@ func NewService(service nivek.NivekService) NivekMessagerService {
 }
 
 func (s *nivekMessagerServiceImpl) CreateMessage(newMessage *Message) error {
-	if err := s.messageTable.InsertReturning(newMessage); err != nil {
+	insertRec := map[string]any{
+		"sender":  newMessage.Sender,
+		"message": newMessage.Message,
+	}
+
+	if _, err := s.messageTable.Insert(insertRec); err != nil {
 		return fmt.Errorf("failed to insert new message in db: %w", err)
 	}
 
