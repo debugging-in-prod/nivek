@@ -8,7 +8,7 @@ import (
 )
 
 type NivekMessagerService interface {
-	CreateMessage(message Message) error
+	CreateMessage(message *Message) error
 	GetMessages() ([]Message, error)
 }
 
@@ -24,7 +24,7 @@ func NewService(service nivek.NivekService) NivekMessagerService {
 	}
 }
 
-func (s *nivekMessagerServiceImpl) CreateMessage(newMessage Message) error {
+func (s *nivekMessagerServiceImpl) CreateMessage(newMessage *Message) error {
 	if err := s.messageTable.InsertReturning(newMessage); err != nil {
 		return fmt.Errorf("failed to insert new message in db: %w", err)
 	}

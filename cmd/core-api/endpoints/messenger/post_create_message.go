@@ -23,7 +23,7 @@ func NewCreateMesageEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 		newMessage.UpdatedAt = time.Now()
 
 		messagerService := messagerSvc.NewService(nivek)
-		if err := messagerService.CreateMessage(newMessage); err != nil {
+		if err := messagerService.CreateMessage(&newMessage); err != nil {
 			nivek.Logger().Errorf("[Messager] failed to create new message %s", err.Error())
 			return c.JSON(http.StatusInternalServerError, map[string]string{
 				"error": "failed to create message",
