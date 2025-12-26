@@ -120,9 +120,9 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	chattername := message.User.Name
 	channel := message.Channel
 
-	if b.autoShout.OnMessage(channel, chattername) {
-		b.client.Say(channel, fmt.Sprintf("!so @%s", chattername))
-	}
+	// if b.autoShout.OnMessage(channel, chattername) {
+	// 	b.client.Say(channel, fmt.Sprintf("!so @%s", chattername))
+	// }
 
 	// Check for commands
 	switch msg {
