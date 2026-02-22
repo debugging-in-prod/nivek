@@ -82,6 +82,11 @@ func (s *nivekFishingServiceImpl) GoFishing(chatter string) string {
 		fishScore.Score = fishScore.Score + fsh.Value
 		msg = fmt.Sprintf("🎣 @%s caught a %s worth %d points!", chatter, fsh.Name, fsh.Value)
 
+		// save score to DB before querying leaderboard so the chatter appears in results
+		if errUpdate := s.updateScore(fishScore); errUpdate != nil {
+			log.Errorf("error updating fish score: %s", errUpdate)
+		}
+
 		// leaderboard update message
 		msg, err = s.leaderboardUpdateMessage(fishScore.Score, chatter, msg)
 		if err != nil {
@@ -129,6 +134,7 @@ func (s *nivekFishingServiceImpl) leaderboardUpdateMessage(chatterScore int, cha
 	}
 
 	// "🎣 @chatter caught a %s worth %d points!"
+	// check to see if the chatter has passed the leader with the lowest score
 	if lastPlaceLeaderScore < chatterScore {
 		leaderboard, errLeaderboard := s.fetchLeaderboard()
 		if errLeaderboard != nil {
@@ -142,7 +148,7 @@ func (s *nivekFishingServiceImpl) leaderboardUpdateMessage(chatterScore int, cha
 		chatterPlace := 0
 		for i, leader := range leaderboard {
 			if leader.ChatterName == chatter {
-				chatterPlace = i
+				chatterPlace = i + 1
 			}
 		}
 
@@ -205,7 +211,7 @@ func (s *nivekFishingServiceImpl) fetchLastPlaceLeaderboard() (int, error) {
 	err := s.fishingTable.Find(db.Cond{"channelname": s.channel}).
 		Select("score").
 		OrderBy("-score"). // Descending order (highest scores first)
-		Offset(4). // Skip first 4 (0-indexed, so position 4 is 5th place)
+		Offset(4).         // Skip first 4 (0-indexed, so position 4 is 5th place)
 		Limit(1).
 		One(&result)
 
