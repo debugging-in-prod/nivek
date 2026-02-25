@@ -9,10 +9,8 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      - app-network
-    ports:
-      - '5432:5432'
- 
+      - nivek-internal
+
   core-api:
     build:
       dockerfile: docker/images/go/Dockerfile.core-api.prod
@@ -30,23 +28,31 @@ services:
       - IP_INFO_API_TOKEN=${IP_INFO_API_TOKEN}
       - TWITCH_API_TOKEN=${TWITCH_API_TOKEN}
     networks:
-      - app-network
+      - nivek-internal
 
   nginx:
-    ports:
-      - "443:443"
+    container_name: nivek-nginx
     build:
       dockerfile: docker/images/nginx/Dockerfile
     volumes:
       - ./docker/nginx:/etc/nginx/conf.d:ro
     networks:
-      - app-network
+      - nivek-internal
+      - gateway
     restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.nivek.rule=Host(`nivek.life`)
+      - traefik.http.routers.nivek.entrypoints=websecure
+      - traefik.http.routers.nivek.tls.certresolver=letsencrypt
+      - traefik.http.services.nivek.loadbalancer.server.port=80
 
 volumes:
   postgres_data:
     name: postgres_data
 
 networks:
-  app-network:
+  nivek-internal:
     driver: bridge
+  gateway:
+    external: true
