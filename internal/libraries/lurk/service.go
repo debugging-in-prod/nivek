@@ -74,7 +74,7 @@ func (s *nivekLurkServiceImpl) getLurkerForMessage(channel, chatter string) (*Lu
 
 		newLurker, errCreate := s.createLurker(&newLrkr)
 		if errCreate != nil {
-			return nil, err
+			return nil, errCreate
 		}
 
 		// Return the newly created record

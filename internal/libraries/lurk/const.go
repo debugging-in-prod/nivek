@@ -5,7 +5,7 @@ import "time"
 const TableLurk = "lurk"
 
 type Lurker struct {
-	Id          int       `db:"id" json:"id"`
+	Id          int       `db:"id,omitempty" json:"id"`
 	ChannelName string    `db:"channelname" json:"channelname"`
 	ChatterName string    `db:"chattername" json:"chattername"`
 	LurkCount   int       `db:"lurk_count" json:"lurk_count"`
