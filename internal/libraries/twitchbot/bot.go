@@ -92,10 +92,27 @@ func (b *Bot) Start(ctx context.Context) error {
 	// Start reset timer
 	go b.counters.StartResetTimer(ctx)
 
-	// Start IRC client (blocking)
+	// Start IRC client with panic recovery and auto-reconnect
 	go func() {
-		if err := b.client.Connect(); err != nil {
-			log.Printf("Error connecting to Twitch: %v", err)
+		for {
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("Recovered from Twitch IRC panic: %v", r)
+					}
+				}()
+				if err := b.client.Connect(); err != nil {
+					log.Printf("Error connecting to Twitch: %v", err)
+				}
+			}()
+
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				log.Println("Reconnecting to Twitch IRC in 5 seconds...")
+				time.Sleep(5 * time.Second)
+			}
 		}
 	}()
 
