@@ -59,6 +59,8 @@ func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
 
 	// Create Twitch IRC client
 	client := twitch.NewClient(config.BotUsername, config.BotOAuth)
+	client.IrcAddress = "irc.chat.twitch.tv:6667"
+	client.TLS = false
 
 	bot := &Bot{
 		client:    client,
