@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:16
+    pull_policy: always
     environment:
       - POSTGRES_USER=${POSTGRES_USERNAME}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -16,6 +17,7 @@ services:
   core-api:
     build:
       dockerfile: docker/images/go/Dockerfile.core-api.prod
+      pull: true
     environment:
       - APP_NAME=${APP_NAME}
       - CORE_API_PORT=${CORE_API_PORT}
@@ -36,6 +38,7 @@ services:
     container_name: nivek-nginx
     build:
       dockerfile: docker/images/nginx/Dockerfile
+      pull: true
     volumes:
       - ./docker/nginx:/etc/nginx/conf.d:ro
       - ./nivek-vue/dist:/usr/share/nginx/html:ro
