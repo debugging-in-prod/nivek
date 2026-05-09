@@ -4,23 +4,16 @@ on:
   push:
     branches:
       - main
-    # Optional: limit triggers to certain paths if you want
-    # paths:
-    #   - 'cmd/core-api/**'
-    #   - 'internal/**'
-    #   - 'pkg/**'
-    #   - 'go.mod'
-    #   - 'go.sum'
 
 permissions:
   contents: write
 
 jobs:
   pull:
-    runs-on: [self-hosted, linux, prod]  # Vultr runner labels
+    runs-on: [self-hosted, linux, prod]
 
     steps:
-      - name: Checkout repository (default workspace)
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: List pulled files (sanity check)
@@ -28,10 +21,43 @@ jobs:
           echo "Repository pulled to runner workspace"
           pwd
           ls -la
-  deploy:
+
+  patch-system:
     needs: pull
-    runs-on: self-hosted
+    runs-on: [self-hosted, linux, prod]
+
+    steps:
+      - name: Apply security patches (CVE-2026-31431)
+        run: |
+          echo "=== Applying system security patches ==="
+          sudo apt-get update -y
+          sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
+            -o Dpkg::Options::="--force-confdef" \
+            -o Dpkg::Options::="--force-confold"
+          echo "=== Current kernel: $(uname -r) ==="
+
+      - name: Check reboot requirement
+        run: |
+          if [ -f /var/run/reboot-required ]; then
+            echo "::warning::Reboot required to activate patched kernel"
+            cat /var/run/reboot-required.pkgs 2>/dev/null || true
+          else
+            echo "No reboot required"
+          fi
+
+  deploy:
+    needs: patch-system
+    runs-on: [self-hosted, linux, prod]
 
     steps:
       - name: Env Setup
         run: /home/deploy/actions-runner/env-setup.sh
+
+      - name: Reboot if kernel was patched
+        run: |
+          if [ -f /var/run/reboot-required ]; then
+            echo "Scheduling reboot in 2 minutes to apply kernel patches..."
+            sudo shutdown -r +2 "Applying kernel security patches (CVE-2026-31431)"
+          else
+            echo "No reboot required - kernel patches already active"
+          fi
