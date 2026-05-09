@@ -30,7 +30,7 @@ jobs:
           ls -la
   deploy:
     needs: pull
-    runs-on: self-hosted
+    runs-on: [self-hosted, linux, prod]
 
     steps:
       - name: Env Setup
