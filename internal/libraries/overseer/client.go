@@ -30,13 +30,35 @@ func NewClient(url string, hmacKey []byte) *Client {
 
 // Send marshals cmd, sends it over the (lazily-connected) WebSocket, and
 // blocks until an ExecutedCmd ack arrives. On any transport or verification
-// failure the connection is dropped and the next Send will reconnect.
+// failure the connection is dropped. Transport-level failures (write/read
+// failing on a connection the client thought was healthy) are retried once
+// on a fresh connection — handles the stale-connection case after an
+// executor restart or LAN hiccup without surfacing it to the chatter.
+//
+// At-most-twice on the wire: in the rare case the server processed the
+// command and died before acking, the retry will queue a duplicate. Stale
+// connections (the common case) drop the bytes before the server sees them,
+// so no duplication.
 func (c *Client) Send(ctx context.Context, cmd Command) (*ExecutedCmd, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	executed, retryable, err := c.sendOnceLocked(ctx, cmd)
+	if err == nil || !retryable {
+		return executed, err
+	}
+	// dropConnLocked already fired in sendOnceLocked; ensureConnectedLocked
+	// inside the retry call will dial a fresh connection.
+	executed, _, err = c.sendOnceLocked(ctx, cmd)
+	return executed, err
+}
+
+// sendOnceLocked is the single-attempt body of Send. The bool return is
+// true when the failure was transport-level (write/read on what should have
+// been a healthy connection) and a retry on a fresh connection is appropriate.
+func (c *Client) sendOnceLocked(ctx context.Context, cmd Command) (*ExecutedCmd, bool, error) {
 	if err := c.ensureConnectedLocked(ctx); err != nil {
-		return nil, fmt.Errorf("connect: %w", err)
+		return nil, false, fmt.Errorf("connect: %w", err)
 	}
 
 	c.sentSeq++
@@ -44,38 +66,38 @@ func (c *Client) Send(ctx context.Context, cmd Command) (*ExecutedCmd, error) {
 
 	buf, err := MarshalEnvelope(EnvelopeTypeCommand, seq, cmd, c.hmacKey)
 	if err != nil {
-		return nil, fmt.Errorf("marshal command: %w", err)
+		return nil, false, fmt.Errorf("marshal command: %w", err)
 	}
 
 	if err := c.conn.Write(ctx, websocket.MessageText, buf); err != nil {
 		c.dropConnLocked()
-		return nil, fmt.Errorf("write: %w", err)
+		return nil, true, fmt.Errorf("write: %w", err)
 	}
 
 	_, ackBuf, err := c.conn.Read(ctx)
 	if err != nil {
 		c.dropConnLocked()
-		return nil, fmt.Errorf("read ack: %w", err)
+		return nil, true, fmt.Errorf("read ack: %w", err)
 	}
 
 	env, err := UnmarshalEnvelope(ackBuf, c.hmacKey)
 	if err != nil {
 		c.dropConnLocked()
-		return nil, fmt.Errorf("verify ack: %w", err)
+		return nil, false, fmt.Errorf("verify ack: %w", err)
 	}
 	if env.Type != EnvelopeTypeExecutedCmd {
-		return nil, fmt.Errorf("unexpected ack envelope type: %s", env.Type)
+		return nil, false, fmt.Errorf("unexpected ack envelope type: %s", env.Type)
 	}
 	if env.Seq <= c.lastAckSeq {
-		return nil, errors.New("replay in ack stream")
+		return nil, false, errors.New("replay in ack stream")
 	}
 	c.lastAckSeq = env.Seq
 
 	var executed ExecutedCmd
 	if err := json.Unmarshal(env.Data, &executed); err != nil {
-		return nil, fmt.Errorf("decode ack: %w", err)
+		return nil, false, fmt.Errorf("decode ack: %w", err)
 	}
-	return &executed, nil
+	return &executed, false, nil
 }
 
 // Close terminates the connection (idempotent).
