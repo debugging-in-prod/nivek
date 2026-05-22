@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"regexp"
 	"strings"
 	"syscall"
 
@@ -87,6 +88,8 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+var validTwitchLogin = regexp.MustCompile(`^[a-z0-9_]{4,25}$`)
+
 func getChannelNames(nivek nivek.NivekService) []string {
 	userService := user.NewService(nivek)
 	users, err := userService.GetAllActiveUsers()
@@ -98,9 +101,14 @@ func getChannelNames(nivek nivek.NivekService) []string {
 		log.Fatal("No active users found")
 	}
 
-	channels := make([]string, len(users))
-	for i, usr := range users {
-		channels[i] = strings.TrimSpace(usr.Username)
+	channels := make([]string, 0, len(users))
+	for _, usr := range users {
+		name := strings.ToLower(strings.TrimSpace(usr.Username))
+		if !validTwitchLogin.MatchString(name) {
+			log.Printf("skipping invalid Twitch login %q (active_users row id=%v)", usr.Username, usr.Id)
+			continue
+		}
+		channels = append(channels, name)
 	}
 
 	return channels
