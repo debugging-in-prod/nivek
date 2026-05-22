@@ -72,8 +72,8 @@ func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
 
 	// Create Twitch IRC client
 	client := twitch.NewClient(config.BotUsername, config.BotOAuth)
-	client.IrcAddress = "irc.chat.twitch.tv:6667"
-	client.TLS = false
+	client.IrcAddress = "irc.chat.twitch.tv:6697"
+	client.TLS = true
 
 	bot := &Bot{
 		client:         client,
@@ -89,6 +89,10 @@ func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
 
 	// Register message handler
 	client.OnPrivateMessage(bot.handleMessage)
+
+	client.OnNoticeMessage(func(m twitch.NoticeMessage) {
+		log.Printf("[NOTICE] [%s] msg-id=%s: %s", m.Channel, m.MsgID, m.Message)
+	})
 
 	// Log connection events
 	client.OnConnect(func() {
@@ -153,6 +157,10 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	chattername := message.User.Name
 	channel := message.Channel
 
+	if strings.HasPrefix(msg, "!") {
+		log.Printf("[CMD-RECV] [%s] %s: %q", channel, chattername, msg)
+	}
+
 	// if b.autoShout.OnMessage(channel, chattername) {
 	// 	b.client.Say(channel, fmt.Sprintf("!so @%s", chattername))
 	// }
@@ -209,7 +217,7 @@ func (b *Bot) handleBreadCommand(username, channel string) {
 	)
 
 	b.client.Say(channel, response)
-	// log.Printf("[BREAD] [%s] %s: %d (Total: %d)", channel, username, count, totalCount)
+	log.Printf("[BREAD] [%s] %s: %d (Total: %d)", channel, username, count, totalCount)
 }
 
 func (b *Bot) handleFishCommand(username, channel string) {
@@ -217,7 +225,7 @@ func (b *Bot) handleFishCommand(username, channel string) {
 	response := fishingService.GoFishing(username)
 
 	b.client.Say(channel, response)
-	// log.Printf("[FISH] [%s] %s", channel, username)
+	log.Printf("[FISH] [%s] %s", channel, username)
 }
 
 func (b *Bot) handleDFCommand(rawText, args, username, channel string) {
