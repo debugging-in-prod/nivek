@@ -2,36 +2,42 @@ package twitchbot
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
 	"github.com/gempir/go-twitch-irc/v4"
+	"github.com/google/uuid"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/autoshout"
 	bread2 "github.com/tim-the-toolman-taylor/nivek/internal/libraries/bread"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/fishing"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/lurk"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer"
 )
 
 type Config struct {
-	BotUsername string
-	BotOAuth    string
-	Channels    []string // Changed from single Channel to multiple Channels
-	StoragePath string
-	Timezone    string
+	BotUsername      string
+	BotOAuth         string
+	Channels         []string // Changed from single Channel to multiple Channels
+	StoragePath      string
+	Timezone         string
+	ExecutorWSURL    string // e.g. ws://192.168.1.X:8123/ws
+	OverseerHmacKey  string // hex-encoded HMAC key, shared with the executor
 }
 
 type Bot struct {
-	client    *twitch.Client
-	config    Config
-	counters  *CounterManager
-	location  *time.Location
-	nivek     nivek.NivekService
-	autoShout autoshout.NivekAutoShoutService
-	bread     bread2.NivekBreadService
-	lurkSvc   lurk.NivekLurkService
+	client         *twitch.Client
+	config         Config
+	counters       *CounterManager
+	location       *time.Location
+	nivek          nivek.NivekService
+	autoShout      autoshout.NivekAutoShoutService
+	bread          bread2.NivekBreadService
+	lurkSvc        lurk.NivekLurkService
+	overseerClient *overseer.Client
 }
 
 func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
@@ -57,20 +63,28 @@ func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
 	// lurk service
 	lurkSvc := lurk.NewService(nivek)
 
+	// overseer (DF Twitch-plays) WebSocket client to the executor
+	hmacKey, err := hex.DecodeString(config.OverseerHmacKey)
+	if err != nil {
+		return nil, fmt.Errorf("invalid OVERSEER_HMAC_KEY hex: %w", err)
+	}
+	overseerCli := overseer.NewClient(config.ExecutorWSURL, hmacKey)
+
 	// Create Twitch IRC client
 	client := twitch.NewClient(config.BotUsername, config.BotOAuth)
 	client.IrcAddress = "irc.chat.twitch.tv:6667"
 	client.TLS = false
 
 	bot := &Bot{
-		client:    client,
-		config:    config,
-		counters:  counters,
-		location:  loc,
-		nivek:     nivek,
-		autoShout: autoShout,
-		bread:     bread,
-		lurkSvc:   lurkSvc,
+		client:         client,
+		config:         config,
+		counters:       counters,
+		location:       loc,
+		nivek:          nivek,
+		autoShout:      autoShout,
+		bread:          bread,
+		lurkSvc:        lurkSvc,
+		overseerClient: overseerCli,
 	}
 
 	// Register message handler
@@ -143,6 +157,13 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	// 	b.client.Say(channel, fmt.Sprintf("!so @%s", chattername))
 	// }
 
+	// !DF takes arguments — handle separately from the exact-match commands below
+	if msg == "!df" || strings.HasPrefix(msg, "!df ") {
+		args := strings.TrimSpace(strings.TrimPrefix(msg, "!df"))
+		b.handleDFCommand(message.Message, args, chattername, channel)
+		return
+	}
+
 	// Check for commands
 	switch msg {
 	case "!bread":
@@ -197,6 +218,44 @@ func (b *Bot) handleFishCommand(username, channel string) {
 
 	b.client.Say(channel, response)
 	// log.Printf("[FISH] [%s] %s", channel, username)
+}
+
+func (b *Bot) handleDFCommand(rawText, args, username, channel string) {
+	action, err := overseer.ParseManufacture(args)
+	if err != nil {
+		log.Printf("[DF] [%s] %s: parse failed for %q: %v", channel, username, args, err)
+		return // silent reject (locked design)
+	}
+
+	cmd := overseer.Command{
+		ID:         uuid.NewString(),
+		ReceivedAt: time.Now().UTC(),
+		RawText:    rawText,
+		From: overseer.CommandSource{
+			Username: username,
+			Platform: overseer.PlatformTwitch,
+			Channel:  channel,
+		},
+		Action: action,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	executed, err := b.overseerClient.Send(ctx, cmd)
+	if err != nil {
+		log.Printf("[DF] [%s] %s: executor send failed: %v", channel, username, err)
+		b.client.Say(channel, fmt.Sprintf("@%s — couldn't reach DF: %s", username, err.Error()))
+		return
+	}
+
+	if executed.Result == overseer.ExecResultError {
+		log.Printf("[DF] [%s] %s: executor error: %s", channel, username, executed.ErrorMessage)
+		b.client.Say(channel, fmt.Sprintf("@%s — couldn't queue: %s", username, executed.ErrorMessage))
+		return
+	}
+
+	b.client.Say(channel, fmt.Sprintf("@%s queued %d %s%s", username, action.Quantity, action.Item, pluralize(action.Quantity)))
 }
 
 func pluralize(count int) string {

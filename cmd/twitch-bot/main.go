@@ -29,11 +29,13 @@ func main() {
 		func(nivek nivek.NivekService, ctx context.Context) error {
 
 			config := twitchbot.Config{
-				BotUsername: getEnv("TWITCH_BOT_USERNAME", ""),
-				BotOAuth:    getEnv("TWITCH_BOT_OAUTH", ""),
-				Channels:    getChannelNames(nivek),
-				StoragePath: getEnv("TWITCH_STORAGE_PATH", "./data/twitch-counters.json"),
-				Timezone:    getEnv("TWITCH_TIMEZONE", "America/New_York"),
+				BotUsername:     getEnv("TWITCH_BOT_USERNAME", ""),
+				BotOAuth:        getEnv("TWITCH_BOT_OAUTH", ""),
+				Channels:        getChannelNames(nivek),
+				StoragePath:     getEnv("TWITCH_STORAGE_PATH", "./data/twitch-counters.json"),
+				Timezone:        getEnv("TWITCH_TIMEZONE", "America/New_York"),
+				ExecutorWSURL:   getEnv("EXECUTOR_WS_URL", ""),
+				OverseerHmacKey: getEnv("OVERSEER_HMAC_KEY", ""),
 			}
 
 			// Validate required config
