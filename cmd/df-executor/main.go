@@ -33,7 +33,7 @@ func main() {
 
 	listen := os.Getenv("EXECUTOR_LISTEN")
 	if listen == "" {
-		listen = "0.0.0.0:8123"
+		listen = "127.0.0.1:8123"
 	}
 
 	svc := overseer.NewService(dfhackRunPath)
