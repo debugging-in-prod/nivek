@@ -13,14 +13,39 @@ var itemVocab = map[string]struct{}{
 	"bed":   {},
 }
 
+// materialVocab is the set of chat-facing materials accepted in v0.
+// "metal" is a meta-token meaning "any available metal, executor picks".
+var materialVocab = map[string]struct{}{
+	"stone": {}, "wood": {}, "bone": {}, "leather": {}, "cloth": {}, "shell": {},
+	"iron": {}, "copper": {}, "bronze": {}, "steel": {}, "silver": {}, "gold": {},
+	"metal": {},
+}
+
+// materialAliases normalizes adjectival forms to the canonical material token.
+var materialAliases = map[string]string{
+	"wooden": "wood",
+}
+
+// fillerWords are chat-tolerance tokens stripped before grammar matching.
+var fillerWords = map[string]struct{}{
+	"a": {}, "an": {}, "the": {}, "some": {},
+	"me": {}, "us": {}, "please": {},
+}
+
 // ParseManufacture parses the arguments of a `!DF` chat command into an Action.
 // The caller is expected to have stripped the `!df` prefix before passing.
 //
-// Grammar (strict positional, v0 subset): `make [qty] <item>`.
-// Material slot defined by the full grammar is not yet implemented; if present
-// it will currently land in the item position and be rejected.
+// Grammar (locked): `make [qty] [material] <item>`.
+//   - qty defaults to 1; must be a positive integer if present.
+//   - material is optional; nil means the executor picks.
+//   - item is the trailing token (plural-stripped) and must be in itemVocab.
+//
+// Tolerances: case-insensitive, whitespace-collapsing, plural-stripping on the
+// item token, adjectival material aliases (wooden->wood), and filler-word
+// stripping (a, an, the, some, me, us, please).
 func ParseManufacture(args string) (Action, error) {
 	tokens := strings.Fields(strings.ToLower(strings.TrimSpace(args)))
+	tokens = stripFillerWords(tokens)
 	if len(tokens) == 0 {
 		return Action{}, fmt.Errorf("empty command")
 	}
@@ -49,9 +74,43 @@ func ParseManufacture(args string) (Action, error) {
 		return Action{}, fmt.Errorf("unknown item: %q", itemToken)
 	}
 
+	var material *string
+	pre := tokens[:len(tokens)-1]
+	switch len(pre) {
+	case 0:
+		// no material slot — executor picks
+	case 1:
+		matToken := normalizeMaterial(pre[0])
+		if _, ok := materialVocab[matToken]; !ok {
+			return Action{}, fmt.Errorf("unknown material: %q", pre[0])
+		}
+		material = &matToken
+	default:
+		return Action{}, fmt.Errorf("extra tokens: %q", strings.Join(pre, " "))
+	}
+
 	return Action{
 		Kind:     ActionKindManufacture,
 		Item:     itemToken,
+		Material: material,
 		Quantity: qty,
 	}, nil
+}
+
+func stripFillerWords(tokens []string) []string {
+	out := make([]string, 0, len(tokens))
+	for _, t := range tokens {
+		if _, ok := fillerWords[t]; ok {
+			continue
+		}
+		out = append(out, t)
+	}
+	return out
+}
+
+func normalizeMaterial(token string) string {
+	if alias, ok := materialAliases[token]; ok {
+		return alias
+	}
+	return token
 }
