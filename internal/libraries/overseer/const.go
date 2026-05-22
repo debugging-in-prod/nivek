@@ -180,4 +180,5 @@ type EnvelopeType string
 const (
 	EnvelopeTypeCommand       EnvelopeType = "command"
 	EnvelopeTypeStateSnapshot EnvelopeType = "state_snapshot"
+	EnvelopeTypeExecutedCmd   EnvelopeType = "executed_cmd"
 )
