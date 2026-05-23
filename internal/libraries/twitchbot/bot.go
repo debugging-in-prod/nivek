@@ -229,7 +229,7 @@ func (b *Bot) handleFishCommand(username, channel string) {
 }
 
 func (b *Bot) handleDFCommand(rawText, args, username, channel string) {
-	action, err := overseer.ParseManufacture(args)
+	action, err := overseer.ParseCommand(args)
 	if err != nil {
 		log.Printf("[DF] [%s] %s: parse failed for %q: %v", channel, username, args, err)
 		return // silent reject (locked design)
@@ -263,7 +263,20 @@ func (b *Bot) handleDFCommand(rawText, args, username, channel string) {
 		return
 	}
 
-	b.client.Say(channel, fmt.Sprintf("@%s queued %d %s%s", username, action.Quantity, action.Item, pluralize(action.Quantity)))
+	b.client.Say(channel, dfSuccessReply(username, action))
+}
+
+func dfSuccessReply(username string, action overseer.Action) string {
+	switch action.Kind {
+	case overseer.ActionKindManufacture:
+		return fmt.Sprintf("@%s queued %d %s%s", username, action.Quantity, action.Item, pluralize(action.Quantity))
+	case overseer.ActionKindPause:
+		return fmt.Sprintf("@%s paused DF", username)
+	case overseer.ActionKindUnpause:
+		return fmt.Sprintf("@%s unpaused DF", username)
+	default:
+		return fmt.Sprintf("@%s executed %s", username, action.Kind)
+	}
 }
 
 func pluralize(count int) string {

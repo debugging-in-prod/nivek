@@ -8,7 +8,7 @@ import (
 // NivekOverseerService submits parsed actions to DFHack.
 // Lives executor-side (machine running DF + DFHack), not Pi-side.
 type NivekOverseerService interface {
-	SubmitManufacture(action Action) error
+	Submit(action Action) error
 }
 
 type nivekOverseerServiceImpl struct {
@@ -26,10 +26,20 @@ var itemToJobType = map[string]string{
 	"bed":   "ConstructBed",
 }
 
-func (s *nivekOverseerServiceImpl) SubmitManufacture(action Action) error {
-	if action.Kind != ActionKindManufacture {
+func (s *nivekOverseerServiceImpl) Submit(action Action) error {
+	switch action.Kind {
+	case ActionKindManufacture:
+		return s.submitManufacture(action)
+	case ActionKindPause:
+		return s.runLua("df.global.pause_state=true")
+	case ActionKindUnpause:
+		return s.runLua("df.global.pause_state=false")
+	default:
 		return fmt.Errorf("unsupported action kind: %s", action.Kind)
 	}
+}
+
+func (s *nivekOverseerServiceImpl) submitManufacture(action Action) error {
 	jobType, ok := itemToJobType[action.Item]
 	if !ok {
 		return fmt.Errorf("no DFHack job_type mapping for item: %s", action.Item)
@@ -41,6 +51,14 @@ func (s *nivekOverseerServiceImpl) SubmitManufacture(action Action) error {
 	out, err := exec.Command(s.dfhackRunPath, "workorder", jobType, fmt.Sprintf("%d", qty)).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("dfhack-run failed: %w: %s", err, string(out))
+	}
+	return nil
+}
+
+func (s *nivekOverseerServiceImpl) runLua(script string) error {
+	out, err := exec.Command(s.dfhackRunPath, "lua", script).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("dfhack-run lua failed: %w: %s", err, string(out))
 	}
 	return nil
 }
