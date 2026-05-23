@@ -23,6 +23,20 @@ var itemVocab = map[string]struct{}{
 	"floodgate": {},
 	"bucket":    {},
 	"barrel":    {},
+	"ash":       {},
+	"charcoal":  {},
+}
+
+// itemMaterialNotApplicable lists items where the DFHack job_type doesn't
+// take a material spec — the recipe has fixed inputs/outputs (e.g. MakeAsh
+// burns wood and produces ash bars regardless of wood type; the DF Manager
+// job has no material slot). For these items the parser allows the
+// material to be omitted, and silently ignores any material the chatter
+// supplies; the service-side skips populating the workorder JSON's
+// material field.
+var itemMaterialNotApplicable = map[string]struct{}{
+	"ash":      {},
+	"charcoal": {},
 }
 
 // itemMaterialAllowlist restricts which materials are accepted for specific
@@ -139,14 +153,24 @@ func parseManufacture(tokens []string) (Action, error) {
 		return Action{}, fmt.Errorf("unknown item: %q", itemToken)
 	}
 
+	_, materialNotApplicable := itemMaterialNotApplicable[itemToken]
+
 	var material *string
 	pre := tokens[:len(tokens)-1]
 	switch len(pre) {
 	case 0:
-		// DF Manager requires a material — orders without one queue as
-		// "unknown material" and can never execute.
-		return Action{}, fmt.Errorf("missing material")
+		// DF Manager requires a material for most items — orders without one
+		// queue as "unknown material" and can never execute. Items in
+		// itemMaterialNotApplicable are the exception (fixed-recipe jobs).
+		if !materialNotApplicable {
+			return Action{}, fmt.Errorf("missing material")
+		}
 	case 1:
+		if materialNotApplicable {
+			// Material isn't used for this item; silently ignore whatever
+			// the chatter put there rather than rejecting valid commands.
+			break
+		}
 		matToken := normalizeMaterial(pre[0])
 		if _, ok := materialVocab[matToken]; !ok {
 			return Action{}, fmt.Errorf("unknown material: %q", pre[0])
@@ -156,9 +180,11 @@ func parseManufacture(tokens []string) (Action, error) {
 		return Action{}, fmt.Errorf("extra tokens: %q", strings.Join(pre, " "))
 	}
 
-	if allowed, restricted := itemMaterialAllowlist[itemToken]; restricted {
-		if _, ok := allowed[*material]; !ok {
-			return Action{}, fmt.Errorf("material %q not allowed for item %q", *material, itemToken)
+	if !materialNotApplicable {
+		if allowed, restricted := itemMaterialAllowlist[itemToken]; restricted {
+			if _, ok := allowed[*material]; !ok {
+				return Action{}, fmt.Errorf("material %q not allowed for item %q", *material, itemToken)
+			}
 		}
 	}
 
