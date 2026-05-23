@@ -40,8 +40,16 @@ const canGoDown = computed(() => {
 async function loadSnapshot() {
     try {
         const fresh = await fetchSnapshot()
-        snapshot.value = fresh
         error.value = null
+        if (fresh === null) {
+            // No snapshot available yet (server cold-start, before first push).
+            // Leave snapshot.value as-is so previously-rendered state persists
+            // if a poll briefly returns 404; the template will show the
+            // waiting placeholder only when snapshot is still null.
+            snapshot.value = null
+            return
+        }
+        snapshot.value = fresh
         // Default to the highest Z level (surface or above) on first load.
         // Subsequent polls preserve the user's current Z if still in range.
         if (currentLevelIdx.value >= fresh.levels.length || currentLevelIdx.value < 0) {
@@ -125,7 +133,15 @@ onBeforeUnmount(() => {
 
         <div v-if="error" class="error">Snapshot unavailable: {{ error }}</div>
 
-        <div class="layout">
+        <div v-if="!snapshot && !error" class="waiting">
+            <p class="waiting-text">Waiting for data…</p>
+            <p class="waiting-hint">
+                Server hasn't received a snapshot from the DFHost yet.
+                Pusher sends one every {{ POLL_INTERVAL_MS / 1000 }}s.
+            </p>
+        </div>
+
+        <div v-else class="layout">
             <canvas
                 ref="canvasRef"
                 @mousemove="onMouseMove"
@@ -227,6 +243,32 @@ header h1 {
     padding: 0.5rem 1rem;
     border-radius: 4px;
     margin-bottom: 1rem;
+}
+
+.waiting {
+    background: #000;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 4rem 2rem;
+    text-align: center;
+    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.waiting-text {
+    color: #6fb;
+    font-size: 1.5rem;
+    font-family: monospace;
+    margin: 0;
+}
+
+.waiting-hint {
+    color: #666;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
 }
 
 .layout {
