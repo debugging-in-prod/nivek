@@ -121,12 +121,52 @@ for _, b in ipairs(df.global.world.buildings.all) do
     end
 end
 
+-- Citizens pass: list active fortress citizens with their name, profession,
+-- age, current job, stress category, and position. Bounded by total fort
+-- pop (usually 50-200) so payload growth is modest.
+local citizens = {}
+for _, u in ipairs(df.global.world.units.active) do
+    if dfhack.units.isCitizen(u) then
+        -- getReadableName returns "Name 'Nickname', Profession" — strip the
+        -- trailing profession since we send it as a separate field, and
+        -- df2utf-normalize so special characters render as valid UTF-8.
+        local name = dfhack.df2utf(dfhack.units.getReadableName(u)) or '(unnamed)'
+        name = (name:gsub(', [^,]+$', ''))
+
+        -- getProfessionName returns the human-readable form (e.g. "Miner")
+        -- vs the raw enum string ("MINER"). Falls back to enum if unset.
+        local prof_name = dfhack.units.getProfessionName(u)
+        if not prof_name or prof_name == '' then
+            prof_name = df.profession[u.profession] or 'Unknown'
+        end
+        local age = math.floor(dfhack.units.getAge(u, true) or 0)
+
+        local job_name = ''
+        if u.job and u.job.current_job then
+            local ok, jn = pcall(dfhack.job.getName, u.job.current_job)
+            if ok and jn then job_name = dfhack.df2utf(jn) end
+        end
+
+        local stress = dfhack.units.getStressCategory(u) or 3  -- 3 = "Fine"/neutral
+
+        table.insert(citizens, {
+            name = name,
+            profession = prof_name,
+            age = age,
+            job = job_name,
+            stress = stress,
+            position = { x = u.pos.x, y = u.pos.y, z = u.pos.z },
+        })
+    end
+end
+
 local snapshot = {
     captured_at = os.date('!%Y-%m-%dT%H:%M:%SZ'),
     origin = { x = 0, y = 0, z = z_min },
     width = width,
     height = height,
     levels = as_array(levels),
+    citizens = as_array(citizens),
 }
 
 print(json.encode(snapshot))
