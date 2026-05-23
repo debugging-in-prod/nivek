@@ -36,7 +36,8 @@ var fillerWords = map[string]struct{}{
 // The caller is expected to have stripped the `!df` prefix before passing.
 //
 // Verbs (v0):
-//   - `make [qty] [material] <item>` — manufacture
+//   - `make [qty] <material> <item>` — manufacture (material is required;
+//     DF Manager refuses to execute orders without one)
 //   - `pause` — pause DF
 //   - `unpause` — unpause DF
 //
@@ -90,7 +91,9 @@ func parseManufacture(tokens []string) (Action, error) {
 	pre := tokens[:len(tokens)-1]
 	switch len(pre) {
 	case 0:
-		// no material slot — executor picks
+		// DF Manager requires a material — orders without one queue as
+		// "unknown material" and can never execute.
+		return Action{}, fmt.Errorf("missing material")
 	case 1:
 		matToken := normalizeMaterial(pre[0])
 		if _, ok := materialVocab[matToken]; !ok {

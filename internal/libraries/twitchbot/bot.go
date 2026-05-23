@@ -269,7 +269,11 @@ func (b *Bot) handleDFCommand(rawText, args, username, channel string) {
 func dfSuccessReply(username string, action overseer.Action) string {
 	switch action.Kind {
 	case overseer.ActionKindManufacture:
-		return fmt.Sprintf("@%s queued %d %s%s", username, action.Quantity, action.Item, pluralize(action.Quantity))
+		mat := ""
+		if action.Material != nil {
+			mat = *action.Material + " "
+		}
+		return fmt.Sprintf("@%s queued %d %s%s%s", username, action.Quantity, mat, action.Item, pluralize(action.Quantity))
 	case overseer.ActionKindPause:
 		return fmt.Sprintf("@%s paused DF", username)
 	case overseer.ActionKindUnpause:

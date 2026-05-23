@@ -1,6 +1,7 @@
 package overseer
 
 import (
+	"encoding/json"
 	"fmt"
 	"os/exec"
 )
@@ -26,6 +27,47 @@ var itemToJobType = map[string]string{
 	"bed":   "ConstructBed",
 }
 
+// materialToWorkorderSpec maps chat-facing material tokens to the JSON shape
+// DFHack's `workorder` command expects. Two shapes coexist:
+//
+//   - `material: "INORGANIC[:SUBTYPE]"` for stone (any non-economic rock) and
+//     specific metals (iron, copper, ...). Confirmed via `orders export`.
+//   - `material_category: ["<name>"]` for DF's high-level material categories
+//     (wood, bone, leather, ...). Confirmed for wood; extrapolated for the
+//     rest by category-name analogy.
+//
+// If an extrapolated mapping ever produces "unknown material" in DF, fix the
+// value here.
+var materialToWorkorderSpec = map[string]workorderMaterialSpec{
+	"stone":   {Material: "INORGANIC"},
+	"wood":    {MaterialCategory: []string{"wood"}},
+	"iron":    {Material: "INORGANIC:IRON"},
+	"copper":  {Material: "INORGANIC:COPPER"},
+	"bronze":  {Material: "INORGANIC:BRONZE"},
+	"steel":   {Material: "INORGANIC:STEEL"},
+	"silver":  {Material: "INORGANIC:SILVER"},
+	"gold":    {Material: "INORGANIC:GOLD"},
+	"bone":    {MaterialCategory: []string{"bone"}},
+	"leather": {MaterialCategory: []string{"leather"}},
+	"cloth":   {MaterialCategory: []string{"cloth"}},
+	"shell":   {MaterialCategory: []string{"shell"}},
+	"metal":   {MaterialCategory: []string{"metal"}},
+}
+
+type workorderMaterialSpec struct {
+	Material         string
+	MaterialCategory []string
+}
+
+// workorderRequest is the JSON payload `workorder <json>` accepts.
+// Material xor MaterialCategory — populate whichever the spec uses.
+type workorderRequest struct {
+	Job              string   `json:"job"`
+	AmountTotal      int      `json:"amount_total"`
+	Material         string   `json:"material,omitempty"`
+	MaterialCategory []string `json:"material_category,omitempty"`
+}
+
 func (s *nivekOverseerServiceImpl) Submit(action Action) error {
 	switch action.Kind {
 	case ActionKindManufacture:
@@ -40,15 +82,34 @@ func (s *nivekOverseerServiceImpl) Submit(action Action) error {
 }
 
 func (s *nivekOverseerServiceImpl) submitManufacture(action Action) error {
+	if action.Material == nil {
+		return fmt.Errorf("manufacture requires material")
+	}
 	jobType, ok := itemToJobType[action.Item]
 	if !ok {
 		return fmt.Errorf("no DFHack job_type mapping for item: %s", action.Item)
 	}
+	spec, ok := materialToWorkorderSpec[*action.Material]
+	if !ok {
+		return fmt.Errorf("no DFHack material mapping for material: %s", *action.Material)
+	}
+
 	qty := action.Quantity
 	if qty <= 0 {
 		qty = 1
 	}
-	out, err := exec.Command(s.dfhackRunPath, "workorder", jobType, fmt.Sprintf("%d", qty)).CombinedOutput()
+
+	payload, err := json.Marshal(workorderRequest{
+		Job:              jobType,
+		AmountTotal:      qty,
+		Material:         spec.Material,
+		MaterialCategory: spec.MaterialCategory,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal workorder json: %w", err)
+	}
+
+	out, err := exec.Command(s.dfhackRunPath, "workorder", string(payload)).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("dfhack-run failed: %w: %s", err, string(out))
 	}
