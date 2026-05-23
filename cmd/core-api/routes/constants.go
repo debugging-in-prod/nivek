@@ -27,4 +27,7 @@ const (
 
 	PostCreateMessage = "/message"
 	GetMessages       = "/message"
+
+	// DF dashboard (public, no auth — dashboard is publicly fanned out)
+	GetDFSnapshot = "/df/snapshot"
 )
