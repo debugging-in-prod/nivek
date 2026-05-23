@@ -32,27 +32,39 @@ var fillerWords = map[string]struct{}{
 	"me": {}, "us": {}, "please": {},
 }
 
-// ParseManufacture parses the arguments of a `!DF` chat command into an Action.
+// ParseCommand parses the arguments of a `!DF` chat command into an Action.
 // The caller is expected to have stripped the `!df` prefix before passing.
 //
-// Grammar (locked): `make [qty] [material] <item>`.
-//   - qty defaults to 1; must be a positive integer if present.
-//   - material is optional; nil means the executor picks.
-//   - item is the trailing token (plural-stripped) and must be in itemVocab.
+// Verbs (v0):
+//   - `make [qty] [material] <item>` — manufacture
+//   - `pause` — pause DF
+//   - `unpause` — unpause DF
 //
-// Tolerances: case-insensitive, whitespace-collapsing, plural-stripping on the
-// item token, adjectival material aliases (wooden->wood), and filler-word
-// stripping (a, an, the, some, me, us, please).
-func ParseManufacture(args string) (Action, error) {
+// Tolerances (apply to all verbs): case-insensitive, whitespace-collapsing,
+// filler-word stripping (a, an, the, some, me, us, please). Manufacture
+// additionally allows plural-stripping on the item and the wooden->wood
+// adjectival alias on the material.
+func ParseCommand(args string) (Action, error) {
 	tokens := strings.Fields(strings.ToLower(strings.TrimSpace(args)))
 	tokens = stripFillerWords(tokens)
 	if len(tokens) == 0 {
 		return Action{}, fmt.Errorf("empty command")
 	}
-	if tokens[0] != "make" {
-		return Action{}, fmt.Errorf("unknown verb: %q", tokens[0])
+	verb := tokens[0]
+	rest := tokens[1:]
+	switch verb {
+	case "make":
+		return parseManufacture(rest)
+	case "pause":
+		return parsePause(rest)
+	case "unpause":
+		return parseUnpause(rest)
+	default:
+		return Action{}, fmt.Errorf("unknown verb: %q", verb)
 	}
-	tokens = tokens[1:]
+}
+
+func parseManufacture(tokens []string) (Action, error) {
 	if len(tokens) == 0 {
 		return Action{}, fmt.Errorf("missing item")
 	}
@@ -95,6 +107,20 @@ func ParseManufacture(args string) (Action, error) {
 		Material: material,
 		Quantity: qty,
 	}, nil
+}
+
+func parsePause(rest []string) (Action, error) {
+	if len(rest) > 0 {
+		return Action{}, fmt.Errorf("extra tokens: %q", strings.Join(rest, " "))
+	}
+	return Action{Kind: ActionKindPause}, nil
+}
+
+func parseUnpause(rest []string) (Action, error) {
+	if len(rest) > 0 {
+		return Action{}, fmt.Errorf("extra tokens: %q", strings.Join(rest, " "))
+	}
+	return Action{Kind: ActionKindUnpause}, nil
 }
 
 func stripFillerWords(tokens []string) []string {

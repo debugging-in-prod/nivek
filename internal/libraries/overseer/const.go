@@ -58,6 +58,8 @@ type ActionKind string
 
 const (
 	ActionKindManufacture ActionKind = "manufacture"
+	ActionKindPause       ActionKind = "pause"
+	ActionKindUnpause     ActionKind = "unpause"
 )
 
 // --- StateSnapshot ---
