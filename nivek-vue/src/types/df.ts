@@ -32,10 +32,22 @@ export interface ZLevel {
     furniture: FurniturePlace[]
 }
 
+// Citizen mirrors overseer.Citizen on the Go side. Stress is the dfhack
+// "stress category" integer: 0 = ecstatic, 6 = miserable.
+export interface Citizen {
+    name: string
+    profession: string
+    age: number
+    job?: string         // empty / omitted when idle
+    stress: number       // 0..6
+    position: Position
+}
+
 export interface MapSnapshot {
     captured_at: string  // ISO timestamp
     origin: Position     // x, y valid for all levels; z = lowest level
     width: number        // tile count along X (same for every level)
     height: number       // tile count along Y (same for every level)
     levels: ZLevel[]     // sorted ascending by Z, contiguous
+    citizens?: Citizen[] // active fortress citizens (optional in case server omits)
 }
