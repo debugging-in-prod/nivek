@@ -1,6 +1,8 @@
 package df
 
 import (
+	"bytes"
+	"compress/gzip"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -45,6 +47,24 @@ func NewPostSnapshotEndpoint(_ nivek.NivekService) echo.HandlerFunc {
 			return c.JSON(http.StatusBadRequest, map[string]string{
 				"error": "read body: " + err.Error(),
 			})
+		}
+
+		// Decompress if the pusher gzipped the body. HMAC is computed over
+		// the UNCOMPRESSED JSON so we decompress before verifying.
+		if c.Request().Header.Get("Content-Encoding") == "gzip" {
+			gz, err := gzip.NewReader(bytes.NewReader(body))
+			if err != nil {
+				return c.JSON(http.StatusBadRequest, map[string]string{
+					"error": "gzip reader: " + err.Error(),
+				})
+			}
+			body, err = io.ReadAll(gz)
+			if err != nil {
+				return c.JSON(http.StatusBadRequest, map[string]string{
+					"error": "gunzip body: " + err.Error(),
+				})
+			}
+			_ = gz.Close()
 		}
 
 		claimedHex := c.Request().Header.Get("X-Nivek-HMAC")
