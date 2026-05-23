@@ -78,6 +78,7 @@ func RegisterRoutes(nivek nivek.NivekService, e *echo.Echo) {
 		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
 	)
 
-	// DF dashboard (public, no auth)
+	// DF dashboard (GET public, POST HMAC-authed in the handler)
 	e.GET(GetDFSnapshot, df.NewGetSnapshotEndpoint(nivek))
+	e.POST(PostDFSnapshot, df.NewPostSnapshotEndpoint(nivek))
 }
