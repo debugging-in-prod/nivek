@@ -37,7 +37,7 @@ func main() {
 	}
 
 	svc := overseer.NewService(dfhackRunPath)
-	server := overseer.NewServer(hmacKey, svc.SubmitManufacture)
+	server := overseer.NewServer(hmacKey, svc.Submit)
 
 	mux := http.NewServeMux()
 	mux.Handle("/ws", server)
