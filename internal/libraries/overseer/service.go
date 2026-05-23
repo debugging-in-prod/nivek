@@ -21,10 +21,24 @@ func NewService(dfhackRunPath string) NivekOverseerService {
 }
 
 // itemToJobType maps chat-facing item nouns to DFHack `job_type` enum names
-// used by the `workorder` script. v0 covers two items; expand as the slice grows.
+// used by the `workorder` script. Chat tokens are singular; DFHack's enum
+// name is whatever DFHack uses internally (chair -> ConstructThrone,
+// chest -> ConstructBox, block -> ConstructBlocks, etc.).
+//
+// Confirmed via `orders export`: table, bed, door, chair, coffin, blocks.
+// Extrapolated (very likely correct): cabinet, chest, statue, floodgate.
+// If any extrapolated mapping errors out in practice, fix the value here.
 var itemToJobType = map[string]string{
-	"table": "ConstructTable",
-	"bed":   "ConstructBed",
+	"table":     "ConstructTable",
+	"bed":       "ConstructBed",
+	"door":      "ConstructDoor",
+	"chair":     "ConstructThrone",
+	"coffin":    "ConstructCoffin",
+	"block":     "ConstructBlocks",
+	"cabinet":   "ConstructCabinet",
+	"chest":     "ConstructBox",
+	"statue":    "ConstructStatue",
+	"floodgate": "ConstructFloodgate",
 }
 
 // materialToWorkorderSpec maps chat-facing material tokens to the JSON shape
