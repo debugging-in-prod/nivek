@@ -34,6 +34,22 @@ var itemMaterialAllowlist = map[string]map[string]struct{}{
 	"barrel": {"wood": {}},
 }
 
+// placeableItemVocab is the subset of itemVocab that can be constructed as
+// buildings via `!DF place`. Tools (bucket, barrel) and bulk products
+// (block) are intentionally excluded — DF doesn't construct them as
+// tile-occupying furniture, only as items.
+var placeableItemVocab = map[string]struct{}{
+	"table":     {},
+	"bed":       {},
+	"door":      {},
+	"chair":     {},
+	"coffin":    {},
+	"cabinet":   {},
+	"chest":     {},
+	"statue":    {},
+	"floodgate": {},
+}
+
 // materialVocab is the set of chat-facing materials accepted in v0.
 // "metal" is a meta-token meaning "any available metal, executor picks".
 var materialVocab = map[string]struct{}{
@@ -66,6 +82,10 @@ var fillerWords = map[string]struct{}{
 //     `137,115,150`, `137, 115, 150` all parse the same)
 //   - `help` — bot posts the command list in chat (short-circuited in
 //     handleDFCommand; no executor round-trip)
+//   - `place <item> <x> <y> <z>` — queue a build job at the given tile
+//     for an already-manufactured furniture item (commas optional, same
+//     coord-format tolerance as `camera`). Only items in
+//     placeableItemVocab are accepted
 //
 // Tolerances (apply to all verbs): case-insensitive, whitespace-collapsing,
 // filler-word stripping (a, an, the, some, me, us, please). Manufacture
@@ -90,6 +110,8 @@ func ParseCommand(args string) (Action, error) {
 		return parseCamera(rest)
 	case "help":
 		return parseHelp(rest)
+	case "place":
+		return parsePlace(rest)
 	default:
 		return Action{}, fmt.Errorf("unknown verb: %q", verb)
 	}
@@ -187,6 +209,32 @@ func parseCamera(rest []string) (Action, error) {
 	}
 	return Action{
 		Kind:     ActionKindCamera,
+		Position: &Position{X: coords[0], Y: coords[1], Z: coords[2]},
+	}, nil
+}
+
+func parsePlace(rest []string) (Action, error) {
+	// Tolerate comma separators between coords, same as camera.
+	joined := strings.ReplaceAll(strings.Join(rest, " "), ",", " ")
+	parts := strings.Fields(joined)
+	if len(parts) != 4 {
+		return Action{}, fmt.Errorf("place needs <item> <x> <y> <z>, got %d args", len(parts))
+	}
+	item := strings.TrimSuffix(parts[0], "s")
+	if _, ok := placeableItemVocab[item]; !ok {
+		return Action{}, fmt.Errorf("not placeable: %q", item)
+	}
+	coords := make([]int, 3)
+	for i := 0; i < 3; i++ {
+		n, err := strconv.Atoi(parts[i+1])
+		if err != nil {
+			return Action{}, fmt.Errorf("invalid coordinate %q", parts[i+1])
+		}
+		coords[i] = n
+	}
+	return Action{
+		Kind:     ActionKindPlace,
+		Item:     item,
 		Position: &Position{X: coords[0], Y: coords[1], Z: coords[2]},
 	}, nil
 }

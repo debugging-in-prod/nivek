@@ -129,6 +129,7 @@ const (
 	ActionKindUnpause     ActionKind = "unpause"
 	ActionKindCamera      ActionKind = "camera"
 	ActionKindHelp        ActionKind = "help"
+	ActionKindPlace       ActionKind = "place"
 )
 
 // --- StateSnapshot ---
