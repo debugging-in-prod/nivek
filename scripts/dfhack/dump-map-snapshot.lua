@@ -18,7 +18,7 @@
 local json = require('json')
 
 -- ============ CONFIG ============
-local Z_RADIUS = 2  -- dumps current_z ± this many levels (5 total)
+local Z_RADIUS = 25  -- dumps current_z ± this many levels (51 total)
 -- ================================
 
 -- TileType values mirror overseer.TileType in const.go. Keep in sync.
