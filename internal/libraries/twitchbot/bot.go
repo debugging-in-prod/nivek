@@ -235,6 +235,17 @@ func (b *Bot) handleDFCommand(rawText, args, username, channel string) {
 		return // silent reject (locked design)
 	}
 
+	// help is a chat-response verb — no DFHack involvement, no executor
+	// round-trip. Short-circuit here before the WS send.
+	if action.Kind == overseer.ActionKindHelp {
+		b.client.Say(channel, fmt.Sprintf(
+			"@%s !DF: make [N] <material> <item> | pause | unpause | camera <x> <y> <z> | help",
+			username,
+		))
+		log.Printf("[DF] [%s] %s: help requested", channel, username)
+		return
+	}
+
 	cmd := overseer.Command{
 		ID:         uuid.NewString(),
 		ReceivedAt: time.Now().UTC(),
