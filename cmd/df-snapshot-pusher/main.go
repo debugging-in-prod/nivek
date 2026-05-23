@@ -160,6 +160,10 @@ func (c *config) pushOnce() {
 		return
 	}
 
+	// Capture compressed size *before* sending — http.Client.Do drains the
+	// buffer as it reads the body, so a post-send compressed.Len() returns 0.
+	compressedSize := compressed.Len()
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.pushURL, &compressed)
 	if err != nil {
 		log.Printf("build request: %v", err)
@@ -181,5 +185,5 @@ func (c *config) pushOnce() {
 		return
 	}
 	log.Printf("pushed %d bytes raw, %d bytes compressed (%.1fx ratio), HTTP %d",
-		len(body), compressed.Len(), float64(len(body))/float64(compressed.Len()), resp.StatusCode)
+		len(body), compressedSize, float64(len(body))/float64(compressedSize), resp.StatusCode)
 }
