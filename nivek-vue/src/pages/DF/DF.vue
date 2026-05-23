@@ -50,10 +50,15 @@ async function loadSnapshot() {
             return
         }
         snapshot.value = fresh
-        // Default to the highest Z level (surface or above) on first load.
+        // Default to the MIDDLE of the snapshot's Z range on first load.
+        // The lua dump emits `window_z ± Z_RADIUS` so the middle index
+        // corresponds to DF's viewport at dump time — that's where the
+        // fortress almost always is. The top of the range is usually
+        // empty above-ground sky (all Unknown tiles, renders as a
+        // featureless dark rectangle that looks broken to viewers).
         // Subsequent polls preserve the user's current Z if still in range.
         if (currentLevelIdx.value >= fresh.levels.length || currentLevelIdx.value < 0) {
-            currentLevelIdx.value = fresh.levels.length - 1
+            currentLevelIdx.value = Math.floor(fresh.levels.length / 2)
         }
         renderCurrent()
     } catch (err: any) {
