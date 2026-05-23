@@ -36,7 +36,6 @@ var itemToJobType = map[string]string{
 	"coffin":    "ConstructCoffin",
 	"block":     "ConstructBlocks",
 	"cabinet":   "ConstructCabinet",
-	"chest":     "ConstructBox",
 	"statue":    "ConstructStatue",
 	"floodgate": "ConstructFloodgate",
 }
