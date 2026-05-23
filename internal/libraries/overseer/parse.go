@@ -18,6 +18,7 @@ var itemVocab = map[string]struct{}{
 	"coffin":    {},
 	"block":     {},
 	"cabinet":   {},
+	"chest":     {},
 	"statue":    {},
 	"floodgate": {},
 }
