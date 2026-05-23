@@ -55,12 +55,25 @@ type Action struct {
 
 	// For Kind == ActionKindCamera (and future spatial actions):
 	Position *Position `json:"position,omitempty"`
+
+	// For Kind == ActionKindMine (and future range-based spatial actions):
+	Region *Region `json:"region,omitempty"`
 }
 
 type Position struct {
 	X int `json:"x"`
 	Y int `json:"y"`
 	Z int `json:"z"`
+}
+
+// Region is a 2D rectangular area on a single Z level. Min and Max are
+// inclusive corners; Min.Z and Max.Z MUST be equal (single-Z constraint
+// enforced at parse time). Reusable across any verb that operates on a
+// range of tiles — `mine` is the first user; channeling, stockpile-zone
+// placement, and dig-down patterns will reuse the same shape later.
+type Region struct {
+	Min Position `json:"min"`
+	Max Position `json:"max"`
 }
 
 // --- MapSnapshot ---
@@ -131,6 +144,7 @@ const (
 	ActionKindHelp        ActionKind = "help"
 	ActionKindPlace       ActionKind = "place"
 	ActionKindBrew        ActionKind = "brew"
+	ActionKindMine        ActionKind = "mine"
 )
 
 // --- StateSnapshot ---
