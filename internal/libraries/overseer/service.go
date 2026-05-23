@@ -138,6 +138,8 @@ func (s *nivekOverseerServiceImpl) Submit(action Action) error {
 		return s.submitPlace(action)
 	case ActionKindBrew:
 		return s.submitBrew(action)
+	case ActionKindMine:
+		return s.submitMine(action)
 	default:
 		return fmt.Errorf("unsupported action kind: %s", action.Kind)
 	}
@@ -149,6 +151,39 @@ func (s *nivekOverseerServiceImpl) submitCamera(action Action) error {
 	}
 	script := fmt.Sprintf("dfhack.gui.revealInDwarfmodeMap({x=%d,y=%d,z=%d}, true)",
 		action.Position.X, action.Position.Y, action.Position.Z)
+	return s.runLua(script)
+}
+
+func (s *nivekOverseerServiceImpl) submitMine(action Action) error {
+	if action.Region == nil {
+		return fmt.Errorf("mine requires region")
+	}
+	r := action.Region
+	if r.Min.Z != r.Max.Z {
+		return fmt.Errorf("mine region must be on a single Z level (got Min.Z=%d Max.Z=%d)", r.Min.Z, r.Max.Z)
+	}
+	minX, maxX := r.Min.X, r.Max.X
+	if minX > maxX {
+		minX, maxX = maxX, minX
+	}
+	minY, maxY := r.Min.Y, r.Max.Y
+	if minY > maxY {
+		minY, maxY = maxY, minY
+	}
+	// Iterate each tile in the rectangle, set the dig designation. Pattern
+	// matches the spatial PoC's single-tile lua, just looped. Block lookup
+	// per-tile rather than batched — at <=25 tiles, RPC overhead is fine.
+	script := fmt.Sprintf(`
+for x = %d, %d do
+    for y = %d, %d do
+        local block = dfhack.maps.getTileBlock({x=x, y=y, z=%d})
+        if block then
+            block.designation[x%%16][y%%16].dig = df.tile_dig_designation.Default
+            block.occupancy[x%%16][y%%16].dig_marked = false
+            block.flags.designated = true
+        end
+    end
+end`, minX, maxX, minY, maxY, r.Min.Z)
 	return s.runLua(script)
 }
 

@@ -239,7 +239,7 @@ func (b *Bot) handleDFCommand(rawText, args, username, channel string) {
 	// round-trip. Short-circuit here before the WS send.
 	if action.Kind == overseer.ActionKindHelp {
 		b.client.Say(channel, fmt.Sprintf(
-			"@%s !DF: make [N] <material> <item> | place <item> <x> <y> <z> | brew [N] <fruit|plant> | camera <x> <y> <z> | pause | unpause | help",
+			"@%s !DF: make [N] <material> <item> | place <item> <x> <y> <z> | brew [N] <fruit|plant> | mine <x,y,z> <x,y> | camera <x> <y> <z> | pause | unpause | help",
 			username,
 		))
 		log.Printf("[DF] [%s] %s: help requested", channel, username)
@@ -301,6 +301,17 @@ func dfSuccessReply(username string, action overseer.Action) string {
 		return fmt.Sprintf("@%s placed %s", username, action.Item)
 	case overseer.ActionKindBrew:
 		return fmt.Sprintf("@%s queued %d brew%s from %s", username, action.Quantity, pluralize(action.Quantity), action.Item)
+	case overseer.ActionKindMine:
+		if action.Region != nil {
+			dx := abs(action.Region.Max.X-action.Region.Min.X) + 1
+			dy := abs(action.Region.Max.Y-action.Region.Min.Y) + 1
+			return fmt.Sprintf("@%s designated %dx%d dig area from (%d, %d, %d) to (%d, %d)",
+				username, dx, dy,
+				action.Region.Min.X, action.Region.Min.Y, action.Region.Min.Z,
+				action.Region.Max.X, action.Region.Max.Y,
+			)
+		}
+		return fmt.Sprintf("@%s designated dig area", username)
 	default:
 		return fmt.Sprintf("@%s executed %s", username, action.Kind)
 	}
@@ -311,4 +322,11 @@ func pluralize(count int) string {
 		return ""
 	}
 	return "s"
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
 }
