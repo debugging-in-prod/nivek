@@ -41,6 +41,8 @@ var itemToJobType = map[string]string{
 	"floodgate": "ConstructFloodgate",
 	"bucket":    "MakeBucket",
 	"barrel":    "MakeBarrel",
+	"ash":       "MakeAsh",
+	"charcoal":  "MakeCharcoal",
 }
 
 // placeableItemToBuildingType maps chat-facing item nouns to DFHack
@@ -149,16 +151,9 @@ func (s *nivekOverseerServiceImpl) submitPlace(action Action) error {
 }
 
 func (s *nivekOverseerServiceImpl) submitManufacture(action Action) error {
-	if action.Material == nil {
-		return fmt.Errorf("manufacture requires material")
-	}
 	jobType, ok := itemToJobType[action.Item]
 	if !ok {
 		return fmt.Errorf("no DFHack job_type mapping for item: %s", action.Item)
-	}
-	spec, ok := materialToWorkorderSpec[*action.Material]
-	if !ok {
-		return fmt.Errorf("no DFHack material mapping for material: %s", *action.Material)
 	}
 
 	qty := action.Quantity
@@ -166,12 +161,26 @@ func (s *nivekOverseerServiceImpl) submitManufacture(action Action) error {
 		qty = 1
 	}
 
-	payload, err := json.Marshal(workorderRequest{
-		Job:              jobType,
-		AmountTotal:      qty,
-		Material:         spec.Material,
-		MaterialCategory: spec.MaterialCategory,
-	})
+	req := workorderRequest{
+		Job:         jobType,
+		AmountTotal: qty,
+	}
+
+	// Material is nil for fixed-recipe jobs (MakeAsh, MakeCharcoal — these
+	// don't take a material slot, the recipe inputs are fixed). For
+	// everything else the parser guarantees Material is set; populate the
+	// workorder material/material_category fields from the translation
+	// table so DFHack queues the right material variant.
+	if action.Material != nil {
+		spec, ok := materialToWorkorderSpec[*action.Material]
+		if !ok {
+			return fmt.Errorf("no DFHack material mapping for material: %s", *action.Material)
+		}
+		req.Material = spec.Material
+		req.MaterialCategory = spec.MaterialCategory
+	}
+
+	payload, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("marshal workorder json: %w", err)
 	}
