@@ -52,6 +52,15 @@ type Action struct {
 	Item     string  `json:"item,omitempty"`
 	Material *string `json:"material,omitempty"`
 	Quantity int     `json:"quantity,omitempty"`
+
+	// For Kind == ActionKindCamera (and future spatial actions):
+	Position *Position `json:"position,omitempty"`
+}
+
+type Position struct {
+	X int `json:"x"`
+	Y int `json:"y"`
+	Z int `json:"z"`
 }
 
 type ActionKind string
@@ -60,6 +69,7 @@ const (
 	ActionKindManufacture ActionKind = "manufacture"
 	ActionKindPause       ActionKind = "pause"
 	ActionKindUnpause     ActionKind = "unpause"
+	ActionKindCamera      ActionKind = "camera"
 )
 
 // --- StateSnapshot ---

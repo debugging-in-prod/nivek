@@ -90,9 +90,20 @@ func (s *nivekOverseerServiceImpl) Submit(action Action) error {
 		return s.runLua("df.global.pause_state=true")
 	case ActionKindUnpause:
 		return s.runLua("df.global.pause_state=false")
+	case ActionKindCamera:
+		return s.submitCamera(action)
 	default:
 		return fmt.Errorf("unsupported action kind: %s", action.Kind)
 	}
+}
+
+func (s *nivekOverseerServiceImpl) submitCamera(action Action) error {
+	if action.Position == nil {
+		return fmt.Errorf("camera requires position")
+	}
+	script := fmt.Sprintf("dfhack.gui.revealInDwarfmodeMap({x=%d,y=%d,z=%d}, true)",
+		action.Position.X, action.Position.Y, action.Position.Z)
+	return s.runLua(script)
 }
 
 func (s *nivekOverseerServiceImpl) submitManufacture(action Action) error {

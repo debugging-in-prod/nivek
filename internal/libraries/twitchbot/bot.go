@@ -278,6 +278,11 @@ func dfSuccessReply(username string, action overseer.Action) string {
 		return fmt.Sprintf("@%s paused DF", username)
 	case overseer.ActionKindUnpause:
 		return fmt.Sprintf("@%s unpaused DF", username)
+	case overseer.ActionKindCamera:
+		if action.Position != nil {
+			return fmt.Sprintf("@%s moved camera to (%d, %d, %d)", username, action.Position.X, action.Position.Y, action.Position.Z)
+		}
+		return fmt.Sprintf("@%s moved camera", username)
 	default:
 		return fmt.Sprintf("@%s executed %s", username, action.Kind)
 	}
