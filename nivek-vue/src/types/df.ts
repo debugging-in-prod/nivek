@@ -26,12 +26,16 @@ export interface FurniturePlace {
     y: number
 }
 
+export interface ZLevel {
+    z: number
+    tiles: number[]              // row-major TileType values; length = width*height
+    furniture: FurniturePlace[]
+}
+
 export interface MapSnapshot {
     captured_at: string  // ISO timestamp
-    origin: Position     // world coord of the (0,0) cell in tiles[]
-    width: number        // tile count along X
-    height: number       // tile count along Y
-    z: number            // Z level this snapshot covers
-    tiles: number[]      // row-major TileType values; length = width*height
-    furniture: FurniturePlace[]
+    origin: Position     // x, y valid for all levels; z = lowest level
+    width: number        // tile count along X (same for every level)
+    height: number       // tile count along Y (same for every level)
+    levels: ZLevel[]     // sorted ascending by Z, contiguous
 }
