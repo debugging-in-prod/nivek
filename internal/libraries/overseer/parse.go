@@ -7,10 +7,20 @@ import (
 )
 
 // itemVocab is the set of chat-facing item nouns the parser recognizes for v0.
-// Plural and case variations are normalized before lookup.
+// Plural and case variations are normalized before lookup (the trailing "s"
+// is stripped before lookup, so all entries are singular even when the
+// DFHack-side job_type is plural — e.g. `block` -> `ConstructBlocks`).
 var itemVocab = map[string]struct{}{
-	"table": {},
-	"bed":   {},
+	"table":     {},
+	"bed":       {},
+	"door":      {},
+	"chair":     {},
+	"coffin":    {},
+	"block":     {},
+	"cabinet":   {},
+	"chest":     {},
+	"statue":    {},
+	"floodgate": {},
 }
 
 // materialVocab is the set of chat-facing materials accepted in v0.
