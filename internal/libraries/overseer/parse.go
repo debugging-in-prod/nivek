@@ -297,6 +297,11 @@ func parseMine(rest []string) (Action, error) {
 	}, nil
 }
 
+// abs returns |n|. Used by parseMine to compute rectangle dimensions
+// regardless of which corner the chatter listed first — `mine 0,0,0 5,5`
+// and `mine 5,5,0 0,0` describe the same region, so `Max - Min` can be
+// negative. Go's math.Abs is float64-only, so a 5-line int helper is
+// cheaper than the conversion dance.
 func abs(n int) int {
 	if n < 0 {
 		return -n

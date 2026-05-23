@@ -324,6 +324,11 @@ func pluralize(count int) string {
 	return "s"
 }
 
+// abs returns |n|. Used by dfSuccessReply when formatting a Mine
+// action's dimensions for chat — Region.Max can be either >= or < Min
+// depending on which corner the chatter typed first. Duplicated rather
+// than imported because the overseer package's copy is unexported and
+// the helper is too small to justify exposing or sharing.
 func abs(n int) int {
 	if n < 0 {
 		return -n
