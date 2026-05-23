@@ -91,10 +91,26 @@ type Region struct {
 // DFHack data with 100+ Z levels makes the payload painful.
 type MapSnapshot struct {
 	CapturedAt time.Time `json:"captured_at"`
-	Origin     Position  `json:"origin"` // X, Y are valid for all levels; Z = lowest level's Z
-	Width      int       `json:"width"`  // number of tiles along X (same for every level)
-	Height     int       `json:"height"` // number of tiles along Y (same for every level)
-	Levels     []ZLevel  `json:"levels"` // sorted ascending by Z, contiguous (no gaps)
+	Origin     Position  `json:"origin"`             // X, Y are valid for all levels; Z = lowest level's Z
+	Width      int       `json:"width"`              // number of tiles along X (same for every level)
+	Height     int       `json:"height"`             // number of tiles along Y (same for every level)
+	Levels     []ZLevel  `json:"levels"`             // sorted ascending by Z, contiguous (no gaps)
+	Citizens   []Citizen `json:"citizens,omitempty"` // active citizen units in the fortress
+}
+
+// Citizen is a fortress dwarf (or other citizen race) the dashboard
+// surfaces in its sidebar. Set is intentionally small — name/profession/
+// job + position cover the "who's doing what and where" question; stress
+// gives a visible mood signal. Skills, attributes, relationships, health
+// detail, equipment etc. are deliberately not included to keep the
+// snapshot payload bounded.
+type Citizen struct {
+	Name       string   `json:"name"`
+	Profession string   `json:"profession"`     // e.g. "Miner", "Carpenter", "Recruit", "Child"
+	Age        int      `json:"age"`            // integer years
+	Job        string   `json:"job,omitempty"`  // current task; "" when idle
+	Stress     int      `json:"stress"`         // 0=ecstatic .. 6=miserable per dfhack's category
+	Position   Position `json:"position"`       // current tile coord
 }
 
 // ZLevel is one floor of the fortress at a specific Z coordinate.

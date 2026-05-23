@@ -90,6 +90,19 @@ function onClick(ev: MouseEvent) {
     selectedCoord.value = pixelToWorld(snapshot.value, currentLevel.value, ev.clientX - rect.left, ev.clientY - rect.top)
 }
 
+// Stress category mapping mirrors dfhack.units.getStressCategory:
+// 0=ecstatic, 1=happy, 2=content, 3=fine, 4=unhappy, 5=stressed, 6=miserable
+const STRESS_LABELS = ['Ecstatic', 'Happy', 'Content', 'Fine', 'Unhappy', 'Stressed', 'Miserable']
+function stressLabel(s: number): string {
+    return STRESS_LABELS[s] ?? `?(${s})`
+}
+function stressClass(s: number): string {
+    if (s <= 1) return 'stress-happy'
+    if (s === 2 || s === 3) return 'stress-neutral'
+    if (s === 4) return 'stress-unhappy'
+    return 'stress-bad'
+}
+
 function onKeydown(ev: KeyboardEvent) {
     // Only steal arrow keys when the user isn't typing in an input/textarea.
     const t = ev.target as HTMLElement | null
@@ -206,6 +219,27 @@ onBeforeUnmount(() => {
                     <li><code>X</code> chest</li>
                     <li><code>S</code> statue</li>
                     <li><code>#</code> floodgate</li>
+                </ul>
+            </aside>
+
+            <aside class="hud citizens-panel" v-if="snapshot?.citizens?.length">
+                <h3>Citizens ({{ snapshot.citizens.length }})</h3>
+                <ul class="citizen-list">
+                    <li v-for="(c, i) in snapshot.citizens" :key="i" class="citizen-row">
+                        <div class="citizen-name">
+                            <span class="stress-dot" :class="stressClass(c.stress)" :title="stressLabel(c.stress)" />
+                            {{ c.name }}
+                        </div>
+                        <div class="citizen-meta">
+                            {{ c.profession }} · age {{ c.age }}
+                        </div>
+                        <div class="citizen-job" v-if="c.job">
+                            <em>{{ c.job }}</em>
+                        </div>
+                        <div class="citizen-pos">
+                            @ ({{ c.position.x }}, {{ c.position.y }}, {{ c.position.z }})
+                        </div>
+                    </li>
                 </ul>
             </aside>
         </div>
@@ -403,6 +437,64 @@ canvas {
     border-radius: 2px;
     color: #fff;
 }
+
+.citizens-panel {
+    min-width: 260px;
+    max-width: 320px;
+    max-height: 800px;
+    overflow-y: auto;
+}
+
+.citizen-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.citizen-row {
+    padding: 0.4rem 0;
+    border-bottom: 1px solid #2a2a2a;
+    font-size: 0.85rem;
+}
+
+.citizen-row:last-child {
+    border-bottom: none;
+}
+
+.citizen-name {
+    color: #fff;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.citizen-meta {
+    color: #aaa;
+    font-size: 0.78rem;
+}
+
+.citizen-job {
+    color: #6fb;
+    font-size: 0.78rem;
+}
+
+.citizen-pos {
+    color: #666;
+    font-size: 0.72rem;
+}
+
+.stress-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.stress-dot.stress-happy   { background: #4caf50; }
+.stress-dot.stress-neutral { background: #aaa;    }
+.stress-dot.stress-unhappy { background: #ff9800; }
+.stress-dot.stress-bad     { background: #f44336; }
 
 .note {
     margin-top: 1.5rem;
