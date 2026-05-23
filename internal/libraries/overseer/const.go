@@ -82,7 +82,13 @@ type MapSnapshot struct {
 
 // TileType is the v0 set of tile shapes the dashboard renders. Intentionally
 // small — extend as DFHack reveals what's worth distinguishing visually.
-type TileType uint8
+//
+// Underlying type is `int` (NOT `uint8`) on purpose: Go's encoding/json
+// treats `[]uint8` (and any named type with that underlying) as a byte
+// slice and base64-encodes it on the wire. That breaks the dashboard
+// renderer, which expects an array of numbers. Using `int` ensures
+// `[]TileType` JSON-encodes as a normal array.
+type TileType int
 
 const (
 	TileUnknown TileType = 0
