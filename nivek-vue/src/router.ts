@@ -1,9 +1,10 @@
-import { createMemoryHistory, createRouter, RouteRecordRaw } from 'vue-router'
+import { createWebHistory, createRouter, RouteRecordRaw } from 'vue-router'
 
 import Welcome from '@/pages/Welcome/Welcome.vue'
 import LoginPage from '@/pages/Login/Login.vue'
 import SignupPage from '@/pages/Signup/Signup.vue'
 import DashboardPage from '@/pages/Dashboard/Dashboard.vue'
+import DFPage from '@/pages/DF/DF.vue'
 
 import { TokenManager } from '@/utils/TokenManager'
 import { useAuthStore } from '@/stores/auth'
@@ -19,11 +20,16 @@ const routes: Array<RouteRecordRaw> = [
         path: '/dashboard',
         component: DashboardPage,
         meta: { requiresAuth: true, roles: ['user', 'admin'] }
-    }
+    },
+    { name: 'DF', path: '/df', component: DFPage },
 ]
 
+// Switched from createMemoryHistory to createWebHistory so URLs reflect
+// app state and direct links (e.g. https://nivek.life/df) work. nginx
+// is already configured with `try_files $uri $uri/ /index.html =404`
+// so SPA fallback handles unknown paths.
 const router = createRouter({
-    history: createMemoryHistory(),
+    history: createWebHistory(),
     routes,
 })
 

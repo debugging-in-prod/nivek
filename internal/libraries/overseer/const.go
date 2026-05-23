@@ -63,6 +63,47 @@ type Position struct {
 	Z int `json:"z"`
 }
 
+// --- MapSnapshot ---
+
+// MapSnapshot is a frozen view of a single Z level's tile grid plus the
+// furniture placed on it. Produced by the executor (eventually via a DFHack
+// lua dump; currently fixture-fed), forwarded through the Pi byte-for-byte,
+// fanned out by Vultr to dashboard viewers. Phase 1: single Z, full snapshot
+// each push; deltas come later if bandwidth pressure materializes.
+type MapSnapshot struct {
+	CapturedAt time.Time        `json:"captured_at"`
+	Origin     Position         `json:"origin"`    // top-left world coord of the (0,0) cell in Tiles
+	Width      int              `json:"width"`     // number of tiles along X
+	Height     int              `json:"height"`    // number of tiles along Y
+	Z          int              `json:"z"`         // the single Z level this snapshot covers
+	Tiles      []TileType       `json:"tiles"`     // row-major: index = y*Width + x; length = Width*Height
+	Furniture  []FurniturePlace `json:"furniture"` // placed objects on this Z, world coords
+}
+
+// TileType is the v0 set of tile shapes the dashboard renders. Intentionally
+// small — extend as DFHack reveals what's worth distinguishing visually.
+type TileType uint8
+
+const (
+	TileUnknown TileType = 0
+	TileWall    TileType = 1
+	TileFloor   TileType = 2
+	TileRamp    TileType = 3
+	TileStair   TileType = 4
+	TileWater   TileType = 5
+	TileMagma   TileType = 6
+	TileTree    TileType = 7
+)
+
+// FurniturePlace is a single piece of furniture on the snapshot's Z level.
+// Coordinates are world coords (not offsets into the Tiles array).
+type FurniturePlace struct {
+	Type     string `json:"type"`     // chat vocab: "table", "bed", "door", ...
+	Material string `json:"material"` // chat vocab: "stone", "wood", ...
+	X        int    `json:"x"`
+	Y        int    `json:"y"`
+}
+
 type ActionKind string
 
 const (
