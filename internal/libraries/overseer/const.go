@@ -130,6 +130,7 @@ const (
 	ActionKindCamera      ActionKind = "camera"
 	ActionKindHelp        ActionKind = "help"
 	ActionKindPlace       ActionKind = "place"
+	ActionKindBrew        ActionKind = "brew"
 )
 
 // --- StateSnapshot ---

@@ -64,9 +64,14 @@ var materialAliases = map[string]string{
 }
 
 // fillerWords are chat-tolerance tokens stripped before grammar matching.
+// `drink` and `from` are stripped specifically so the verbose brew phrasing
+// (`brew drink from fruit`) works in addition to the canonical short form
+// (`brew fruit`). They're benign for other verbs — no existing grammar
+// slot needs to preserve them as data.
 var fillerWords = map[string]struct{}{
 	"a": {}, "an": {}, "the": {}, "some": {},
 	"me": {}, "us": {}, "please": {},
+	"drink": {}, "from": {},
 }
 
 // ParseCommand parses the arguments of a `!DF` chat command into an Action.
@@ -86,6 +91,11 @@ var fillerWords = map[string]struct{}{
 //     for an already-manufactured furniture item (commas optional, same
 //     coord-format tolerance as `camera`). Only items in
 //     placeableItemVocab are accepted
+//   - `brew [qty] <source>` — queue a brew-drink workorder. Source is
+//     `fruit` (BREW_DRINK_FROM_PLANT_GROWTH) or `plant`
+//     (BREW_DRINK_FROM_PLANT). Verbose chatter-friendly forms like
+//     `brew drink from fruit` parse the same because `drink` and `from`
+//     are filler-stripped
 //
 // Tolerances (apply to all verbs): case-insensitive, whitespace-collapsing,
 // filler-word stripping (a, an, the, some, me, us, please). Manufacture
@@ -112,6 +122,8 @@ func ParseCommand(args string) (Action, error) {
 		return parseHelp(rest)
 	case "place":
 		return parsePlace(rest)
+	case "brew":
+		return parseBrew(rest)
 	default:
 		return Action{}, fmt.Errorf("unknown verb: %q", verb)
 	}
@@ -210,6 +222,37 @@ func parseCamera(rest []string) (Action, error) {
 	return Action{
 		Kind:     ActionKindCamera,
 		Position: &Position{X: coords[0], Y: coords[1], Z: coords[2]},
+	}, nil
+}
+
+func parseBrew(tokens []string) (Action, error) {
+	if len(tokens) == 0 {
+		return Action{}, fmt.Errorf("brew needs a source (fruit or plant)")
+	}
+	qty := 1
+	if n, parseErr := strconv.Atoi(tokens[0]); parseErr == nil {
+		if n <= 0 {
+			return Action{}, fmt.Errorf("quantity must be positive")
+		}
+		qty = n
+		tokens = tokens[1:]
+	}
+	if len(tokens) == 0 {
+		return Action{}, fmt.Errorf("brew needs a source (fruit or plant)")
+	}
+	// Source is the last token (plural-stripped); anything before it is
+	// unexpected and gets rejected so typos don't quietly succeed.
+	source := strings.TrimSuffix(tokens[len(tokens)-1], "s")
+	if _, ok := brewSourceToReaction[source]; !ok {
+		return Action{}, fmt.Errorf("unknown brew source: %q (expected fruit or plant)", source)
+	}
+	if len(tokens) > 1 {
+		return Action{}, fmt.Errorf("extra tokens: %q", strings.Join(tokens[:len(tokens)-1], " "))
+	}
+	return Action{
+		Kind:     ActionKindBrew,
+		Item:     source,
+		Quantity: qty,
 	}, nil
 }
 
