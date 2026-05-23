@@ -18,9 +18,16 @@ var itemVocab = map[string]struct{}{
 	"coffin":    {},
 	"block":     {},
 	"cabinet":   {},
-	"chest":     {},
 	"statue":    {},
 	"floodgate": {},
+}
+
+// itemMaterialAllowlist restricts which materials are accepted for specific
+// items where DF has a strict requirement that would otherwise queue an
+// unbuildable order. Items not present here accept any material in
+// materialVocab (the loose default — DF rejects the impossibility itself).
+var itemMaterialAllowlist = map[string]map[string]struct{}{
+	"bed": {"wood": {}},
 }
 
 // materialVocab is the set of chat-facing materials accepted in v0.
@@ -112,6 +119,12 @@ func parseManufacture(tokens []string) (Action, error) {
 		material = &matToken
 	default:
 		return Action{}, fmt.Errorf("extra tokens: %q", strings.Join(pre, " "))
+	}
+
+	if allowed, restricted := itemMaterialAllowlist[itemToken]; restricted {
+		if _, ok := allowed[*material]; !ok {
+			return Action{}, fmt.Errorf("material %q not allowed for item %q", *material, itemToken)
+		}
 	}
 
 	return Action{
