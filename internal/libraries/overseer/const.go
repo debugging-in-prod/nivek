@@ -65,19 +65,30 @@ type Position struct {
 
 // --- MapSnapshot ---
 
-// MapSnapshot is a frozen view of a single Z level's tile grid plus the
-// furniture placed on it. Produced by the executor (eventually via a DFHack
-// lua dump; currently fixture-fed), forwarded through the Pi byte-for-byte,
-// fanned out by Vultr to dashboard viewers. Phase 1: single Z, full snapshot
-// each push; deltas come later if bandwidth pressure materializes.
+// MapSnapshot is a frozen view of a range of Z levels — a vertical slab of
+// the fortress at a moment in time. Produced by the executor (eventually
+// via a DFHack lua dump; currently fixture-fed), forwarded through the Pi
+// byte-for-byte, fanned out by Vultr to dashboard viewers.
+//
+// All Z levels share the same X/Y extent (Width × Height) anchored at
+// Origin.X / Origin.Y; only the Z layers themselves vary. The dashboard
+// loads all levels in one fetch and switches between them client-side
+// (no per-Z network call) — keeps Z navigation snappy at the cost of
+// fatter snapshot payloads. Acceptable at v1 scale; revisit if real
+// DFHack data with 100+ Z levels makes the payload painful.
 type MapSnapshot struct {
-	CapturedAt time.Time        `json:"captured_at"`
-	Origin     Position         `json:"origin"`    // top-left world coord of the (0,0) cell in Tiles
-	Width      int              `json:"width"`     // number of tiles along X
-	Height     int              `json:"height"`    // number of tiles along Y
-	Z          int              `json:"z"`         // the single Z level this snapshot covers
-	Tiles      []TileType       `json:"tiles"`     // row-major: index = y*Width + x; length = Width*Height
-	Furniture  []FurniturePlace `json:"furniture"` // placed objects on this Z, world coords
+	CapturedAt time.Time `json:"captured_at"`
+	Origin     Position  `json:"origin"` // X, Y are valid for all levels; Z = lowest level's Z
+	Width      int       `json:"width"`  // number of tiles along X (same for every level)
+	Height     int       `json:"height"` // number of tiles along Y (same for every level)
+	Levels     []ZLevel  `json:"levels"` // sorted ascending by Z, contiguous (no gaps)
+}
+
+// ZLevel is one floor of the fortress at a specific Z coordinate.
+type ZLevel struct {
+	Z         int              `json:"z"`
+	Tiles     []TileType       `json:"tiles"`     // row-major: index = y*Width + x
+	Furniture []FurniturePlace `json:"furniture"` // placed objects on this Z, world coords
 }
 
 // TileType is the v0 set of tile shapes the dashboard renders. Intentionally
