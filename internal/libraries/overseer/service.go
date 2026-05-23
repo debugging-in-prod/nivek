@@ -43,6 +43,26 @@ var itemToJobType = map[string]string{
 	"barrel":    "MakeBarrel",
 }
 
+// placeableItemToBuildingType maps chat-facing item nouns to DFHack
+// df.building_type enum names used by dfhack.buildings.constructBuilding.
+// Distinct from itemToJobType because DF's job_type enum (used for
+// manufacture orders) and building_type enum (used for placement) have
+// different names for the same things — e.g. chat "chair" is
+// ConstructThrone in job_type but Chair in building_type; chat "chest"
+// is ConstructChest in job_type but Box in building_type. Confirmed via
+// `df.building_type[name]` lookups.
+var placeableItemToBuildingType = map[string]string{
+	"table":     "Table",
+	"bed":       "Bed",
+	"door":      "Door",
+	"chair":     "Chair",
+	"coffin":    "Coffin",
+	"cabinet":   "Cabinet",
+	"chest":     "Box",
+	"statue":    "Statue",
+	"floodgate": "Floodgate",
+}
+
 // materialToWorkorderSpec maps chat-facing material tokens to the JSON shape
 // DFHack's `workorder` command expects. Two shapes coexist:
 //
@@ -94,6 +114,8 @@ func (s *nivekOverseerServiceImpl) Submit(action Action) error {
 		return s.runLua("df.global.pause_state=false")
 	case ActionKindCamera:
 		return s.submitCamera(action)
+	case ActionKindPlace:
+		return s.submitPlace(action)
 	default:
 		return fmt.Errorf("unsupported action kind: %s", action.Kind)
 	}
@@ -105,6 +127,24 @@ func (s *nivekOverseerServiceImpl) submitCamera(action Action) error {
 	}
 	script := fmt.Sprintf("dfhack.gui.revealInDwarfmodeMap({x=%d,y=%d,z=%d}, true)",
 		action.Position.X, action.Position.Y, action.Position.Z)
+	return s.runLua(script)
+}
+
+func (s *nivekOverseerServiceImpl) submitPlace(action Action) error {
+	if action.Position == nil {
+		return fmt.Errorf("place requires position")
+	}
+	dfType, ok := placeableItemToBuildingType[action.Item]
+	if !ok {
+		return fmt.Errorf("no DFHack building_type mapping for item: %s", action.Item)
+	}
+	// constructBuilding returns the building handle on success, nil on
+	// failure (bad tile, occupied, no item available, etc.). Surface the
+	// nil case as an error so chat sees it.
+	script := fmt.Sprintf(
+		`local bld = dfhack.buildings.constructBuilding{type=df.building_type.%s, pos={x=%d,y=%d,z=%d}}; if not bld then error('constructBuilding returned nil — bad spot, blocked, or no matching item available') end`,
+		dfType, action.Position.X, action.Position.Y, action.Position.Z,
+	)
 	return s.runLua(script)
 }
 
