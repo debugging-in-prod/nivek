@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { fetchSnapshot } from '@/services/DFService'
-import type { MapSnapshot } from '@/types/df'
-import { drawSnapshot, pixelToWorld } from './renderer'
+import type { MapSnapshot, ZLevel } from '@/types/df'
+import { drawLevel, pixelToWorld } from './renderer'
 
 // Phase 1: poll the snapshot endpoint on a slow timer. Update frequency
 // matches the planned executor push cadence (1-5 min); 60s here is a
@@ -13,15 +13,40 @@ const canvasRef = ref<HTMLCanvasElement | null>(null)
 const snapshot = ref<MapSnapshot | null>(null)
 const error = ref<string | null>(null)
 
+// Index into snapshot.levels[] of the currently-displayed Z level. Reset
+// to "the highest level" each snapshot refresh so the user lands on the
+// surface-ish view by default.
+const currentLevelIdx = ref<number>(0)
+
 const hoverCoord = ref<{ x: number; y: number; z: number } | null>(null)
 const selectedCoord = ref<{ x: number; y: number; z: number } | null>(null)
 
 let pollTimer: number | undefined
 
+const currentLevel = computed<ZLevel | null>(() => {
+    if (!snapshot.value) return null
+    return snapshot.value.levels[currentLevelIdx.value] ?? null
+})
+
+const canGoUp = computed(() => {
+    if (!snapshot.value) return false
+    return currentLevelIdx.value < snapshot.value.levels.length - 1
+})
+
+const canGoDown = computed(() => {
+    return currentLevelIdx.value > 0
+})
+
 async function loadSnapshot() {
     try {
-        snapshot.value = await fetchSnapshot()
+        const fresh = await fetchSnapshot()
+        snapshot.value = fresh
         error.value = null
+        // Default to the highest Z level (surface or above) on first load.
+        // Subsequent polls preserve the user's current Z if still in range.
+        if (currentLevelIdx.value >= fresh.levels.length || currentLevelIdx.value < 0) {
+            currentLevelIdx.value = fresh.levels.length - 1
+        }
         renderCurrent()
     } catch (err: any) {
         error.value = err?.message ?? 'unknown error'
@@ -29,14 +54,22 @@ async function loadSnapshot() {
 }
 
 function renderCurrent() {
-    if (!canvasRef.value || !snapshot.value) return
-    drawSnapshot(canvasRef.value, snapshot.value)
+    if (!canvasRef.value || !snapshot.value || !currentLevel.value) return
+    drawLevel(canvasRef.value, snapshot.value, currentLevel.value)
+}
+
+function goUp() {
+    if (canGoUp.value) currentLevelIdx.value += 1
+}
+
+function goDown() {
+    if (canGoDown.value) currentLevelIdx.value -= 1
 }
 
 function onMouseMove(ev: MouseEvent) {
-    if (!snapshot.value || !canvasRef.value) return
+    if (!snapshot.value || !canvasRef.value || !currentLevel.value) return
     const rect = canvasRef.value.getBoundingClientRect()
-    hoverCoord.value = pixelToWorld(snapshot.value, ev.clientX - rect.left, ev.clientY - rect.top)
+    hoverCoord.value = pixelToWorld(snapshot.value, currentLevel.value, ev.clientX - rect.left, ev.clientY - rect.top)
 }
 
 function onMouseLeave() {
@@ -44,18 +77,37 @@ function onMouseLeave() {
 }
 
 function onClick(ev: MouseEvent) {
-    if (!snapshot.value || !canvasRef.value) return
+    if (!snapshot.value || !canvasRef.value || !currentLevel.value) return
     const rect = canvasRef.value.getBoundingClientRect()
-    selectedCoord.value = pixelToWorld(snapshot.value, ev.clientX - rect.left, ev.clientY - rect.top)
+    selectedCoord.value = pixelToWorld(snapshot.value, currentLevel.value, ev.clientX - rect.left, ev.clientY - rect.top)
 }
+
+function onKeydown(ev: KeyboardEvent) {
+    // Only steal arrow keys when the user isn't typing in an input/textarea.
+    const t = ev.target as HTMLElement | null
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+    if (ev.key === 'ArrowUp' || ev.key === 'PageUp') {
+        ev.preventDefault()
+        goUp()
+    } else if (ev.key === 'ArrowDown' || ev.key === 'PageDown') {
+        ev.preventDefault()
+        goDown()
+    }
+}
+
+// Re-render whenever the active Z level changes (button click, key press,
+// or snapshot refresh shifting the index).
+watch(currentLevelIdx, renderCurrent)
 
 onMounted(() => {
     loadSnapshot()
     pollTimer = window.setInterval(loadSnapshot, POLL_INTERVAL_MS)
+    window.addEventListener('keydown', onKeydown)
 })
 
 onBeforeUnmount(() => {
     if (pollTimer !== undefined) window.clearInterval(pollTimer)
+    window.removeEventListener('keydown', onKeydown)
 })
 </script>
 
@@ -65,9 +117,9 @@ onBeforeUnmount(() => {
             <h1>DF Twitch-plays — live overview</h1>
             <p v-if="snapshot" class="capture-info">
                 Captured {{ new Date(snapshot.captured_at).toLocaleString() }}
-                · Z={{ snapshot.z }}
                 · {{ snapshot.width }}×{{ snapshot.height }} tiles
-                · origin ({{ snapshot.origin.x }}, {{ snapshot.origin.y }}, {{ snapshot.origin.z }})
+                · {{ snapshot.levels.length }} Z {{ snapshot.levels.length === 1 ? 'level' : 'levels' }}
+                · origin ({{ snapshot.origin.x }}, {{ snapshot.origin.y }})
             </p>
         </header>
 
@@ -81,6 +133,26 @@ onBeforeUnmount(() => {
                 @click="onClick"
             />
             <aside class="hud">
+                <h3>Z Level</h3>
+                <div class="z-nav">
+                    <button
+                        class="z-btn"
+                        :disabled="!canGoUp"
+                        @click="goUp"
+                        aria-label="Go up one Z level"
+                    >▲ up</button>
+                    <span class="z-current">
+                        Z = <strong>{{ currentLevel?.z ?? '—' }}</strong>
+                    </span>
+                    <button
+                        class="z-btn"
+                        :disabled="!canGoDown"
+                        @click="goDown"
+                        aria-label="Go down one Z level"
+                    >▼ down</button>
+                </div>
+                <p class="z-hint">↑/↓ or PageUp/PageDown also work</p>
+
                 <h3>Coordinates</h3>
                 <div class="coord-row">
                     <span class="label">Hover:</span>
@@ -175,7 +247,7 @@ canvas {
     border: 1px solid #333;
     border-radius: 4px;
     padding: 1rem;
-    min-width: 220px;
+    min-width: 240px;
     font-family: monospace;
 }
 
@@ -189,6 +261,49 @@ canvas {
 
 .hud h3:not(:first-child) {
     margin-top: 1rem;
+}
+
+.z-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.z-btn {
+    background: #333;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 3px;
+    padding: 0.25rem 0.6rem;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+.z-btn:hover:not(:disabled) {
+    background: #444;
+    border-color: #777;
+}
+
+.z-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.z-current {
+    color: #ddd;
+    font-size: 0.95rem;
+}
+
+.z-current strong {
+    color: #6fb;
+}
+
+.z-hint {
+    color: #666;
+    font-size: 0.75rem;
+    margin: 0.4rem 0 0 0;
 }
 
 .coord-row {

@@ -1,4 +1,4 @@
-import { TileType, type MapSnapshot } from '@/types/df'
+import { TileType, type MapSnapshot, type ZLevel } from '@/types/df'
 
 export const CELL_SIZE = 12   // pixels per tile; 50-tile fixture = 600px canvas
 
@@ -30,7 +30,11 @@ const FURNITURE_GLYPHS: Record<string, string> = {
     floodgate: '#',
 }
 
-export function drawSnapshot(canvas: HTMLCanvasElement, snap: MapSnapshot): void {
+// drawLevel renders one Z level of the snapshot onto the canvas. The
+// snapshot's Width/Height/Origin set the canvas size and coordinate
+// mapping; the level argument selects which floor's tile+furniture data
+// to draw.
+export function drawLevel(canvas: HTMLCanvasElement, snap: MapSnapshot, level: ZLevel): void {
     canvas.width = snap.width * CELL_SIZE
     canvas.height = snap.height * CELL_SIZE
     const ctx = canvas.getContext('2d')
@@ -39,7 +43,7 @@ export function drawSnapshot(canvas: HTMLCanvasElement, snap: MapSnapshot): void
     // Tiles first (background layer).
     for (let y = 0; y < snap.height; y++) {
         for (let x = 0; x < snap.width; x++) {
-            const t = snap.tiles[y * snap.width + x] ?? TileType.Unknown
+            const t = level.tiles[y * snap.width + x] ?? TileType.Unknown
             ctx.fillStyle = TILE_COLORS[t] ?? TILE_COLORS[TileType.Unknown]
             ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
         }
@@ -66,7 +70,7 @@ export function drawSnapshot(canvas: HTMLCanvasElement, snap: MapSnapshot): void
     ctx.font = `${CELL_SIZE - 2}px monospace`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    for (const f of snap.furniture) {
+    for (const f of level.furniture) {
         const localX = f.x - snap.origin.x
         const localY = f.y - snap.origin.y
         if (localX < 0 || localX >= snap.width) continue
@@ -76,11 +80,12 @@ export function drawSnapshot(canvas: HTMLCanvasElement, snap: MapSnapshot): void
     }
 }
 
-// Convert a canvas pixel offset (e.g. mouse coords relative to the canvas)
-// into a world coord, given the snapshot's origin. Returns null if the
-// pixel is outside the rendered grid.
+// pixelToWorld converts a canvas pixel offset (mouse coords relative to
+// the canvas) into a world coord, using the currently-displayed Z. Returns
+// null if the pixel is outside the rendered grid.
 export function pixelToWorld(
     snap: MapSnapshot,
+    level: ZLevel,
     pixelX: number,
     pixelY: number,
 ): { x: number; y: number; z: number } | null {
@@ -91,6 +96,6 @@ export function pixelToWorld(
     return {
         x: snap.origin.x + localX,
         y: snap.origin.y + localY,
-        z: snap.z,
+        z: level.z,
     }
 }
