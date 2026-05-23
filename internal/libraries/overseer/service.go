@@ -104,6 +104,24 @@ type workorderRequest struct {
 	MaterialCategory []string `json:"material_category,omitempty"`
 }
 
+// brewSourceToReaction maps chat-facing brew sources to DFHack reaction
+// IDs used by the workorder script's CustomReaction job_type. Confirmed
+// via `orders export` — these are the two reaction strings DF Premium
+// uses for the default brewing templates.
+var brewSourceToReaction = map[string]string{
+	"fruit": "BREW_DRINK_FROM_PLANT_GROWTH",
+	"plant": "BREW_DRINK_FROM_PLANT",
+}
+
+// customReactionRequest is the workorder JSON payload for CustomReaction
+// jobs (brewing, etc.) — these don't use job_type names like MakeTable
+// but instead specify "job":"CustomReaction" + "reaction":<reaction_id>.
+type customReactionRequest struct {
+	Job         string `json:"job"`
+	Reaction    string `json:"reaction"`
+	AmountTotal int    `json:"amount_total"`
+}
+
 func (s *nivekOverseerServiceImpl) Submit(action Action) error {
 	switch action.Kind {
 	case ActionKindManufacture:
@@ -116,6 +134,8 @@ func (s *nivekOverseerServiceImpl) Submit(action Action) error {
 		return s.submitCamera(action)
 	case ActionKindPlace:
 		return s.submitPlace(action)
+	case ActionKindBrew:
+		return s.submitBrew(action)
 	default:
 		return fmt.Errorf("unsupported action kind: %s", action.Kind)
 	}
@@ -128,6 +148,30 @@ func (s *nivekOverseerServiceImpl) submitCamera(action Action) error {
 	script := fmt.Sprintf("dfhack.gui.revealInDwarfmodeMap({x=%d,y=%d,z=%d}, true)",
 		action.Position.X, action.Position.Y, action.Position.Z)
 	return s.runLua(script)
+}
+
+func (s *nivekOverseerServiceImpl) submitBrew(action Action) error {
+	reaction, ok := brewSourceToReaction[action.Item]
+	if !ok {
+		return fmt.Errorf("no DFHack reaction mapping for brew source: %s", action.Item)
+	}
+	qty := action.Quantity
+	if qty <= 0 {
+		qty = 1
+	}
+	payload, err := json.Marshal(customReactionRequest{
+		Job:         "CustomReaction",
+		Reaction:    reaction,
+		AmountTotal: qty,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal brew workorder json: %w", err)
+	}
+	out, err := exec.Command(s.dfhackRunPath, "workorder", string(payload)).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("dfhack-run failed: %w: %s", err, string(out))
+	}
+	return nil
 }
 
 func (s *nivekOverseerServiceImpl) submitPlace(action Action) error {

@@ -239,7 +239,7 @@ func (b *Bot) handleDFCommand(rawText, args, username, channel string) {
 	// round-trip. Short-circuit here before the WS send.
 	if action.Kind == overseer.ActionKindHelp {
 		b.client.Say(channel, fmt.Sprintf(
-			"@%s !DF: make [N] <material> <item> | place <item> <x> <y> <z> | camera <x> <y> <z> | pause | unpause | help",
+			"@%s !DF: make [N] <material> <item> | place <item> <x> <y> <z> | brew [N] <fruit|plant> | camera <x> <y> <z> | pause | unpause | help",
 			username,
 		))
 		log.Printf("[DF] [%s] %s: help requested", channel, username)
@@ -299,6 +299,8 @@ func dfSuccessReply(username string, action overseer.Action) string {
 			return fmt.Sprintf("@%s placed %s at (%d, %d, %d)", username, action.Item, action.Position.X, action.Position.Y, action.Position.Z)
 		}
 		return fmt.Sprintf("@%s placed %s", username, action.Item)
+	case overseer.ActionKindBrew:
+		return fmt.Sprintf("@%s queued %d brew%s from %s", username, action.Quantity, pluralize(action.Quantity), action.Item)
 	default:
 		return fmt.Sprintf("@%s executed %s", username, action.Kind)
 	}
