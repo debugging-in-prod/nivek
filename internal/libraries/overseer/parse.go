@@ -61,6 +61,8 @@ var fillerWords = map[string]struct{}{
 //   - `camera <x> <y> <z>` — recenter DF camera on the given tile (coords
 //     accept space- and/or comma-separated forms: `137 115 150`,
 //     `137,115,150`, `137, 115, 150` all parse the same)
+//   - `help` — bot posts the command list in chat (short-circuited in
+//     handleDFCommand; no executor round-trip)
 //
 // Tolerances (apply to all verbs): case-insensitive, whitespace-collapsing,
 // filler-word stripping (a, an, the, some, me, us, please). Manufacture
@@ -83,6 +85,8 @@ func ParseCommand(args string) (Action, error) {
 		return parseUnpause(rest)
 	case "camera":
 		return parseCamera(rest)
+	case "help":
+		return parseHelp(rest)
 	default:
 		return Action{}, fmt.Errorf("unknown verb: %q", verb)
 	}
@@ -153,6 +157,13 @@ func parseUnpause(rest []string) (Action, error) {
 		return Action{}, fmt.Errorf("extra tokens: %q", strings.Join(rest, " "))
 	}
 	return Action{Kind: ActionKindUnpause}, nil
+}
+
+func parseHelp(rest []string) (Action, error) {
+	if len(rest) > 0 {
+		return Action{}, fmt.Errorf("extra tokens: %q", strings.Join(rest, " "))
+	}
+	return Action{Kind: ActionKindHelp}, nil
 }
 
 func parseCamera(rest []string) (Action, error) {
