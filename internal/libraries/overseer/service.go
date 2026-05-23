@@ -39,6 +39,8 @@ var itemToJobType = map[string]string{
 	"chest":     "ConstructChest",
 	"statue":    "ConstructStatue",
 	"floodgate": "ConstructFloodgate",
+	"bucket":    "MakeBucket",
+	"barrel":    "MakeBarrel",
 }
 
 // materialToWorkorderSpec maps chat-facing material tokens to the JSON shape

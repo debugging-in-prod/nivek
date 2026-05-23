@@ -21,6 +21,8 @@ var itemVocab = map[string]struct{}{
 	"chest":     {},
 	"statue":    {},
 	"floodgate": {},
+	"bucket":    {},
+	"barrel":    {},
 }
 
 // itemMaterialAllowlist restricts which materials are accepted for specific
@@ -28,7 +30,8 @@ var itemVocab = map[string]struct{}{
 // unbuildable order. Items not present here accept any material in
 // materialVocab (the loose default — DF rejects the impossibility itself).
 var itemMaterialAllowlist = map[string]map[string]struct{}{
-	"bed": {"wood": {}},
+	"bed":    {"wood": {}},
+	"barrel": {"wood": {}},
 }
 
 // materialVocab is the set of chat-facing materials accepted in v0.
