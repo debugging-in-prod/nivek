@@ -31,6 +31,7 @@ services:
       - WINDY_API_TOKEN=${WINDY_API_TOKEN}
       - IP_INFO_API_TOKEN=${IP_INFO_API_TOKEN}
       - TWITCH_API_TOKEN=${TWITCH_API_TOKEN}
+      - DASHBOARD_PUSH_HMAC_KEY=${DASHBOARD_PUSH_HMAC_KEY}
     networks:
       - nivek-internal
 
