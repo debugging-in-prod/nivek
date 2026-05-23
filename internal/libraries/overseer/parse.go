@@ -58,6 +58,9 @@ var fillerWords = map[string]struct{}{
 //     DF Manager refuses to execute orders without one)
 //   - `pause` — pause DF
 //   - `unpause` — unpause DF
+//   - `camera <x> <y> <z>` — recenter DF camera on the given tile (coords
+//     accept space- and/or comma-separated forms: `137 115 150`,
+//     `137,115,150`, `137, 115, 150` all parse the same)
 //
 // Tolerances (apply to all verbs): case-insensitive, whitespace-collapsing,
 // filler-word stripping (a, an, the, some, me, us, please). Manufacture
@@ -78,6 +81,8 @@ func ParseCommand(args string) (Action, error) {
 		return parsePause(rest)
 	case "unpause":
 		return parseUnpause(rest)
+	case "camera":
+		return parseCamera(rest)
 	default:
 		return Action{}, fmt.Errorf("unknown verb: %q", verb)
 	}
@@ -148,6 +153,28 @@ func parseUnpause(rest []string) (Action, error) {
 		return Action{}, fmt.Errorf("extra tokens: %q", strings.Join(rest, " "))
 	}
 	return Action{Kind: ActionKindUnpause}, nil
+}
+
+func parseCamera(rest []string) (Action, error) {
+	// Accept commas as separators in addition to whitespace:
+	// `137,115,150`, `137, 115, 150`, `137 115 150` all parse the same.
+	joined := strings.ReplaceAll(strings.Join(rest, " "), ",", " ")
+	parts := strings.Fields(joined)
+	if len(parts) != 3 {
+		return Action{}, fmt.Errorf("camera needs 3 coordinates, got %d", len(parts))
+	}
+	coords := make([]int, 3)
+	for i, p := range parts {
+		n, err := strconv.Atoi(p)
+		if err != nil {
+			return Action{}, fmt.Errorf("invalid coordinate %q", p)
+		}
+		coords[i] = n
+	}
+	return Action{
+		Kind:     ActionKindCamera,
+		Position: &Position{X: coords[0], Y: coords[1], Z: coords[2]},
+	}, nil
 }
 
 func stripFillerWords(tokens []string) []string {
