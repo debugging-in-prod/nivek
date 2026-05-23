@@ -17,6 +17,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -120,8 +121,14 @@ func requireEnv(name string) string {
 }
 
 // pushOnce runs the dfhack-run dump-map-snapshot script, strips ANSI
-// codes, signs the body, and POSTs to the receiver. Errors are logged
-// but don't take down the daemon — next tick will try again.
+// codes, signs the body, gzip-compresses it, and POSTs to the receiver.
+// Errors are logged but don't take down the daemon — next tick will
+// try again.
+//
+// HMAC is computed over the UNCOMPRESSED JSON so the signature binds
+// to the content rather than the transport encoding (and stays valid
+// if the compression algorithm/level changes someday). Receiver must
+// decompress first, then verify.
 func (c *config) pushOnce() {
 	ctx, cancel := context.WithTimeout(context.Background(), dfhackRunTimeout)
 	defer cancel()
@@ -142,12 +149,24 @@ func (c *config) pushOnce() {
 	mac.Write(body)
 	sig := hex.EncodeToString(mac.Sum(nil))
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.pushURL, bytes.NewReader(body))
+	var compressed bytes.Buffer
+	gz := gzip.NewWriter(&compressed)
+	if _, err := gz.Write(body); err != nil {
+		log.Printf("gzip write: %v", err)
+		return
+	}
+	if err := gz.Close(); err != nil {
+		log.Printf("gzip close: %v", err)
+		return
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.pushURL, &compressed)
 	if err != nil {
 		log.Printf("build request: %v", err)
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("X-Nivek-HMAC", sig)
 
 	resp, err := c.httpClient.Do(req)
@@ -161,5 +180,6 @@ func (c *config) pushOnce() {
 		log.Printf("POST returned HTTP %d: %.200q", resp.StatusCode, respBody)
 		return
 	}
-	log.Printf("pushed %d bytes (HTTP %d)", len(body), resp.StatusCode)
+	log.Printf("pushed %d bytes raw, %d bytes compressed (%.1fx ratio), HTTP %d",
+		len(body), compressed.Len(), float64(len(body))/float64(compressed.Len()), resp.StatusCode)
 }
