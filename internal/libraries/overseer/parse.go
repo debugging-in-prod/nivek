@@ -110,6 +110,11 @@ var fillerWords = map[string]struct{}{
 //     (BREW_DRINK_FROM_PLANT). Verbose chatter-friendly forms like
 //     `brew drink from fruit` parse the same because `drink` and `from`
 //     are filler-stripped
+//   - `mine <x1,y1,z> <x2,y2>` — designate a rectangular dig area on a
+//     single Z level. Z is only specified in the first coord; the second
+//     coord's Z is implicit (prevents multi-Z mining commands by design).
+//     Area is capped at 25 tiles per command to keep individual jobs
+//     bounded
 //
 // Tolerances (apply to all verbs): case-insensitive, whitespace-collapsing,
 // filler-word stripping (a, an, the, some, me, us, please). Manufacture
@@ -138,6 +143,8 @@ func ParseCommand(args string) (Action, error) {
 		return parsePlace(rest)
 	case "brew":
 		return parseBrew(rest)
+	case "mine":
+		return parseMine(rest)
 	default:
 		return Action{}, fmt.Errorf("unknown verb: %q", verb)
 	}
@@ -249,6 +256,57 @@ func parseCamera(rest []string) (Action, error) {
 		Kind:     ActionKindCamera,
 		Position: &Position{X: coords[0], Y: coords[1], Z: coords[2]},
 	}, nil
+}
+
+// mineMaxArea is the per-command cap on the rectangular dig area
+// (tiles). Keeps individual commands bounded.
+const mineMaxArea = 25
+
+func parseMine(rest []string) (Action, error) {
+	// Liberal coord parsing: commas → spaces, then we expect exactly 5 ints
+	// (x1, y1, z) + (x2, y2). The single-Z constraint is encoded by NOT
+	// asking for a second Z — second coord inherits the first's Z.
+	joined := strings.ReplaceAll(strings.Join(rest, " "), ",", " ")
+	parts := strings.Fields(joined)
+	if len(parts) != 5 {
+		return Action{}, fmt.Errorf("mine needs <x1,y1,z> <x2,y2> — 5 numbers total, got %d", len(parts))
+	}
+	coords := make([]int, 5)
+	for i, p := range parts {
+		n, err := strconv.Atoi(p)
+		if err != nil {
+			return Action{}, fmt.Errorf("invalid coordinate %q", p)
+		}
+		coords[i] = n
+	}
+	x1, y1, z, x2, y2 := coords[0], coords[1], coords[2], coords[3], coords[4]
+
+	dx := abs(x2-x1) + 1
+	dy := abs(y2-y1) + 1
+	area := dx * dy
+	if area > mineMaxArea {
+		return Action{}, fmt.Errorf("mine area %dx%d=%d tiles exceeds %d-tile cap", dx, dy, area, mineMaxArea)
+	}
+
+	return Action{
+		Kind: ActionKindMine,
+		Region: &Region{
+			Min: Position{X: x1, Y: y1, Z: z},
+			Max: Position{X: x2, Y: y2, Z: z}, // Z inherits from first coord
+		},
+	}, nil
+}
+
+// abs returns |n|. Used by parseMine to compute rectangle dimensions
+// regardless of which corner the chatter listed first — `mine 0,0,0 5,5`
+// and `mine 5,5,0 0,0` describe the same region, so `Max - Min` can be
+// negative. Go's math.Abs is float64-only, so a 5-line int helper is
+// cheaper than the conversion dance.
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
 }
 
 func parseBrew(tokens []string) (Action, error) {
