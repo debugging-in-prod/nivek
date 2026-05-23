@@ -4,6 +4,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/autoshout"
+	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/df"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/fishing"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/messenger"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/task"
@@ -76,4 +77,7 @@ func RegisterRoutes(nivek nivek.NivekService, e *echo.Echo) {
 	e.GET(GetMessages, messenger.NewGetMessagesEndpoint(nivek),
 		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
 	)
+
+	// DF dashboard (public, no auth)
+	e.GET(GetDFSnapshot, df.NewGetSnapshotEndpoint(nivek))
 }
