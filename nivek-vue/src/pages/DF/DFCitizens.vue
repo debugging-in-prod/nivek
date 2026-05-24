@@ -21,17 +21,19 @@ async function load() {
     }
 }
 
-// Stress category mirrors dfhack.units.getStressCategory:
-// 0=ecstatic, 1=happy, 2=content, 3=fine, 4=unhappy, 5=stressed, 6=miserable
-const STRESS_LABELS = ['Ecstatic', 'Happy', 'Content', 'Fine', 'Unhappy', 'Stressed', 'Miserable']
+// Stress category from dfhack.units.getStressCategory. Per the DFHack Lua
+// API the scale runs 0 = MOST stressed .. 6 = LEAST stressed (i.e. 0 is
+// miserable, 6 is ecstatic) — the opposite of what reads intuitively, so
+// the labels are ordered low→high to match.
+const STRESS_LABELS = ['Miserable', 'Stressed', 'Unhappy', 'Fine', 'Content', 'Happy', 'Ecstatic']
 function stressLabel(s: number): string {
     return STRESS_LABELS[s] ?? `?(${s})`
 }
 function stressClass(s: number): string {
-    if (s <= 1) return 'stress-happy'
-    if (s === 2 || s === 3) return 'stress-neutral'
-    if (s === 4) return 'stress-unhappy'
-    return 'stress-bad'
+    if (s >= 5) return 'stress-happy'               // Happy, Ecstatic
+    if (s === 3 || s === 4) return 'stress-neutral' // Fine, Content
+    if (s === 2) return 'stress-unhappy'            // Unhappy
+    return 'stress-bad'                             // Stressed, Miserable (0–1)
 }
 
 onMounted(() => {
