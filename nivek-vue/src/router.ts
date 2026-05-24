@@ -5,6 +5,7 @@ import LoginPage from '@/pages/Login/Login.vue'
 import SignupPage from '@/pages/Signup/Signup.vue'
 import DashboardPage from '@/pages/Dashboard/Dashboard.vue'
 import DFPage from '@/pages/DF/DF.vue'
+import DFCitizensPage from '@/pages/DF/DFCitizens.vue'
 
 import { TokenManager } from '@/utils/TokenManager'
 import { useAuthStore } from '@/stores/auth'
@@ -22,6 +23,7 @@ const routes: Array<RouteRecordRaw> = [
         meta: { requiresAuth: true, roles: ['user', 'admin'] }
     },
     { name: 'DF', path: '/df', component: DFPage },
+    { name: 'DFCitizens', path: '/df/citizens', component: DFCitizensPage },
 ]
 
 // Switched from createMemoryHistory to createWebHistory so URLs reflect
