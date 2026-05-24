@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { fetchSnapshot } from '@/services/DFService'
 import type { MapSnapshot, ZLevel } from '@/types/df'
-import { drawLevel, pixelToWorld } from './renderer'
+import { drawLevel, pixelToWorld, DEFAULT_CELL_SIZE, MIN_CELL_SIZE, MAX_CELL_SIZE } from './renderer'
 
 // Phase 1: poll the snapshot endpoint on a slow timer. Update frequency
 // matches the planned executor push cadence (1-5 min); 60s here is a
@@ -10,8 +10,13 @@ import { drawLevel, pixelToWorld } from './renderer'
 const POLL_INTERVAL_MS = 60_000
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
+const viewportRef = ref<HTMLDivElement | null>(null)
 const snapshot = ref<MapSnapshot | null>(null)
 const error = ref<string | null>(null)
+
+// Zoom: pixels per tile. Mouse wheel adjusts it; the canvas re-renders at
+// the new scale and the scrollable viewport wrapper keeps it contained.
+const cellSize = ref<number>(DEFAULT_CELL_SIZE)
 
 // Index into snapshot.levels[] of the currently-displayed Z level. Reset
 // to "the highest level" each snapshot refresh so the user lands on the
@@ -68,7 +73,7 @@ async function loadSnapshot() {
 
 function renderCurrent() {
     if (!canvasRef.value || !snapshot.value || !currentLevel.value) return
-    drawLevel(canvasRef.value, snapshot.value, currentLevel.value)
+    drawLevel(canvasRef.value, snapshot.value, currentLevel.value, cellSize.value)
 }
 
 function goUp() {
@@ -82,7 +87,7 @@ function goDown() {
 function onMouseMove(ev: MouseEvent) {
     if (!snapshot.value || !canvasRef.value || !currentLevel.value) return
     const rect = canvasRef.value.getBoundingClientRect()
-    hoverCoord.value = pixelToWorld(snapshot.value, currentLevel.value, ev.clientX - rect.left, ev.clientY - rect.top)
+    hoverCoord.value = pixelToWorld(snapshot.value, currentLevel.value, ev.clientX - rect.left, ev.clientY - rect.top, cellSize.value)
 }
 
 function onMouseLeave() {
@@ -92,7 +97,45 @@ function onMouseLeave() {
 function onClick(ev: MouseEvent) {
     if (!snapshot.value || !canvasRef.value || !currentLevel.value) return
     const rect = canvasRef.value.getBoundingClientRect()
-    selectedCoord.value = pixelToWorld(snapshot.value, currentLevel.value, ev.clientX - rect.left, ev.clientY - rect.top)
+    selectedCoord.value = pixelToWorld(snapshot.value, currentLevel.value, ev.clientX - rect.left, ev.clientY - rect.top, cellSize.value)
+}
+
+// Mouse wheel zooms the map, anchored on the tile under the cursor so it
+// stays put as the scale changes (the scrollable viewport is adjusted to
+// compensate). preventDefault stops the page/container from scrolling.
+function onWheel(ev: WheelEvent) {
+    if (!canvasRef.value || !viewportRef.value) return
+    ev.preventDefault()
+
+    const old = cellSize.value
+    const factor = ev.deltaY < 0 ? 1.15 : 1 / 1.15
+    const next = Math.max(MIN_CELL_SIZE, Math.min(MAX_CELL_SIZE, Math.round(old * factor)))
+    if (next === old) return
+
+    // World pixel under the cursor before the zoom (canvas-local + scroll).
+    const vp = viewportRef.value
+    const rect = canvasRef.value.getBoundingClientRect()
+    const cursorCanvasX = ev.clientX - rect.left
+    const cursorCanvasY = ev.clientY - rect.top
+    const tileX = cursorCanvasX / old
+    const tileY = cursorCanvasY / old
+
+    cellSize.value = next
+    renderCurrent()
+
+    // After re-render at the new scale, scroll so the same tile sits under
+    // the cursor. cursorCanvasX/Y were measured from the canvas's visible
+    // top-left, which already accounts for the prior scroll offset.
+    vp.scrollLeft += tileX * next - cursorCanvasX
+    vp.scrollTop += tileY * next - cursorCanvasY
+}
+
+function zoomBy(factor: number) {
+    const old = cellSize.value
+    const next = Math.max(MIN_CELL_SIZE, Math.min(MAX_CELL_SIZE, Math.round(old * factor)))
+    if (next === old) return
+    cellSize.value = next
+    renderCurrent()
 }
 
 // Stress category mapping mirrors dfhack.units.getStressCategory:
@@ -121,9 +164,9 @@ function onKeydown(ev: KeyboardEvent) {
     }
 }
 
-// Re-render whenever the active Z level changes (button click, key press,
-// or snapshot refresh shifting the index).
-watch(currentLevelIdx, renderCurrent)
+// Re-render whenever the active Z level or zoom changes (button click,
+// key press, wheel, or snapshot refresh shifting the index).
+watch([currentLevelIdx, cellSize], renderCurrent)
 
 onMounted(() => {
     loadSnapshot()
@@ -160,13 +203,23 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-else class="layout">
-            <canvas
-                ref="canvasRef"
-                @mousemove="onMouseMove"
-                @mouseleave="onMouseLeave"
-                @click="onClick"
-            />
+            <div class="canvas-viewport" ref="viewportRef" @wheel="onWheel">
+                <canvas
+                    ref="canvasRef"
+                    @mousemove="onMouseMove"
+                    @mouseleave="onMouseLeave"
+                    @click="onClick"
+                />
+            </div>
             <aside class="hud">
+                <h3>Zoom</h3>
+                <div class="zoom-nav">
+                    <button class="z-btn" @click="zoomBy(1/1.15)" aria-label="Zoom out">−</button>
+                    <span class="z-current">{{ cellSize }} px/tile</span>
+                    <button class="z-btn" @click="zoomBy(1.15)" aria-label="Zoom in">+</button>
+                </div>
+                <p class="z-hint">scroll wheel over the map also zooms</p>
+
                 <h3>Z Level</h3>
                 <div class="z-nav">
                     <button
@@ -314,12 +367,28 @@ header h1 {
     display: flex;
     gap: 1.5rem;
     align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+/* Scrollable, size-bounded window over the canvas. The canvas itself can
+   be larger than the viewport (zoomed in); this wrapper clips + scrolls
+   it so it never overflows the page. flex: 1 1 0 lets it take available
+   width while min-width:0 allows it to actually shrink in a flex row. */
+.canvas-viewport {
+    flex: 1 1 480px;
+    min-width: 0;
+    max-height: 78vh;
+    overflow: auto;
+    border: 1px solid #333;
+    background: #000;
+    /* containment + a hint that wheel events are handled here, not scrolled */
+    overscroll-behavior: contain;
 }
 
 canvas {
+    display: block;
     background: #000;
     cursor: crosshair;
-    border: 1px solid #333;
     image-rendering: pixelated;
 }
 
@@ -344,7 +413,7 @@ canvas {
     margin-top: 1rem;
 }
 
-.z-nav {
+.z-nav, .zoom-nav {
     display: flex;
     align-items: center;
     gap: 0.5rem;
