@@ -63,24 +63,45 @@ var itemToToolSubtype = map[string]string{
 	"pedestal": "ITEM_TOOL_PEDESTAL",
 }
 
-// placeableItemToBuildingType maps chat-facing item nouns to DFHack
-// df.building_type enum names used by dfhack.buildings.constructBuilding.
-// Distinct from itemToJobType because DF's job_type enum (used for
-// manufacture orders) and building_type enum (used for placement) have
-// different names for the same things — e.g. chat "chair" is
-// ConstructThrone in job_type but Chair in building_type; chat "chest"
-// is ConstructChest in job_type but Box in building_type. Confirmed via
-// `df.building_type[name]` lookups.
-var placeableItemToBuildingType = map[string]string{
-	"table":     "Table",
-	"bed":       "Bed",
-	"door":      "Door",
-	"chair":     "Chair",
-	"coffin":    "Coffin",
-	"cabinet":   "Cabinet",
-	"chest":     "Box",
-	"statue":    "Statue",
-	"floodgate": "Floodgate",
+// placeSpec describes how a chat item maps to a DFHack building for
+// dfhack.buildings.constructBuilding. BuildingType is a df.building_type
+// enum name. WorkshopSubtype is a df.workshop_type enum name, set only when
+// BuildingType is "Workshop" (quern/millstone are workshop subtypes, not
+// their own building_type) and empty otherwise.
+type placeSpec struct {
+	BuildingType    string
+	WorkshopSubtype string
+}
+
+// placeableItemToBuilding maps chat-facing item nouns to the building they
+// construct via `!DF place`. The building_type names differ from the
+// job_type names used for manufacture (e.g. chat "chair" is ConstructThrone
+// as a job_type but Chair as a building_type; "chest" is Box). Every entry
+// here was verified live with constructBuilding on a running fort.
+//
+// Excluded from placement (manufacturable, but not buildings): block (a
+// construction material), bucket/barrel (containers), ash/charcoal (bars).
+var placeableItemToBuilding = map[string]placeSpec{
+	"table":      {BuildingType: "Table"},
+	"bed":        {BuildingType: "Bed"},
+	"door":       {BuildingType: "Door"},
+	"chair":      {BuildingType: "Chair"},
+	"throne":     {BuildingType: "Chair"}, // synonym for chair
+	"coffin":     {BuildingType: "Coffin"},
+	"cabinet":    {BuildingType: "Cabinet"},
+	"chest":      {BuildingType: "Box"},
+	"statue":     {BuildingType: "Statue"},
+	"floodgate":  {BuildingType: "Floodgate"},
+	"armorstand": {BuildingType: "Armorstand"},
+	"weaponrack": {BuildingType: "Weaponrack"},
+	"hatchcover": {BuildingType: "Hatch"},
+	"grate":      {BuildingType: "GrateFloor"}, // floor grate; the common case
+	"slab":       {BuildingType: "Slab"},
+	"bookcase":   {BuildingType: "Bookcase"},
+	"pedestal":   {BuildingType: "DisplayFurniture"},
+	"altar":      {BuildingType: "OfferingPlace"},
+	"quern":      {BuildingType: "Workshop", WorkshopSubtype: "Quern"},
+	"millstone":  {BuildingType: "Workshop", WorkshopSubtype: "Millstone"},
 }
 
 // materialToWorkorderSpec maps chat-facing material tokens to the JSON shape
@@ -319,16 +340,21 @@ func (s *nivekOverseerServiceImpl) submitPlace(action Action) error {
 	if action.Position == nil {
 		return fmt.Errorf("place requires position")
 	}
-	dfType, ok := placeableItemToBuildingType[action.Item]
+	spec, ok := placeableItemToBuilding[action.Item]
 	if !ok {
-		return fmt.Errorf("no DFHack building_type mapping for item: %s", action.Item)
+		return fmt.Errorf("no DFHack building mapping for item: %s", action.Item)
 	}
 	// constructBuilding returns the building handle on success, nil on
 	// failure (bad tile, occupied, no item available, etc.). Surface the
-	// nil case as an error so chat sees it.
+	// nil case as an error so chat sees it. Workshops (quern/millstone)
+	// additionally need a workshop_type subtype.
+	subtype := ""
+	if spec.WorkshopSubtype != "" {
+		subtype = fmt.Sprintf(", subtype=df.workshop_type.%s", spec.WorkshopSubtype)
+	}
 	script := fmt.Sprintf(
-		`local bld = dfhack.buildings.constructBuilding{type=df.building_type.%s, pos={x=%d,y=%d,z=%d}}; if not bld then error('constructBuilding returned nil — bad spot, blocked, or no matching item available') end`,
-		dfType, action.Position.X, action.Position.Y, action.Position.Z,
+		`local bld = dfhack.buildings.constructBuilding{type=df.building_type.%s%s, pos={x=%d,y=%d,z=%d}}; if not bld then error('constructBuilding returned nil — bad spot, blocked, or no matching item available') end`,
+		spec.BuildingType, subtype, action.Position.X, action.Position.Y, action.Position.Z,
 	)
 	return s.runLua(script)
 }
