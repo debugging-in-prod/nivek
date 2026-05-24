@@ -50,4 +50,5 @@ export interface MapSnapshot {
     height: number       // tile count along Y (same for every level)
     levels: ZLevel[]     // sorted ascending by Z, contiguous
     citizens?: Citizen[] // active fortress citizens (optional in case server omits)
+    focus?: Position     // F1 map-hotkey location; the canvas centers here on first load
 }
