@@ -59,21 +59,9 @@ var itemMaterialAllowlist = map[string]map[string]struct{}{
 	"barrel": {"wood": {}},
 }
 
-// placeableItemVocab is the subset of itemVocab that can be constructed as
-// buildings via `!DF place`. Tools (bucket, barrel) and bulk products
-// (block) are intentionally excluded — DF doesn't construct them as
-// tile-occupying furniture, only as items.
-var placeableItemVocab = map[string]struct{}{
-	"table":     {},
-	"bed":       {},
-	"door":      {},
-	"chair":     {},
-	"coffin":    {},
-	"cabinet":   {},
-	"chest":     {},
-	"statue":    {},
-	"floodgate": {},
-}
+// (Placeable items live in placeableItemToBuilding in service.go — same
+// package — which is the single source of truth for both parse-time
+// validation and the building_type/subtype used at construction.)
 
 // nobleVocab is the set of chat-facing noble-position keywords `!DF appoint`
 // accepts. Each maps to a single-slot fort position; the keyword→DFHack
@@ -141,10 +129,11 @@ func (e *RejectReason) Error() string { return e.Msg }
 //     `137,115,150`, `137, 115, 150` all parse the same)
 //   - `help` — bot posts the command list in chat (short-circuited in
 //     handleDFCommand; no executor round-trip)
-//   - `place <item> <x> <y> <z>` — queue a build job at the given tile
-//     for an already-manufactured furniture item (commas optional, same
-//     coord-format tolerance as `camera`). Only items in
-//     placeableItemVocab are accepted
+//   - `place <item> <x> <y> <z>` — queue a build job at the given tile for
+//     a furniture/workshop item (commas optional, same coord-format
+//     tolerance as `camera`). Only items in placeableItemToBuilding are
+//     accepted (most manufacturable items; not block/bucket/barrel/ash/
+//     charcoal, which aren't buildings)
 //   - `brew [qty] <source>` — queue a brew-drink workorder. Source is
 //     `fruit` (BREW_DRINK_FROM_PLANT_GROWTH) or `plant`
 //     (BREW_DRINK_FROM_PLANT). Verbose chatter-friendly forms like
@@ -395,7 +384,7 @@ func parsePlace(rest []string) (Action, error) {
 		return Action{}, fmt.Errorf("place needs <item> <x> <y> <z>, got %d args", len(parts))
 	}
 	item := strings.TrimSuffix(parts[0], "s")
-	if _, ok := placeableItemVocab[item]; !ok {
+	if _, ok := placeableItemToBuilding[item]; !ok {
 		return Action{}, fmt.Errorf("not placeable: %q", item)
 	}
 	coords := make([]int, 3)
