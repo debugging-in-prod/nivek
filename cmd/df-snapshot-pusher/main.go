@@ -1,13 +1,17 @@
-// df-snapshot-pusher runs on the DFHost, invokes the dump-map-snapshot
-// DFHack script on a slow timer, strips DFHack's color-reset codes from
-// stdout, HMAC-signs the JSON body, and POSTs to nivek.life's dashboard
-// ingest endpoint. All flow is outbound from DFHost — no inbound socket,
-// no persistent authenticated channel.
+// df-snapshot-pusher runs on the DFHost. It reads the snapshot JSON file
+// published by the snapshot-scan DFHack script on a slow timer, HMAC-signs
+// the body, gzip-compresses it, and POSTs to nivek.life's dashboard ingest
+// endpoint. All flow is outbound from DFHost — no inbound socket, no
+// persistent authenticated channel.
+//
+// The snapshot is produced incrementally in-game by snapshot-scan.lua (a
+// time-boxed scan that never freezes DF) and published via atomic rename, so
+// the file the pusher reads is always a complete pass.
 //
 // Configuration via .env (or process env):
 //
-//	DFHACK_RUN_PATH             absolute path to dfhack-run (shared with
-//	                            df-executor; same value)
+//	DASHBOARD_SNAPSHOT_FILE     absolute path to the snapshot JSON written by
+//	                            snapshot-scan.lua (e.g. <DF>/nivek-snapshot.json)
 //	DASHBOARD_PUSH_URL          full URL of the receiver endpoint
 //	                            (e.g. https://nivek.life/api/df/snapshot)
 //	DASHBOARD_PUSH_HMAC_KEY     hex-encoded shared secret; must match
@@ -28,9 +32,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
-	"regexp"
 	"strconv"
 	"syscall"
 	"time"
@@ -42,14 +44,8 @@ import (
 const (
 	defaultIntervalSec = 300
 	minIntervalSec     = 10
-	dfhackRunTimeout   = 60 * time.Second
 	httpPushTimeout    = 30 * time.Second
 )
-
-// ansiRE matches ANSI CSI escape sequences. dfhack-run wraps script
-// stdout in color-reset codes (\x1b[0m before AND after the script's
-// output); the receiver expects plain JSON, so strip them client-side.
-var ansiRE = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
 
 func main() {
 	_ = godotenv.Load()
@@ -80,18 +76,18 @@ func main() {
 }
 
 type config struct {
-	dfhackRunPath string
-	pushURL       string
-	hmacKey       []byte
-	interval      time.Duration
-	httpClient    *http.Client
+	snapshotFile string
+	pushURL      string
+	hmacKey      []byte
+	interval     time.Duration
+	httpClient   *http.Client
 }
 
 func loadConfigOrExit() *config {
 	c := &config{
-		dfhackRunPath: requireEnv("DFHACK_RUN_PATH"),
-		pushURL:       requireEnv("DASHBOARD_PUSH_URL"),
-		httpClient:    &http.Client{Timeout: httpPushTimeout},
+		snapshotFile: requireEnv("DASHBOARD_SNAPSHOT_FILE"),
+		pushURL:      requireEnv("DASHBOARD_PUSH_URL"),
+		httpClient:   &http.Client{Timeout: httpPushTimeout},
 	}
 	keyHex := requireEnv("DASHBOARD_PUSH_HMAC_KEY")
 	key, err := hex.DecodeString(keyHex)
@@ -155,39 +151,34 @@ func requireEnv(name string) string {
 	return v
 }
 
-// pushOnce runs the dfhack-run dump-map-snapshot script, strips ANSI
-// codes, signs the body, gzip-compresses it, and POSTs to the receiver.
-// Errors are logged but don't take down the daemon — next tick will
-// try again.
+// pushOnce reads the snapshot file published by snapshot-scan.lua, signs the
+// body, gzip-compresses it, and POSTs to the receiver. Errors are logged but
+// don't take down the daemon — next tick will try again.
 //
 // HMAC is computed over the UNCOMPRESSED JSON so the signature binds
 // to the content rather than the transport encoding (and stays valid
 // if the compression algorithm/level changes someday). Receiver must
 // decompress first, then verify.
 func (c *config) pushOnce() {
-	ctx, cancel := context.WithTimeout(context.Background(), dfhackRunTimeout)
-	defer cancel()
-
-	raw, err := exec.CommandContext(ctx, c.dfhackRunPath, "dump-map-snapshot").CombinedOutput()
+	raw, err := os.ReadFile(c.snapshotFile)
 	if err != nil {
-		log.Printf("dfhack-run failed: %v (first 200 bytes of output: %.200q)", err, raw)
+		log.Printf("read snapshot file %s: %v", c.snapshotFile, err)
 		return
 	}
 
-	body := bytes.TrimSpace(ansiRE.ReplaceAll(raw, nil))
+	body := bytes.TrimSpace(raw)
 	if len(body) == 0 {
-		log.Printf("dfhack-run produced empty output, skipping push")
+		log.Printf("snapshot file is empty, skipping push")
 		return
 	}
 
-	// Guard against pushing an empty capture. If DF is at the menu / no fort
-	// is loaded when the dump fires (e.g. the game was quit before the pusher
-	// was stopped), the snapshot has zero citizens and every tile is Unknown.
-	// The receiver keeps only a single snapshot with no expiry, so pushing
-	// this would clobber the last good one and blank the dashboard. Skipping
-	// it leaves the last real snapshot in place. Parse failures fall through
-	// to the push (the receiver validates) so a parsing hiccup never
-	// suppresses genuine data.
+	// Guard against pushing an empty capture (zero citizens, all tiles
+	// Unknown) — the signature of a snapshot taken with no fort loaded. The
+	// snapshot-scan script only runs while a fort is loaded, so this is now
+	// belt-and-suspenders, but the receiver keeps a single snapshot with no
+	// expiry, so a stray empty file would clobber the last good one and blank
+	// the dashboard. Parse failures fall through to the push (the receiver
+	// validates) so a parsing hiccup never suppresses genuine data.
 	if snap, perr := parseSnapshot(body); perr != nil {
 		log.Printf("warning: could not parse snapshot to check for emptiness, pushing anyway: %v", perr)
 	} else if isEmptySnapshot(snap) {
@@ -214,6 +205,8 @@ func (c *config) pushOnce() {
 	// buffer as it reads the body, so a post-send compressed.Len() returns 0.
 	compressedSize := compressed.Len()
 
+	ctx, cancel := context.WithTimeout(context.Background(), httpPushTimeout)
+	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.pushURL, &compressed)
 	if err != nil {
 		log.Printf("build request: %v", err)
