@@ -28,8 +28,11 @@ const currentLevelIdx = ref<number>(0)
 // out from under the user.
 let hasInitialized = false
 
-const hoverCoord = ref<{ x: number; y: number; z: number } | null>(null)
-const selectedCoord = ref<{ x: number; y: number; z: number } | null>(null)
+type Coord = { x: number; y: number; z: number }
+const hoverCoord = ref<Coord | null>(null)
+// Multiple tiles can be selected at once; clicking a selected tile again
+// deselects it, and the sidebar "clear" button empties the list.
+const selectedCoords = ref<Coord[]>([])
 
 let pollTimer: number | undefined
 
@@ -137,7 +140,19 @@ function onMouseLeave() {
 function onClick(ev: MouseEvent) {
     if (!snapshot.value || !canvasRef.value || !currentLevel.value) return
     const rect = canvasRef.value.getBoundingClientRect()
-    selectedCoord.value = pixelToWorld(snapshot.value, currentLevel.value, ev.clientX - rect.left, ev.clientY - rect.top, cellSize.value)
+    const c = pixelToWorld(snapshot.value, currentLevel.value, ev.clientX - rect.left, ev.clientY - rect.top, cellSize.value)
+    if (!c) return
+    // Toggle: clicking an already-selected tile removes it; otherwise add it.
+    const idx = selectedCoords.value.findIndex(s => s.x === c.x && s.y === c.y && s.z === c.z)
+    if (idx >= 0) {
+        selectedCoords.value.splice(idx, 1)
+    } else {
+        selectedCoords.value.push(c)
+    }
+}
+
+function clearSelection() {
+    selectedCoords.value = []
 }
 
 function zoomBy(factor: number) {
@@ -250,11 +265,19 @@ onBeforeUnmount(() => {
                 </div>
                 <div class="coord-row">
                     <span class="label">Selected:</span>
-                    <span v-if="selectedCoord" class="coord">
-                        ({{ selectedCoord.x }}, {{ selectedCoord.y }}, {{ selectedCoord.z }})
-                    </span>
-                    <span v-else class="coord muted">click a tile</span>
+                    <span class="coord muted">{{ selectedCoords.length }} tile{{ selectedCoords.length === 1 ? '' : 's' }}</span>
+                    <button
+                        class="clear-btn"
+                        :disabled="selectedCoords.length === 0"
+                        @click="clearSelection"
+                    >clear</button>
                 </div>
+                <ul v-if="selectedCoords.length" class="selected-list">
+                    <li v-for="(c, i) in selectedCoords" :key="i" class="coord">
+                        ({{ c.x }}, {{ c.y }}, {{ c.z }})
+                    </li>
+                </ul>
+                <p v-else class="z-hint">click tiles to select; click again to deselect</p>
 
                 <h3>Legend</h3>
                 <ul class="legend">
@@ -479,6 +502,39 @@ canvas {
 
 .coord-row .coord.muted {
     color: #555;
+}
+
+.clear-btn {
+    margin-left: auto;
+    background: #333;
+    color: #ddd;
+    border: 1px solid #555;
+    border-radius: 3px;
+    padding: 0.1rem 0.55rem;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.78rem;
+}
+.clear-btn:hover:not(:disabled) {
+    background: #444;
+    border-color: #777;
+}
+.clear-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.selected-list {
+    list-style: none;
+    padding: 0;
+    margin: 0.25rem 0 0 0;
+    max-height: 160px;
+    overflow-y: auto;
+}
+.selected-list .coord {
+    color: #fff;
+    font-size: 0.85rem;
+    padding: 0.1rem 0;
 }
 
 .legend, .furniture-legend {
