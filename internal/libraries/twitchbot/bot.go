@@ -3,6 +3,7 @@ package twitchbot
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -19,13 +20,13 @@ import (
 )
 
 type Config struct {
-	BotUsername      string
-	BotOAuth         string
-	Channels         []string // Changed from single Channel to multiple Channels
-	StoragePath      string
-	Timezone         string
-	ExecutorWSURL    string // e.g. ws://192.168.1.X:8123/ws
-	OverseerHmacKey  string // hex-encoded HMAC key, shared with the executor
+	BotUsername     string
+	BotOAuth        string
+	Channels        []string // Changed from single Channel to multiple Channels
+	StoragePath     string
+	Timezone        string
+	ExecutorWSURL   string // e.g. ws://192.168.1.X:8123/ws
+	OverseerHmacKey string // hex-encoded HMAC key, shared with the executor
 }
 
 type Bot struct {
@@ -232,14 +233,21 @@ func (b *Bot) handleDFCommand(rawText, args, username, channel string) {
 	action, err := overseer.ParseCommand(args)
 	if err != nil {
 		log.Printf("[DF] [%s] %s: parse failed for %q: %v", channel, username, args, err)
-		return // silent reject (locked design)
+		// Parse errors are silently rejected (locked design) — except a
+		// RejectReason, which carries a chatter-safe "why" we do surface
+		// (e.g. `appoint captain` → "needs a squad — not supported yet").
+		var rr *overseer.RejectReason
+		if errors.As(err, &rr) {
+			b.client.Say(channel, fmt.Sprintf("@%s — %s", username, rr.Msg))
+		}
+		return
 	}
 
 	// help is a chat-response verb — no DFHack involvement, no executor
 	// round-trip. Short-circuit here before the WS send.
 	if action.Kind == overseer.ActionKindHelp {
 		b.client.Say(channel, fmt.Sprintf(
-			"@%s !DF: make [N] <material> <item> | place <item> <x> <y> <z> | brew [N] <fruit|plant> | mine <x,y,z> <x,y> | camera <x> <y> <z> | pause | unpause | help",
+			"@%s !DF: make [N] <material> <item> | place <item> <x> <y> <z> | brew [N] <fruit|plant> | mine <x,y,z> <x,y> | camera <x> <y> <z> | appoint <position> <id> | pause | unpause | help",
 			username,
 		))
 		log.Printf("[DF] [%s] %s: help requested", channel, username)
@@ -312,6 +320,8 @@ func dfSuccessReply(username string, action overseer.Action) string {
 			)
 		}
 		return fmt.Sprintf("@%s designated dig area", username)
+	case overseer.ActionKindAppoint:
+		return fmt.Sprintf("@%s appointed unit #%d as %s", username, action.UnitID, action.Office)
 	default:
 		return fmt.Sprintf("@%s executed %s", username, action.Kind)
 	}
