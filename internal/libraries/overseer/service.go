@@ -126,6 +126,88 @@ type workorderRequest struct {
 	ItemSubtype      string   `json:"item_subtype,omitempty"`
 }
 
+// officeToPositionCode maps chat-facing noble keywords to DFHack
+// entity_position `code` strings. Confirmed live via the fort entity's
+// positions.own table: MANAGER, BOOKKEEPER, BROKER, CHIEF_MEDICAL_DWARF,
+// MILITIA_COMMANDER. Militia captain (MILITIA_CAPTAIN) is intentionally
+// absent — it's squad-dependent and rejected at the parser.
+var officeToPositionCode = map[string]string{
+	"manager":    "MANAGER",
+	"bookkeeper": "BOOKKEEPER",
+	"broker":     "BROKER",
+	"doctor":     "CHIEF_MEDICAL_DWARF",
+	"commander":  "MILITIA_COMMANDER",
+}
+
+// appointLuaTemplate appoints a unit to a fort noble position. It mirrors
+// DFHack's own make-monarch.lua, adapted from the civ entity (monarch) to
+// the fortress entity (manager/bookkeeper/etc.): set the assignment's
+// histfig/histfig2 to the target's historical figure, drop the previous
+// holder's position entity-link, and add one for the new holder. Verified
+// against the live save's structures (entity_id = fortress_entity.id,
+// histfig2 mirrors histfig, link carries assignment_id/vector_idx/start_year).
+//
+// %d = unit.id, %q = position code. Both come from trusted sources (an int
+// and a value from officeToPositionCode), so there's no lua-injection risk.
+const appointLuaTemplate = `
+local UNIT_ID = %d
+local CODE = %q
+local unit = df.unit.find(UNIT_ID)
+if not unit then error("no unit with id "..UNIT_ID) end
+if not dfhack.units.isCitizen(unit) then error("unit "..UNIT_ID.." is not a citizen of this fort") end
+local figid = unit.hist_figure_id
+if figid < 0 then error("unit "..UNIT_ID.." has no historical figure") end
+local newfig = df.historical_figure.find(figid)
+if not newfig then error("historical figure "..figid.." not found") end
+
+local ent = df.global.plotinfo.main.fortress_entity
+if not ent then error("no fortress entity") end
+
+local posid
+for _,p in ipairs(ent.positions.own) do
+    if p.code == CODE then posid = p.id break end
+end
+if not posid then error("position "..CODE.." not defined for this fort") end
+
+local done = false
+for aidx,a in ipairs(ent.positions.assignments) do
+    if a.position_id == posid then
+        if a.histfig == newfig.id then done = true break end
+        local oldid = a.histfig
+        a.histfig = newfig.id
+        a.histfig2 = newfig.id
+        if oldid >= 0 then
+            local oldfig = df.historical_figure.find(oldid)
+            if oldfig then
+                for k,v in pairs(oldfig.entity_links) do
+                    if df.histfig_entity_link_positionst:is_instance(v)
+                       and v.assignment_id == a.id and v.entity_id == ent.id then
+                        oldfig.entity_links:erase(k)
+                        break
+                    end
+                end
+            end
+        end
+        local has = false
+        for _,v in pairs(newfig.entity_links) do
+            if df.histfig_entity_link_positionst:is_instance(v)
+               and v.assignment_id == a.id and v.entity_id == ent.id then
+                has = true break
+            end
+        end
+        if not has then
+            newfig.entity_links:insert("#", {new=df.histfig_entity_link_positionst,
+                entity_id=ent.id, link_strength=100, assignment_id=a.id,
+                assignment_vector_idx=aidx, start_year=df.global.cur_year})
+        end
+        done = true
+        break
+    end
+end
+if not done then error("no assignment slot for position "..CODE) end
+print("appointed unit "..UNIT_ID.." as "..CODE)
+`
+
 // brewSourceToReaction maps chat-facing brew sources to DFHack reaction
 // IDs used by the workorder script's CustomReaction job_type. Confirmed
 // via `orders export` — these are the two reaction strings DF Premium
@@ -160,6 +242,8 @@ func (s *nivekOverseerServiceImpl) Submit(action Action) error {
 		return s.submitBrew(action)
 	case ActionKindMine:
 		return s.submitMine(action)
+	case ActionKindAppoint:
+		return s.submitAppoint(action)
 	default:
 		return fmt.Errorf("unsupported action kind: %s", action.Kind)
 	}
@@ -247,6 +331,14 @@ func (s *nivekOverseerServiceImpl) submitPlace(action Action) error {
 		dfType, action.Position.X, action.Position.Y, action.Position.Z,
 	)
 	return s.runLua(script)
+}
+
+func (s *nivekOverseerServiceImpl) submitAppoint(action Action) error {
+	code, ok := officeToPositionCode[action.Office]
+	if !ok {
+		return fmt.Errorf("no DFHack position code for office: %s", action.Office)
+	}
+	return s.runLua(fmt.Sprintf(appointLuaTemplate, action.UnitID, code))
 }
 
 func (s *nivekOverseerServiceImpl) submitManufacture(action Action) error {

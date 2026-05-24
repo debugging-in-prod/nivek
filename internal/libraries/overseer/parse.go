@@ -75,6 +75,26 @@ var placeableItemVocab = map[string]struct{}{
 	"floodgate": {},
 }
 
+// nobleVocab is the set of chat-facing noble-position keywords `!DF appoint`
+// accepts. Each maps to a single-slot fort position; the keyword→DFHack
+// position code translation lives service-side in officeToPositionCode.
+var nobleVocab = map[string]struct{}{
+	"manager":    {},
+	"bookkeeper": {},
+	"broker":     {},
+	"doctor":     {}, // chief medical dwarf
+	"commander":  {}, // militia commander
+}
+
+// nobleDeferred maps recognized-but-not-yet-supported position keywords to a
+// user-facing reason. Militia captain is squad-dependent (a captain leads a
+// squad, which must exist first) — handling it properly needs squad
+// management we haven't built, so it gets a clear "not supported yet" rather
+// than an "unknown position" error.
+var nobleDeferred = map[string]string{
+	"captain": "captain needs a squad — not supported yet",
+}
+
 // materialVocab is the set of chat-facing materials accepted in v0.
 // "metal" is a meta-token meaning "any available metal, executor picks".
 var materialVocab = map[string]struct{}{
@@ -98,6 +118,15 @@ var fillerWords = map[string]struct{}{
 	"me": {}, "us": {}, "please": {},
 	"drink": {}, "from": {},
 }
+
+// RejectReason is a parse error whose message is safe and intended to be
+// shown to the chatter. Ordinary parse errors are silently dropped (locked
+// design — keeps chat clean of typo/garbage feedback); a RejectReason is the
+// deliberate exception for a recognized-but-unsupported command, where a
+// short "why" is more helpful than silence. Currently only `appoint captain`.
+type RejectReason struct{ Msg string }
+
+func (e *RejectReason) Error() string { return e.Msg }
 
 // ParseCommand parses the arguments of a `!DF` chat command into an Action.
 // The caller is expected to have stripped the `!df` prefix before passing.
@@ -126,6 +155,11 @@ var fillerWords = map[string]struct{}{
 //     coord's Z is implicit (prevents multi-Z mining commands by design).
 //     Area is capped at 25 tiles per command to keep individual jobs
 //     bounded
+//   - `appoint <position> <id>` — assign a dwarf (by its stable unit.id,
+//     shown on the /df/citizens page) to a fort noble position. Positions:
+//     manager, bookkeeper, broker, doctor, commander. `captain` is
+//     recognized but deferred (needs squad management). Token order is
+//     flexible and a leading `#` on the id is tolerated
 //
 // Tolerances (apply to all verbs): case-insensitive, whitespace-collapsing,
 // filler-word stripping (a, an, the, some, me, us, please). Manufacture
@@ -156,6 +190,8 @@ func ParseCommand(args string) (Action, error) {
 		return parseBrew(rest)
 	case "mine":
 		return parseMine(rest)
+	case "appoint":
+		return parseAppoint(rest)
 	default:
 		return Action{}, fmt.Errorf("unknown verb: %q", verb)
 	}
@@ -374,6 +410,51 @@ func parsePlace(rest []string) (Action, error) {
 		Kind:     ActionKindPlace,
 		Item:     item,
 		Position: &Position{X: coords[0], Y: coords[1], Z: coords[2]},
+	}, nil
+}
+
+// parseAppoint handles `appoint <position> <id>` — assign a dwarf (by its
+// stable DFHack unit.id) to a fort noble position. Tolerances:
+//   - either token order: `appoint manager 8423` and `appoint 8423 manager`
+//     both work (the numeric token is the id, the other is the position).
+//   - a leading `#` on the id is stripped, so copy-pasting the `#8423` shown
+//     on the citizens dashboard works verbatim.
+func parseAppoint(tokens []string) (Action, error) {
+	if len(tokens) != 2 {
+		return Action{}, fmt.Errorf("appoint needs <position> <id>, e.g. 'appoint manager 8423'")
+	}
+	// Strip the dashboard's display `#` prefix off whichever token carries it.
+	t0 := strings.TrimPrefix(tokens[0], "#")
+	t1 := strings.TrimPrefix(tokens[1], "#")
+
+	var posTok string
+	var id int
+	n0, e0 := strconv.Atoi(t0)
+	n1, e1 := strconv.Atoi(t1)
+	switch {
+	case e0 != nil && e1 == nil:
+		posTok, id = t0, n1
+	case e0 == nil && e1 != nil:
+		posTok, id = t1, n0
+	default:
+		return Action{}, fmt.Errorf("appoint needs exactly one position keyword and one numeric id")
+	}
+	if id < 0 {
+		return Action{}, fmt.Errorf("invalid unit id: %d", id)
+	}
+
+	if reason, deferred := nobleDeferred[posTok]; deferred {
+		// Chat-visible: a recognized position we just don't support yet.
+		return Action{}, &RejectReason{Msg: reason}
+	}
+	if _, ok := nobleVocab[posTok]; !ok {
+		return Action{}, fmt.Errorf("unknown position: %q (try manager, bookkeeper, broker, doctor, commander)", posTok)
+	}
+
+	return Action{
+		Kind:   ActionKindAppoint,
+		Office: posTok,
+		UnitID: id,
 	}, nil
 }
 
