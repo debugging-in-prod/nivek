@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { fetchSnapshot } from '@/services/DFService'
 import type { MapSnapshot, ZLevel } from '@/types/df'
 import { drawLevel, pixelToWorld, DEFAULT_CELL_SIZE, MIN_CELL_SIZE, MAX_CELL_SIZE } from './renderer'
@@ -13,14 +13,20 @@ const viewportRef = ref<HTMLDivElement | null>(null)
 const snapshot = ref<MapSnapshot | null>(null)
 const error = ref<string | null>(null)
 
-// Zoom: pixels per tile. Mouse wheel adjusts it; the canvas re-renders at
-// the new scale and the scrollable viewport wrapper keeps it contained.
+// Zoom: pixels per tile. The sidebar +/− buttons adjust it; the canvas
+// re-renders at the new scale and the scrollable viewport wrapper keeps it
+// contained. Mouse wheel is left to the browser for native scrolling.
 const cellSize = ref<number>(DEFAULT_CELL_SIZE)
 
-// Index into snapshot.levels[] of the currently-displayed Z level. Reset
-// to "the highest level" each snapshot refresh so the user lands on the
-// surface-ish view by default.
+// Index into snapshot.levels[] of the currently-displayed Z level. On the
+// first snapshot it's set to the F1 hotkey's Z (or the middle of the range
+// if no focus); later polls preserve whatever level the user navigated to.
 const currentLevelIdx = ref<number>(0)
+
+// First-load gate. The initial view (Z level + centered scroll) is set
+// once from the snapshot's focus; subsequent polls must not yank the view
+// out from under the user.
+let hasInitialized = false
 
 const hoverCoord = ref<{ x: number; y: number; z: number } | null>(null)
 const selectedCoord = ref<{ x: number; y: number; z: number } | null>(null)
@@ -53,21 +59,56 @@ async function loadSnapshot() {
             snapshot.value = null
             return
         }
+        const firstLoad = !hasInitialized
         snapshot.value = fresh
-        // Default to the MIDDLE of the snapshot's Z range on first load.
-        // The lua dump emits `window_z ± Z_RADIUS` so the middle index
-        // corresponds to DF's viewport at dump time — that's where the
-        // fortress almost always is. The top of the range is usually
-        // empty above-ground sky (all Unknown tiles, renders as a
-        // featureless dark rectangle that looks broken to viewers).
-        // Subsequent polls preserve the user's current Z if still in range.
-        if (currentLevelIdx.value >= fresh.levels.length || currentLevelIdx.value < 0) {
-            currentLevelIdx.value = Math.floor(fresh.levels.length / 2)
+        if (firstLoad) {
+            hasInitialized = true
+            currentLevelIdx.value = pickInitialLevel(fresh)
+            // Wait for the canvas to mount + size at the chosen level, then
+            // scroll so the F1 hotkey tile is centered in the viewport.
+            await nextTick()
+            renderCurrent()
+            if (fresh.focus) {
+                const f = fresh.focus
+                // rAF: scrollLeft/Top clamp to the canvas's laid-out size,
+                // which is only settled after the post-render reflow.
+                requestAnimationFrame(() => centerOn(f.x, f.y))
+            }
+        } else {
+            // Preserve the user's current Z if still in range; otherwise clamp
+            // back to the middle of the (possibly shifted) range.
+            if (currentLevelIdx.value >= fresh.levels.length || currentLevelIdx.value < 0) {
+                currentLevelIdx.value = Math.floor(fresh.levels.length / 2)
+            }
+            renderCurrent()
         }
-        renderCurrent()
     } catch (err: any) {
         error.value = err?.message ?? 'unknown error'
     }
+}
+
+// Initial Z level: the level matching the F1 hotkey's Z if the dump
+// included one and it's within the dumped range, else the middle of the
+// range. The lua dump emits `window_z ± Z_RADIUS`, so the middle index is
+// DF's viewport at dump time — where the fortress almost always is. The
+// top of the range is usually empty above-ground sky (all Unknown tiles,
+// a featureless dark rectangle that looks broken to viewers).
+function pickInitialLevel(snap: MapSnapshot): number {
+    if (snap.focus) {
+        const i = snap.levels.findIndex(l => l.z === snap.focus!.z)
+        if (i >= 0) return i
+    }
+    return Math.floor(snap.levels.length / 2)
+}
+
+// Scroll the viewport so the given world (x, y) tile sits at its center.
+function centerOn(worldX: number, worldY: number) {
+    const vp = viewportRef.value
+    if (!vp || !snapshot.value) return
+    const localX = worldX - snapshot.value.origin.x
+    const localY = worldY - snapshot.value.origin.y
+    vp.scrollLeft = localX * cellSize.value - vp.clientWidth / 2
+    vp.scrollTop = localY * cellSize.value - vp.clientHeight / 2
 }
 
 function renderCurrent() {
@@ -97,36 +138,6 @@ function onClick(ev: MouseEvent) {
     if (!snapshot.value || !canvasRef.value || !currentLevel.value) return
     const rect = canvasRef.value.getBoundingClientRect()
     selectedCoord.value = pixelToWorld(snapshot.value, currentLevel.value, ev.clientX - rect.left, ev.clientY - rect.top, cellSize.value)
-}
-
-// Mouse wheel zooms the map, anchored on the tile under the cursor so it
-// stays put as the scale changes (the scrollable viewport is adjusted to
-// compensate). preventDefault stops the page/container from scrolling.
-function onWheel(ev: WheelEvent) {
-    if (!canvasRef.value || !viewportRef.value) return
-    ev.preventDefault()
-
-    const old = cellSize.value
-    const factor = ev.deltaY < 0 ? 1.15 : 1 / 1.15
-    const next = Math.max(MIN_CELL_SIZE, Math.min(MAX_CELL_SIZE, Math.round(old * factor)))
-    if (next === old) return
-
-    // World pixel under the cursor before the zoom (canvas-local + scroll).
-    const vp = viewportRef.value
-    const rect = canvasRef.value.getBoundingClientRect()
-    const cursorCanvasX = ev.clientX - rect.left
-    const cursorCanvasY = ev.clientY - rect.top
-    const tileX = cursorCanvasX / old
-    const tileY = cursorCanvasY / old
-
-    cellSize.value = next
-    renderCurrent()
-
-    // After re-render at the new scale, scroll so the same tile sits under
-    // the cursor. cursorCanvasX/Y were measured from the canvas's visible
-    // top-left, which already accounts for the prior scroll offset.
-    vp.scrollLeft += tileX * next - cursorCanvasX
-    vp.scrollTop += tileY * next - cursorCanvasY
 }
 
 function zoomBy(factor: number) {
@@ -192,7 +203,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-else class="layout">
-            <div class="canvas-viewport" ref="viewportRef" @wheel="onWheel">
+            <div class="canvas-viewport" ref="viewportRef">
                 <canvas
                     ref="canvasRef"
                     @mousemove="onMouseMove"
@@ -207,7 +218,7 @@ onBeforeUnmount(() => {
                     <span class="z-current">{{ cellSize }} px/tile</span>
                     <button class="z-btn" @click="zoomBy(1.15)" aria-label="Zoom in">+</button>
                 </div>
-                <p class="z-hint">scroll wheel over the map also zooms</p>
+                <p class="z-hint">scroll the map to pan</p>
 
                 <h3>Z Level</h3>
                 <div class="z-nav">
@@ -375,7 +386,7 @@ header h1 {
     overflow: auto;
     border: 1px solid #333;
     background: #000;
-    /* containment + a hint that wheel events are handled here, not scrolled */
+    /* keep wheel scrolling inside the map from chaining to the page */
     overscroll-behavior: contain;
 }
 
