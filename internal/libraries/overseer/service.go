@@ -29,20 +29,38 @@ func NewService(dfhackRunPath string) NivekOverseerService {
 // Extrapolated (very likely correct): cabinet, chest, statue, floodgate.
 // If any extrapolated mapping errors out in practice, fix the value here.
 var itemToJobType = map[string]string{
-	"table":     "ConstructTable",
-	"bed":       "ConstructBed",
-	"door":      "ConstructDoor",
-	"chair":     "ConstructThrone",
-	"coffin":    "ConstructCoffin",
-	"block":     "ConstructBlocks",
-	"cabinet":   "ConstructCabinet",
-	"chest":     "ConstructChest",
-	"statue":    "ConstructStatue",
-	"floodgate": "ConstructFloodgate",
-	"bucket":    "MakeBucket",
-	"barrel":    "MakeBarrel",
-	"ash":       "MakeAsh",
-	"charcoal":  "MakeCharcoal",
+	"table":      "ConstructTable",
+	"bed":        "ConstructBed",
+	"door":       "ConstructDoor",
+	"chair":      "ConstructThrone",
+	"throne":     "ConstructThrone",
+	"coffin":     "ConstructCoffin",
+	"block":      "ConstructBlocks",
+	"cabinet":    "ConstructCabinet",
+	"chest":      "ConstructChest",
+	"statue":     "ConstructStatue",
+	"floodgate":  "ConstructFloodgate",
+	"bucket":     "MakeBucket",
+	"barrel":     "MakeBarrel",
+	"ash":        "MakeAsh",
+	"charcoal":   "MakeCharcoal",
+	"armorstand": "ConstructArmorStand",
+	"grate":      "ConstructGrate",
+	"hatchcover": "ConstructHatchCover",
+	"millstone":  "ConstructMillstone",
+	"quern":      "ConstructQuern",
+	"slab":       "ConstructSlab",
+	"weaponrack": "ConstructWeaponRack",
+}
+
+// itemToToolSubtype covers chat items that DF builds as *tools* via the
+// MakeTool job_type with an item_subtype, rather than a dedicated
+// Construct*/Make* job_type. These are stoneworker products that became
+// tools in DF Premium. Verified via `df.global.world.raws.itemdefs.tools`.
+var itemToToolSubtype = map[string]string{
+	"altar":    "ITEM_TOOL_ALTAR",
+	"bookcase": "ITEM_TOOL_BOOKCASE",
+	"pedestal": "ITEM_TOOL_PEDESTAL",
 }
 
 // placeableItemToBuildingType maps chat-facing item nouns to DFHack
@@ -99,11 +117,13 @@ type workorderMaterialSpec struct {
 
 // workorderRequest is the JSON payload `workorder <json>` accepts.
 // Material xor MaterialCategory — populate whichever the spec uses.
+// ItemSubtype is set only for MakeTool jobs (altar/bookcase/pedestal).
 type workorderRequest struct {
 	Job              string   `json:"job"`
 	AmountTotal      int      `json:"amount_total"`
 	Material         string   `json:"material,omitempty"`
 	MaterialCategory []string `json:"material_category,omitempty"`
+	ItemSubtype      string   `json:"item_subtype,omitempty"`
 }
 
 // brewSourceToReaction maps chat-facing brew sources to DFHack reaction
@@ -230,19 +250,24 @@ func (s *nivekOverseerServiceImpl) submitPlace(action Action) error {
 }
 
 func (s *nivekOverseerServiceImpl) submitManufacture(action Action) error {
-	jobType, ok := itemToJobType[action.Item]
-	if !ok {
-		return fmt.Errorf("no DFHack job_type mapping for item: %s", action.Item)
-	}
-
 	qty := action.Quantity
 	if qty <= 0 {
 		qty = 1
 	}
 
-	req := workorderRequest{
-		Job:         jobType,
-		AmountTotal: qty,
+	req := workorderRequest{AmountTotal: qty}
+
+	// Tools (altar/bookcase/pedestal) use the MakeTool job_type with an
+	// item_subtype; everything else has a dedicated Construct*/Make* job.
+	if subtype, isTool := itemToToolSubtype[action.Item]; isTool {
+		req.Job = "MakeTool"
+		req.ItemSubtype = subtype
+	} else {
+		jobType, ok := itemToJobType[action.Item]
+		if !ok {
+			return fmt.Errorf("no DFHack job_type mapping for item: %s", action.Item)
+		}
+		req.Job = jobType
 	}
 
 	// Material is nil for fixed-recipe jobs (MakeAsh, MakeCharcoal — these
