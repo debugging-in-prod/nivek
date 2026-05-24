@@ -5,14 +5,15 @@
 // no persistent authenticated channel.
 //
 // Configuration via .env (or process env):
-//   DFHACK_RUN_PATH             absolute path to dfhack-run (shared with
-//                               df-executor; same value)
-//   DASHBOARD_PUSH_URL          full URL of the receiver endpoint
-//                               (e.g. https://nivek.life/api/df/snapshot)
-//   DASHBOARD_PUSH_HMAC_KEY     hex-encoded shared secret; must match
-//                               the same env var on the receiver side
-//   DASHBOARD_PUSH_INTERVAL_SEC (optional, default 300) seconds between
-//                               pushes; minimum 10 to prevent foot-shooting
+//
+//	DFHACK_RUN_PATH             absolute path to dfhack-run (shared with
+//	                            df-executor; same value)
+//	DASHBOARD_PUSH_URL          full URL of the receiver endpoint
+//	                            (e.g. https://nivek.life/api/df/snapshot)
+//	DASHBOARD_PUSH_HMAC_KEY     hex-encoded shared secret; must match
+//	                            the same env var on the receiver side
+//	DASHBOARD_PUSH_INTERVAL_SEC (optional, default 300) seconds between
+//	                            pushes; minimum 10 to prevent foot-shooting
 package main
 
 import (
@@ -22,6 +23,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"io"
 	"log"
 	"net/http"
@@ -34,6 +36,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer"
 )
 
 const (
@@ -112,6 +115,38 @@ func loadConfigOrExit() *config {
 	return c
 }
 
+// parseSnapshot decodes the dump JSON into a MapSnapshot for emptiness
+// checking. The pusher otherwise forwards bytes verbatim; this is the only
+// place it inspects the payload.
+func parseSnapshot(body []byte) (*overseer.MapSnapshot, error) {
+	var s overseer.MapSnapshot
+	if err := json.Unmarshal(body, &s); err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
+
+// isEmptySnapshot reports whether a snapshot carries no fortress data at all:
+// no citizens, no furniture, and every tile Unknown across every level. This
+// is the signature of a dump taken with no fort loaded (DF at the menu). Any
+// single piece of real content makes it non-empty.
+func isEmptySnapshot(s *overseer.MapSnapshot) bool {
+	if len(s.Citizens) > 0 {
+		return false
+	}
+	for i := range s.Levels {
+		if len(s.Levels[i].Furniture) > 0 {
+			return false
+		}
+		for _, t := range s.Levels[i].Tiles {
+			if t != overseer.TileUnknown {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func requireEnv(name string) string {
 	v := os.Getenv(name)
 	if v == "" {
@@ -142,6 +177,21 @@ func (c *config) pushOnce() {
 	body := bytes.TrimSpace(ansiRE.ReplaceAll(raw, nil))
 	if len(body) == 0 {
 		log.Printf("dfhack-run produced empty output, skipping push")
+		return
+	}
+
+	// Guard against pushing an empty capture. If DF is at the menu / no fort
+	// is loaded when the dump fires (e.g. the game was quit before the pusher
+	// was stopped), the snapshot has zero citizens and every tile is Unknown.
+	// The receiver keeps only a single snapshot with no expiry, so pushing
+	// this would clobber the last good one and blank the dashboard. Skipping
+	// it leaves the last real snapshot in place. Parse failures fall through
+	// to the push (the receiver validates) so a parsing hiccup never
+	// suppresses genuine data.
+	if snap, perr := parseSnapshot(body); perr != nil {
+		log.Printf("warning: could not parse snapshot to check for emptiness, pushing anyway: %v", perr)
+	} else if isEmptySnapshot(snap) {
+		log.Printf("snapshot is empty (no fort loaded: 0 citizens, all tiles Unknown), skipping push")
 		return
 	}
 
