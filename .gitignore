@@ -7,4 +7,8 @@ docker-compose.override.yml
 bin/*
 data/*
 
+# Stray `go build ./cmd/...` outputs dropped in the repo root
+/df-executor
+/df-snapshot-pusher
+
 vendor/*

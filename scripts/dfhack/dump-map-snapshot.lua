@@ -160,6 +160,18 @@ for _, u in ipairs(df.global.world.units.active) do
     end
 end
 
+-- The first map hotkey (F1, in-game bound to e.g. "Wagon arrival location")
+-- gives the dashboard a sensible starting view. hotkeys is a fixed-size
+-- array; an unassigned slot reads as (0,0,0), which we treat as "no focus".
+local focus = nil
+local hk = df.global.plotinfo.main.hotkeys
+if hk and #hk > 0 then
+    local f1 = hk[0]
+    if not (f1.x == 0 and f1.y == 0 and f1.z == 0) then
+        focus = { x = f1.x, y = f1.y, z = f1.z }
+    end
+end
+
 local snapshot = {
     captured_at = os.date('!%Y-%m-%dT%H:%M:%SZ'),
     origin = { x = 0, y = 0, z = z_min },
@@ -167,6 +179,7 @@ local snapshot = {
     height = height,
     levels = as_array(levels),
     citizens = as_array(citizens),
+    focus = focus,
 }
 
 print(json.encode(snapshot))
