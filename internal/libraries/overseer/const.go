@@ -115,7 +115,7 @@ type Citizen struct {
 	Profession string   `json:"profession"`    // e.g. "Miner", "Carpenter", "Recruit", "Child"
 	Age        int      `json:"age"`           // integer years
 	Job        string   `json:"job,omitempty"` // current task; "" when idle
-	Stress     int      `json:"stress"`        // 0=ecstatic .. 6=miserable per dfhack's category
+	Stress     int      `json:"stress"`        // dfhack stress category: 0=most stressed (miserable) .. 6=least stressed (ecstatic)
 	Position   Position `json:"position"`      // current tile coord
 }
 
