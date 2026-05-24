@@ -54,6 +54,10 @@ onBeforeUnmount(() => {
                 Captured {{ new Date(snapshot.captured_at).toLocaleString() }}
                 · {{ citizens.length }} citizen{{ citizens.length === 1 ? '' : 's' }}
             </p>
+            <p class="appoint-hint">
+                Appoint a dwarf to a fort position in chat with its ID:
+                <code>!DF appoint &lt;manager|bookkeeper|broker|doctor|commander&gt; &lt;id&gt;</code>
+            </p>
         </header>
 
         <div v-if="error" class="error">Snapshot unavailable: {{ error }}</div>
@@ -72,6 +76,7 @@ onBeforeUnmount(() => {
             <thead>
                 <tr>
                     <th>Mood</th>
+                    <th>ID</th>
                     <th>Name</th>
                     <th>Profession</th>
                     <th>Age</th>
@@ -85,6 +90,7 @@ onBeforeUnmount(() => {
                         <span class="stress-dot" :class="stressClass(c.stress)" :title="stressLabel(c.stress)" />
                         <span class="stress-text">{{ stressLabel(c.stress) }}</span>
                     </td>
+                    <td class="id">#{{ c.id }}</td>
                     <td class="name">{{ c.name }}</td>
                     <td>{{ c.profession }}</td>
                     <td class="num">{{ c.age }}</td>
@@ -138,7 +144,20 @@ header h1 {
 .capture-info {
     color: #888;
     font-size: 0.85rem;
+    margin: 0 0 0.25rem 0;
+}
+
+.appoint-hint {
+    color: #888;
+    font-size: 0.82rem;
     margin: 0 0 1rem 0;
+}
+.appoint-hint code {
+    background: #2a3a30;
+    color: #6fb;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.8rem;
 }
 
 .error {
@@ -193,6 +212,11 @@ header h1 {
 }
 .citizen-table tbody tr:hover {
     background: #202020;
+}
+.citizen-table .id {
+    font-family: monospace;
+    color: #6fb;
+    white-space: nowrap;
 }
 .citizen-table .name {
     color: #fff;

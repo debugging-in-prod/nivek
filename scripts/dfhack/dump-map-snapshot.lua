@@ -150,6 +150,7 @@ for _, u in ipairs(df.global.world.units.active) do
         local stress = dfhack.units.getStressCategory(u) or 3  -- 3 = "Fine"/neutral
 
         table.insert(citizens, {
+            id = u.id,
             name = name,
             profession = prof_name,
             age = age,

@@ -35,6 +35,7 @@ export interface ZLevel {
 // Citizen mirrors overseer.Citizen on the Go side. Stress is the dfhack
 // "stress category" integer: 0 = ecstatic, 6 = miserable.
 export interface Citizen {
+    id: number           // DFHack unit.id — stable handle chat uses to target this dwarf
     name: string
     profession: string
     age: number

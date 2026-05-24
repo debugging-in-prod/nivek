@@ -58,6 +58,10 @@ type Action struct {
 
 	// For Kind == ActionKindMine (and future range-based spatial actions):
 	Region *Region `json:"region,omitempty"`
+
+	// For Kind == ActionKindAppoint:
+	Office string `json:"office,omitempty"`  // noble-position keyword (manager, bookkeeper, broker, doctor, commander)
+	UnitID int    `json:"unit_id,omitempty"` // target dwarf's DFHack unit.id (stable, rename-proof)
 }
 
 type Position struct {
@@ -106,12 +110,13 @@ type MapSnapshot struct {
 // detail, equipment etc. are deliberately not included to keep the
 // snapshot payload bounded.
 type Citizen struct {
+	ID         int      `json:"id"` // DFHack unit.id — stable, unique, rename-proof; how chat targets a dwarf
 	Name       string   `json:"name"`
-	Profession string   `json:"profession"`     // e.g. "Miner", "Carpenter", "Recruit", "Child"
-	Age        int      `json:"age"`            // integer years
-	Job        string   `json:"job,omitempty"`  // current task; "" when idle
-	Stress     int      `json:"stress"`         // 0=ecstatic .. 6=miserable per dfhack's category
-	Position   Position `json:"position"`       // current tile coord
+	Profession string   `json:"profession"`    // e.g. "Miner", "Carpenter", "Recruit", "Child"
+	Age        int      `json:"age"`           // integer years
+	Job        string   `json:"job,omitempty"` // current task; "" when idle
+	Stress     int      `json:"stress"`        // 0=ecstatic .. 6=miserable per dfhack's category
+	Position   Position `json:"position"`      // current tile coord
 }
 
 // ZLevel is one floor of the fortress at a specific Z coordinate.
@@ -162,6 +167,7 @@ const (
 	ActionKindPlace       ActionKind = "place"
 	ActionKindBrew        ActionKind = "brew"
 	ActionKindMine        ActionKind = "mine"
+	ActionKindAppoint     ActionKind = "appoint"
 )
 
 // --- StateSnapshot ---
