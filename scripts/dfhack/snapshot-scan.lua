@@ -28,7 +28,6 @@ local repeatUtil = require('repeat-util')
 local json = require('json')
 
 -- ============ CONFIG ============
-local Z_RADIUS = 25          -- scans current_z ± this many levels (51 total)
 local BUDGET_MS = 2          -- max real-time ms of scanning work per frame
 local PASS_GAP_MS = 30000    -- idle gap after a completed pass before the next
 local SCHED_NAME = 'nivek-snapshot-scan'
@@ -148,9 +147,11 @@ local function begin_pass()
     if not dfhack.isMapLoaded() then return nil end
 
     local map = df.global.world.map
-    local center_z = df.global.window_z
-    local z_min = math.max(0, center_z - Z_RADIUS)
-    local z_max = math.min(map.z_count - 1, center_z + Z_RADIUS)
+    -- Scan the full map height so deep/tall forts are captured completely,
+    -- independent of where the camera sits. Forts can span ~150 of ~190
+    -- z-levels, so a camera-centered band would clip the surface or the depths.
+    local z_min = 0
+    local z_max = map.z_count - 1
     local width = map.x_count
     local height = map.y_count
 
