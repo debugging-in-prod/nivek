@@ -32,9 +32,10 @@ snapshot-scan start | stop | status
 ## Scripts
 
 - **`snapshot-scan.lua`** — incrementally scans the current fortress's tiles,
-  furniture, and citizens (active Z ± 25, 51 levels) and publishes a JSON
-  `MapSnapshot` to `<DF_DIR>/nivek-snapshot.json` via a temp file + atomic
-  rename. It scans a time-boxed slice (~2 ms) per frame so DF never freezes,
-  completing a full pass roughly every 30 s. `df-snapshot-pusher` reads that
-  file (`DASHBOARD_SNAPSHOT_FILE`) and forwards it. Wire shape matches
-  `overseer.MapSnapshot` in `internal/libraries/overseer/const.go`.
+  furniture, and citizens (the full map height, all z-levels) and publishes a
+  JSON `MapSnapshot` to `<DF_DIR>/nivek-snapshot.json` via a temp file + atomic
+  rename. It scans a time-boxed slice (~2 ms) per frame so DF never freezes;
+  pass completion time scales with map depth (a deep fort is captured top to
+  bottom, taking longer to finish than a shallow one). `df-snapshot-pusher`
+  reads that file (`DASHBOARD_SNAPSHOT_FILE`) and forwards it. Wire shape
+  matches `overseer.MapSnapshot` in `internal/libraries/overseer/const.go`.
