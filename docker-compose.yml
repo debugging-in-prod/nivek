@@ -34,6 +34,15 @@ services:
       - DASHBOARD_PUSH_HMAC_KEY=${DASHBOARD_PUSH_HMAC_KEY}
     networks:
       - nivek-internal
+    # Lets `docker rollout` wait until a new container is actually serving
+    # before removing the old one (zero-downtime deploys). wget ships in the
+    # alpine runtime image, so no extra tooling is needed.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8080/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
 
   nginx:
     container_name: nivek-nginx
