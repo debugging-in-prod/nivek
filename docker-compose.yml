@@ -51,7 +51,14 @@ services:
       pull: true
     volumes:
       - ./docker/nginx:/etc/nginx/conf.d:ro
-      - ./nivek-vue/dist:/usr/share/nginx/html:ro
+      # Web root. Defaults to the build output for local dev. In prod, WEB_ROOT
+      # points at a STABLE directory (outside the runner workspace) that the
+      # deploy rsyncs the build into in place. `npm run build` (vite) wipes and
+      # recreates nivek-vue/dist each build, changing its inode; a bind mount
+      # pins the old inode, so mounting dist directly leaves nginx serving an
+      # empty dir (403) until it's recreated. Mounting a stable, rsync-updated
+      # dir keeps the mount valid, so the SPA updates with no nginx recreate.
+      - ${WEB_ROOT:-./nivek-vue/dist}:/usr/share/nginx/html:ro
     networks:
       - nivek-internal
       - gateway
