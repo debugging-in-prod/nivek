@@ -1,5 +1,17 @@
-# Stage 1: Build Go binary
-FROM golang:1.24-alpine AS builder
+# Multi-stage build: Vue SPA + Go API in a single container.
+# Traefik routes nivek.life directly to this service; Echo serves both /api
+# (handlers) and / (the static SPA built here). No nginx in the picture.
+
+# Stage 1: SPA build (Vite -> nivek-vue/dist)
+FROM node:20-alpine AS spa
+WORKDIR /spa
+COPY nivek-vue/package.json nivek-vue/package-lock.json ./
+RUN npm ci
+COPY nivek-vue/ ./
+RUN npm run build
+
+# Stage 2: Go build
+FROM golang:1.24-alpine AS go-builder
 RUN apk --no-cache add ca-certificates git
 WORKDIR /workspace
 COPY go.mod go.sum ./
@@ -7,11 +19,12 @@ RUN go mod download
 COPY . .
 RUN go build -o core-api ./cmd/core-api
 
-# Stage 2: Minimal runtime image
+# Stage 3: Minimal runtime image
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
-WORKDIR /workspace
-COPY --from=builder /workspace/core-api ./core-api
+WORKDIR /app
+COPY --from=go-builder /workspace/core-api ./core-api
+COPY --from=spa /spa/dist ./dist
 RUN chmod +x ./core-api
 EXPOSE 8080
 CMD ["./core-api"]
