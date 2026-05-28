@@ -34,41 +34,26 @@ services:
       - DASHBOARD_PUSH_HMAC_KEY=${DASHBOARD_PUSH_HMAC_KEY}
     networks:
       - nivek-internal
+      - gateway
+    restart: unless-stopped
     # Lets `docker rollout` wait until a new container is actually serving
     # before removing the old one (zero-downtime deploys). wget ships in the
     # alpine runtime image, so no extra tooling is needed.
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://localhost:8080/healthz >/dev/null 2>&1 || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8080/api/healthz >/dev/null 2>&1 || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 3
       start_period: 15s
-
-  nginx:
-    container_name: nivek-nginx
-    build:
-      dockerfile: docker/images/nginx/Dockerfile
-      pull: true
-    volumes:
-      - ./docker/nginx:/etc/nginx/conf.d:ro
-      # Web root. Defaults to the build output for local dev. In prod, WEB_ROOT
-      # points at a STABLE directory (outside the runner workspace) that the
-      # deploy rsyncs the build into in place. `npm run build` (vite) wipes and
-      # recreates nivek-vue/dist each build, changing its inode; a bind mount
-      # pins the old inode, so mounting dist directly leaves nginx serving an
-      # empty dir (403) until it's recreated. Mounting a stable, rsync-updated
-      # dir keeps the mount valid, so the SPA updates with no nginx recreate.
-      - ${WEB_ROOT:-./nivek-vue/dist}:/usr/share/nginx/html:ro
-    networks:
-      - nivek-internal
-      - gateway
-    restart: unless-stopped
+    # Traefik routes nivek.life directly to this container (was nginx). Echo
+    # serves the SPA at / and the API under /api, so there's only one backend
+    # to talk to — no more nginx for static files or /api proxying.
     labels:
       - traefik.enable=true
       - traefik.http.routers.nivek.rule=Host(`nivek.life`)
       - traefik.http.routers.nivek.entrypoints=websecure
       - traefik.http.routers.nivek.tls.certresolver=letsencrypt
-      - traefik.http.services.nivek.loadbalancer.server.port=80
+      - traefik.http.services.nivek.loadbalancer.server.port=8080
 
 volumes:
   postgres_data:

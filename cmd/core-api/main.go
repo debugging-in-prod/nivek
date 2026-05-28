@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -44,27 +45,46 @@ func main() {
 			// Start the API server
 			e := echo.New()
 
-			// Liveness/readiness probe for container healthchecks and
-			// zero-downtime rollouts. Dependency-free on purpose: a 200 means
-			// the HTTP server is accepting requests (startup already blocks on
-			// required DB connections), so the deploy can wait on this before
-			// shifting traffic to a freshly started container.
-			e.GET("/healthz", func(c echo.Context) error {
-				return c.String(http.StatusOK, "ok")
-			})
-
 			//
 			// Middleware
 			// e.Use(nivekmiddleware.NewJWTMiddleware(nivek).Run())
+
+			e.Use(middleware.Gzip())
 
 			e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 				AllowOrigins: []string{"http://localhost"},
 				AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
 			}))
 
+			// Static SPA served from /app/dist (baked into the image alongside
+			// the Go binary; see Dockerfile.core-api.prod). HTML5 fallback means
+			// unknown paths return index.html so Vue Router can take over
+			// client-side. Skip /api/* so API route handlers run instead.
+			e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
+				Root:   "/app/dist",
+				Index:  "index.html",
+				HTML5:  true,
+				Browse: false,
+				Skipper: func(c echo.Context) bool {
+					return strings.HasPrefix(c.Request().URL.Path, "/api")
+				},
+			}))
+
 			//
-			// Register REST routes
-			routes.RegisterRoutes(nivek, e)
+			// Register REST routes under /api so the root is free for the SPA.
+			// External URLs are unchanged (nginx used to strip /api/ before
+			// proxying; now Echo's group does the equivalent in-process).
+			api := e.Group("/api")
+
+			// Liveness/readiness probe for the container healthcheck and
+			// zero-downtime rollouts. Dependency-free on purpose: a 200 means
+			// the HTTP server is accepting requests (startup already blocks on
+			// required DB connections).
+			api.GET("/healthz", func(c echo.Context) error {
+				return c.String(http.StatusOK, "ok")
+			})
+
+			routes.RegisterRoutes(nivek, api)
 
 			//
 			// Graceful shutdown
