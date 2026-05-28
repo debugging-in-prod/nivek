@@ -8,6 +8,7 @@ bin/*
 data/*
 
 # Stray `go build ./cmd/...` outputs dropped in the repo root
+/core-api
 /df-executor
 /df-snapshot-pusher
 
