@@ -15,7 +15,11 @@ import (
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivekmiddleware"
 )
 
-func RegisterRoutes(nivek nivek.NivekService, e *echo.Echo) {
+// RegisterRoutes attaches the API handlers to the given router group. It takes
+// an *echo.Group (rather than *echo.Echo) so the API can be mounted under a
+// path prefix — e.g. e.Group("/api") — leaving the root free for the static
+// SPA served by middleware.Static (Traefik routes both to the same container).
+func RegisterRoutes(nivek nivek.NivekService, e *echo.Group) {
 
 	//
 	// Hello World
