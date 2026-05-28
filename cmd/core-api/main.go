@@ -44,6 +44,15 @@ func main() {
 			// Start the API server
 			e := echo.New()
 
+			// Liveness/readiness probe for container healthchecks and
+			// zero-downtime rollouts. Dependency-free on purpose: a 200 means
+			// the HTTP server is accepting requests (startup already blocks on
+			// required DB connections), so the deploy can wait on this before
+			// shifting traffic to a freshly started container.
+			e.GET("/healthz", func(c echo.Context) error {
+				return c.String(http.StatusOK, "ok")
+			})
+
 			//
 			// Middleware
 			// e.Use(nivekmiddleware.NewJWTMiddleware(nivek).Run())
