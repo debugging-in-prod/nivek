@@ -99,6 +99,7 @@ type MapSnapshot struct {
 	Width      int       `json:"width"`              // number of tiles along X (same for every level)
 	Height     int       `json:"height"`             // number of tiles along Y (same for every level)
 	Levels     []ZLevel  `json:"levels"`             // sorted ascending by Z, contiguous (no gaps)
+	ZOffset    int       `json:"z_offset"`           // add to raw z to get in-game elevation: elev = z + ZOffset. Computed from world map.region_z - 100 (DF's sea-level reference).
 	Citizens   []Citizen `json:"citizens,omitempty"` // active citizen units in the fortress
 	Focus      *Position `json:"focus,omitempty"`    // F1 map-hotkey location; dashboard centers its initial view here. nil when unset.
 }

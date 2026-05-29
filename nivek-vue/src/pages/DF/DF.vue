@@ -50,6 +50,15 @@ const canGoDown = computed(() => {
     return currentLevelIdx.value > 0
 })
 
+// In-game elevation = raw embark-local z + snapshot offset. Offset is
+// constant per fort; computed in the lua scanner from world map.region_z
+// minus DF's sea-level reference (100). Display only — internal lookups
+// (level index, click/hover comparisons) continue to use raw z.
+function toElev(z: number): number | string {
+    if (!snapshot.value) return '—'
+    return z + snapshot.value.z_offset
+}
+
 async function loadSnapshot() {
     try {
         const fresh = await fetchSnapshot()
@@ -235,7 +244,7 @@ onBeforeUnmount(() => {
                 </div>
                 <p class="z-hint">scroll the map to pan</p>
 
-                <h3>Z Level</h3>
+                <h3>Elevation</h3>
                 <div class="z-nav">
                     <button
                         class="z-btn"
@@ -244,7 +253,7 @@ onBeforeUnmount(() => {
                         aria-label="Go up one Z level"
                     >▲ up</button>
                     <span class="z-current">
-                        Z = <strong>{{ currentLevel?.z ?? '—' }}</strong>
+                        Elev = <strong>{{ currentLevel ? toElev(currentLevel.z) : '—' }}</strong>
                     </span>
                     <button
                         class="z-btn"
@@ -259,7 +268,7 @@ onBeforeUnmount(() => {
                 <div class="coord-row">
                     <span class="label">Hover:</span>
                     <span v-if="hoverCoord" class="coord">
-                        ({{ hoverCoord.x }}, {{ hoverCoord.y }}, {{ hoverCoord.z }})
+                        ({{ hoverCoord.x }}, {{ hoverCoord.y }}, {{ toElev(hoverCoord.z) }})
                     </span>
                     <span v-else class="coord muted">—</span>
                 </div>
@@ -274,7 +283,7 @@ onBeforeUnmount(() => {
                 </div>
                 <ul v-if="selectedCoords.length" class="selected-list">
                     <li v-for="(c, i) in selectedCoords" :key="i" class="coord">
-                        ({{ c.x }}, {{ c.y }}, {{ c.z }})
+                        ({{ c.x }}, {{ c.y }}, {{ toElev(c.z) }})
                     </li>
                 </ul>
                 <p v-else class="z-hint">click tiles to select; click again to deselect</p>

@@ -51,6 +51,7 @@ export interface MapSnapshot {
     width: number        // tile count along X (same for every level)
     height: number       // tile count along Y (same for every level)
     levels: ZLevel[]     // sorted ascending by Z, contiguous
+    z_offset: number     // add to raw z to get in-game elevation: elev = z + z_offset
     citizens?: Citizen[] // active fortress citizens (optional in case server omits)
     focus?: Position     // F1 map-hotkey location; the canvas centers here on first load
 }
