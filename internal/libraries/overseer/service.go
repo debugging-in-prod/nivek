@@ -25,42 +25,72 @@ func NewService(dfhackRunPath string) NivekOverseerService {
 // name is whatever DFHack uses internally (chair -> ConstructThrone,
 // chest -> ConstructBox, block -> ConstructBlocks, etc.).
 //
-// Confirmed via `orders export`: table, bed, door, chair, coffin, blocks.
-// Extrapolated (very likely correct): cabinet, chest, statue, floodgate.
-// If any extrapolated mapping errors out in practice, fix the value here.
+// Each entry's job_type was verified against `df.job_type` on a live fort
+// (the names in this table all return a non-nil enum value when probed via
+// dfhack-run lua). Items that use a generic `MakeTool` / `MakeWeapon` /
+// `MakeShield` / `MakeTrapComponent` job with an item_subtype live in
+// itemToSubtypeJob instead — that table covers anything DF dispatches by
+// subtype rather than by a dedicated Construct*/Make* job.
 var itemToJobType = map[string]string{
-	"table":      "ConstructTable",
-	"bed":        "ConstructBed",
-	"door":       "ConstructDoor",
-	"chair":      "ConstructThrone",
-	"throne":     "ConstructThrone",
-	"coffin":     "ConstructCoffin",
-	"block":      "ConstructBlocks",
-	"cabinet":    "ConstructCabinet",
-	"chest":      "ConstructChest",
-	"statue":     "ConstructStatue",
-	"floodgate":  "ConstructFloodgate",
-	"bucket":     "MakeBucket",
-	"barrel":     "MakeBarrel",
-	"ash":        "MakeAsh",
-	"charcoal":   "MakeCharcoal",
-	"armorstand": "ConstructArmorStand",
-	"grate":      "ConstructGrate",
-	"hatchcover": "ConstructHatchCover",
-	"millstone":  "ConstructMillstone",
-	"quern":      "ConstructQuern",
-	"slab":       "ConstructSlab",
-	"weaponrack": "ConstructWeaponRack",
+	"table":       "ConstructTable",
+	"bed":         "ConstructBed",
+	"door":        "ConstructDoor",
+	"chair":       "ConstructThrone",
+	"throne":      "ConstructThrone",
+	"coffin":      "ConstructCoffin",
+	"block":       "ConstructBlocks",
+	"cabinet":     "ConstructCabinet",
+	"chest":       "ConstructChest",
+	"statue":      "ConstructStatue",
+	"floodgate":   "ConstructFloodgate",
+	"bucket":      "MakeBucket",
+	"barrel":      "MakeBarrel",
+	"ash":         "MakeAsh",
+	"charcoal":    "MakeCharcoal",
+	"armorstand":  "ConstructArmorStand",
+	"grate":       "ConstructGrate",
+	"hatchcover":  "ConstructHatchCover",
+	"millstone":   "ConstructMillstone",
+	"quern":       "ConstructQuern",
+	"slab":        "ConstructSlab",
+	"weaponrack":  "ConstructWeaponRack",
+	"cage":        "MakeCage",
+	"animaltrap":  "MakeAnimalTrap",
+	"bin":         "ConstructBin",
+	"crutch":      "ConstructCrutch",
+	"splint":      "ConstructSplint",
+	"pipesection": "MakePipeSection",
 }
 
-// itemToToolSubtype covers chat items that DF builds as *tools* via the
-// MakeTool job_type with an item_subtype, rather than a dedicated
-// Construct*/Make* job_type. These are stoneworker products that became
-// tools in DF Premium. Verified via `df.global.world.raws.itemdefs.tools`.
-var itemToToolSubtype = map[string]string{
-	"altar":    "ITEM_TOOL_ALTAR",
-	"bookcase": "ITEM_TOOL_BOOKCASE",
-	"pedestal": "ITEM_TOOL_PEDESTAL",
+// subtypeJobSpec is the {job_type, item_subtype} pair for items DF
+// manufactures via a generic job dispatched by subtype — tools (MakeTool),
+// weapons (MakeWeapon), shields (MakeShield), trap components
+// (MakeTrapComponent). The job picks the right recipe by reading the
+// item_subtype off the workorder.
+type subtypeJobSpec struct {
+	Job         string // df.job_type enum name
+	ItemSubtype string // raws.itemdefs.<bucket>.id (ITEM_TOOL_*, ITEM_WEAPON_*, ...)
+}
+
+// itemToSubtypeJob covers every chat item whose DF manufacture path is
+// "generic job + subtype" rather than a dedicated Construct*/Make* job_type.
+// Subtypes were enumerated live from df.global.world.raws.itemdefs.*; jobs
+// were verified non-nil against df.job_type.
+var itemToSubtypeJob = map[string]subtypeJobSpec{
+	"altar":         {Job: "MakeTool", ItemSubtype: "ITEM_TOOL_ALTAR"},
+	"bookcase":      {Job: "MakeTool", ItemSubtype: "ITEM_TOOL_BOOKCASE"},
+	"pedestal":      {Job: "MakeTool", ItemSubtype: "ITEM_TOOL_PEDESTAL"},
+	"minecart":      {Job: "MakeTool", ItemSubtype: "ITEM_TOOL_MINECART"},
+	"stepladder":    {Job: "MakeTool", ItemSubtype: "ITEM_TOOL_STEPLADDER"},
+	"wheelbarrow":   {Job: "MakeTool", ItemSubtype: "ITEM_TOOL_WHEELBARROW"},
+	"shield":        {Job: "MakeShield", ItemSubtype: "ITEM_SHIELD_SHIELD"},
+	"buckler":       {Job: "MakeShield", ItemSubtype: "ITEM_SHIELD_BUCKLER"},
+	"trainingaxe":   {Job: "MakeWeapon", ItemSubtype: "ITEM_WEAPON_AXE_TRAINING"},
+	"trainingspear": {Job: "MakeWeapon", ItemSubtype: "ITEM_WEAPON_SPEAR_TRAINING"},
+	"trainingsword": {Job: "MakeWeapon", ItemSubtype: "ITEM_WEAPON_SWORD_SHORT_TRAINING"},
+	"corkscrew":     {Job: "MakeTrapComponent", ItemSubtype: "ITEM_TRAPCOMP_ENORMOUSCORKSCREW"},
+	"menacingspike": {Job: "MakeTrapComponent", ItemSubtype: "ITEM_TRAPCOMP_MENACINGSPIKE"},
+	"spikedball":    {Job: "MakeTrapComponent", ItemSubtype: "ITEM_TRAPCOMP_SPIKEDBALL"},
 }
 
 // placeSpec describes how a chat item maps to a DFHack building for
@@ -80,7 +110,11 @@ type placeSpec struct {
 // here was verified live with constructBuilding on a running fort.
 //
 // Excluded from placement (manufacturable, but not buildings): block (a
-// construction material), bucket/barrel (containers), ash/charcoal (bars).
+// construction material), bucket/barrel/bin (containers), ash/charcoal
+// (bars), crutch/splint (medical items), minecart/stepladder/wheelbarrow/
+// pipesection (tools / siege parts), shield/buckler (combat gear),
+// trainingaxe/spear/sword (weapons), corkscrew/menacingspike/spikedball
+// (trap components — built into a Trap building, not standalone).
 var placeableItemToBuilding = map[string]placeSpec{
 	"table":      {BuildingType: "Table"},
 	"bed":        {BuildingType: "Bed"},
@@ -100,6 +134,8 @@ var placeableItemToBuilding = map[string]placeSpec{
 	"bookcase":   {BuildingType: "Bookcase"},
 	"pedestal":   {BuildingType: "DisplayFurniture"},
 	"altar":      {BuildingType: "OfferingPlace"},
+	"cage":       {BuildingType: "Cage"},
+	"animaltrap": {BuildingType: "AnimalTrap"},
 	"quern":      {BuildingType: "Workshop", WorkshopSubtype: "Quern"},
 	"millstone":  {BuildingType: "Workshop", WorkshopSubtype: "Millstone"},
 }
@@ -375,11 +411,12 @@ func (s *nivekOverseerServiceImpl) submitManufacture(action Action) error {
 
 	req := workorderRequest{AmountTotal: qty}
 
-	// Tools (altar/bookcase/pedestal) use the MakeTool job_type with an
-	// item_subtype; everything else has a dedicated Construct*/Make* job.
-	if subtype, isTool := itemToToolSubtype[action.Item]; isTool {
-		req.Job = "MakeTool"
-		req.ItemSubtype = subtype
+	// Items dispatched by subtype (tools, weapons, shields, trap components)
+	// hit a generic job_type with item_subtype set; everything else has a
+	// dedicated Construct*/Make* job_type and no subtype.
+	if spec, hasSubtype := itemToSubtypeJob[action.Item]; hasSubtype {
+		req.Job = spec.Job
+		req.ItemSubtype = spec.ItemSubtype
 	} else {
 		jobType, ok := itemToJobType[action.Item]
 		if !ok {
