@@ -59,6 +59,39 @@ function toElev(z: number): number | string {
     return z + snapshot.value.z_offset
 }
 
+// Elevation bounds for the jump input's placeholder. Levels are sorted
+// ascending by z and contiguous (per the wire contract), so first/last
+// give the full range without scanning.
+const minElev = computed(() => {
+    if (!snapshot.value || snapshot.value.levels.length === 0) return null
+    return snapshot.value.levels[0].z + snapshot.value.z_offset
+})
+const maxElev = computed(() => {
+    if (!snapshot.value || snapshot.value.levels.length === 0) return null
+    return snapshot.value.levels[snapshot.value.levels.length - 1].z + snapshot.value.z_offset
+})
+
+const jumpElev = ref<string>('')
+
+// Jump to the level whose elevation matches the input. Out-of-range
+// targets clamp to the nearest valid level (avoids dead-ending the user
+// on a typo / mis-remembered number); empty / non-numeric input is a no-op.
+function jumpToElev() {
+    if (!snapshot.value) return
+    const trimmed = jumpElev.value.trim()
+    if (trimmed === '') return
+    const target = parseInt(trimmed, 10)
+    if (Number.isNaN(target)) return
+    const levels = snapshot.value.levels
+    if (levels.length === 0) return
+    const rawZ = target - snapshot.value.z_offset
+    let idx = rawZ - levels[0].z
+    if (idx < 0) idx = 0
+    if (idx >= levels.length) idx = levels.length - 1
+    currentLevelIdx.value = idx
+    jumpElev.value = ''
+}
+
 async function loadSnapshot() {
     try {
         const fresh = await fetchSnapshot()
@@ -262,7 +295,20 @@ onBeforeUnmount(() => {
                         aria-label="Go down one Z level"
                     >▼ down</button>
                 </div>
-                <p class="z-hint">↑/↓ or PageUp/PageDown also work</p>
+                <form class="elev-jump" @submit.prevent="jumpToElev">
+                    <label for="elev-jump-input">Jump:</label>
+                    <input
+                        id="elev-jump-input"
+                        class="elev-jump-input"
+                        type="number"
+                        inputmode="numeric"
+                        :placeholder="minElev !== null && maxElev !== null ? `${minElev} to ${maxElev}` : '—'"
+                        v-model="jumpElev"
+                        :disabled="!snapshot"
+                        aria-label="Jump to elevation"
+                    />
+                </form>
+                <p class="z-hint">↑/↓ or PageUp/PageDown also work · type & ↵ to jump</p>
 
                 <h3>Coordinates</h3>
                 <div class="coord-row">
@@ -491,6 +537,44 @@ canvas {
     color: #666;
     font-size: 0.75rem;
     margin: 0.4rem 0 0 0;
+}
+
+.elev-jump {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+}
+
+.elev-jump label {
+    color: #ddd;
+    font-size: 0.85rem;
+}
+
+.elev-jump-input {
+    flex: 1;
+    min-width: 0;
+    background: #1a1a1a;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 3px;
+    padding: 0.25rem 0.5rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+.elev-jump-input:focus {
+    outline: none;
+    border-color: #6fb;
+}
+
+.elev-jump-input:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.elev-jump-input::placeholder {
+    color: #666;
 }
 
 .coord-row {
