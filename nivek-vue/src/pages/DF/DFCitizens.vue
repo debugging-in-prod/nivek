@@ -36,6 +36,14 @@ function stressClass(s: number): string {
     return 'stress-bad'                             // Stressed, Miserable (0–1)
 }
 
+// In-game elevation = raw embark-local z + snapshot offset. See DF.vue's
+// toElev for the rationale; mirrored here so the position column reads in
+// the same units as the in-game UI.
+function toElev(z: number): number | string {
+    if (!snapshot.value) return '—'
+    return z + snapshot.value.z_offset
+}
+
 onMounted(() => {
     load()
     pollTimer = window.setInterval(load, POLL_INTERVAL_MS)
@@ -97,7 +105,7 @@ onBeforeUnmount(() => {
                     <td>{{ c.profession }}</td>
                     <td class="num">{{ c.age }}</td>
                     <td class="job"><em v-if="c.job">{{ c.job }}</em><span v-else class="muted">idle</span></td>
-                    <td class="pos">({{ c.position.x }}, {{ c.position.y }}, {{ c.position.z }})</td>
+                    <td class="pos">({{ c.position.x }}, {{ c.position.y }}, {{ toElev(c.position.z) }})</td>
                 </tr>
             </tbody>
         </table>

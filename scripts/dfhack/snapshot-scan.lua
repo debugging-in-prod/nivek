@@ -154,6 +154,10 @@ local function begin_pass()
     local z_max = map.z_count - 1
     local width = map.x_count
     local height = map.y_count
+    -- DF's in-game "elevation" readout = absolute world z relative to sea level (100).
+    -- Snapshot z values are embark-local (0..z_count-1); the dashboard adds this
+    -- offset to display elevation so chatters see the same number the player does.
+    local z_offset = map.region_z - 100
 
     local f, err = io.open(TMP_PATH, 'w')
     if not f then
@@ -161,10 +165,10 @@ local function begin_pass()
         return nil
     end
 
-    f:write(string.format('{"captured_at":%s,"origin":%s,"width":%d,"height":%d,"levels":[',
+    f:write(string.format('{"captured_at":%s,"origin":%s,"width":%d,"height":%d,"z_offset":%d,"levels":[',
         json.encode(os.date('!%Y-%m-%dT%H:%M:%SZ')),
         json.encode({ x = 0, y = 0, z = z_min }),
-        width, height))
+        width, height, z_offset))
 
     -- Block origins for one Z level (same grid for every level).
     local blocks = {}
