@@ -71,20 +71,22 @@ const maxElev = computed(() => {
     return snapshot.value.levels[snapshot.value.levels.length - 1].z + snapshot.value.z_offset
 })
 
-const jumpElev = ref<string>('')
+// v-model on <input type="number"> hands us a number when populated and
+// the empty string when cleared (Vue 3 implicitly applies the `.number`
+// modifier for type="number" inputs). Type the ref as the union so the
+// guard below covers both.
+const jumpElev = ref<number | ''>('')
 
 // Jump to the level whose elevation matches the input. Out-of-range
 // targets clamp to the nearest valid level (avoids dead-ending the user
 // on a typo / mis-remembered number); empty / non-numeric input is a no-op.
 function jumpToElev() {
     if (!snapshot.value) return
-    const trimmed = jumpElev.value.trim()
-    if (trimmed === '') return
-    const target = parseInt(trimmed, 10)
-    if (Number.isNaN(target)) return
+    const target = jumpElev.value
+    if (typeof target !== 'number' || !Number.isFinite(target)) return
     const levels = snapshot.value.levels
     if (levels.length === 0) return
-    const rawZ = target - snapshot.value.z_offset
+    const rawZ = Math.floor(target - snapshot.value.z_offset)
     let idx = rawZ - levels[0].z
     if (idx < 0) idx = 0
     if (idx >= levels.length) idx = levels.length - 1
