@@ -41,15 +41,17 @@ local T_UNKNOWN, T_WALL, T_FLOOR, T_RAMP, T_STAIR, T_WATER, T_MAGMA, T_TREE = 0,
 -- DF building_type → chat-facing item vocab. Keep in sync with
 -- placeableItemToBuilding in internal/libraries/overseer/service.go.
 local BUILDING_TYPE_TO_CHAT = {
-    [df.building_type.Table]     = 'table',
-    [df.building_type.Bed]       = 'bed',
-    [df.building_type.Chair]     = 'chair',
-    [df.building_type.Door]      = 'door',
-    [df.building_type.Coffin]    = 'coffin',
-    [df.building_type.Cabinet]   = 'cabinet',
-    [df.building_type.Box]       = 'chest',
-    [df.building_type.Statue]    = 'statue',
-    [df.building_type.Floodgate] = 'floodgate',
+    [df.building_type.Table]      = 'table',
+    [df.building_type.Bed]        = 'bed',
+    [df.building_type.Chair]      = 'chair',
+    [df.building_type.Door]       = 'door',
+    [df.building_type.Coffin]     = 'coffin',
+    [df.building_type.Cabinet]    = 'cabinet',
+    [df.building_type.Box]        = 'chest',
+    [df.building_type.Statue]     = 'statue',
+    [df.building_type.Floodgate]  = 'floodgate',
+    [df.building_type.Cage]       = 'cage',
+    [df.building_type.AnimalTrap] = 'animaltrap',
 }
 
 -- Force a lua table to encode as a JSON array rather than an object, so an
