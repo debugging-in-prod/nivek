@@ -636,23 +636,38 @@ func (s *nivekOverseerServiceImpl) submitPlace(action Action) error {
 	if !ok {
 		return fmt.Errorf("no DFHack building mapping for item: %s", action.Item)
 	}
-	// constructBuilding returns the building handle on success, nil on
-	// failure (bad tile, occupied, no item available, etc.). Surface the
-	// nil case as an error so chat sees it. Workshops and furnaces
-	// additionally need a subtype from df.workshop_type / df.furnace_type;
-	// the placeSpec carries at most one of the two.
-	subtype := ""
+	// Route placements through DFHack's buildingplan plugin: get the
+	// default item filters for this building type via getFiltersByType,
+	// pass them to constructBuilding, then register with buildingplan.
+	// The building enters "planned" state — when matching materials
+	// become available (now or later), buildingplan automatically claims
+	// them and the build starts. This eliminates the previous failure
+	// mode where placing a table with no wood in stock returned nil; chat
+	// doesn't need to specify a material and doesn't need materials to
+	// already exist in the fort.
+	subtypeLua := "local subtype = -1"
 	switch {
 	case spec.WorkshopSubtype != "":
-		subtype = fmt.Sprintf(", subtype=df.workshop_type.%s", spec.WorkshopSubtype)
+		subtypeLua = fmt.Sprintf("local subtype = df.workshop_type.%s", spec.WorkshopSubtype)
 	case spec.FurnaceSubtype != "":
-		subtype = fmt.Sprintf(", subtype=df.furnace_type.%s", spec.FurnaceSubtype)
+		subtypeLua = fmt.Sprintf("local subtype = df.furnace_type.%s", spec.FurnaceSubtype)
 	}
-	// Position.Z is elevation; convert to raw z in the lua (see submitCamera).
-	script := fmt.Sprintf(
-		`local rawz = %d - (df.global.world.map.region_z - 100); local bld = dfhack.buildings.constructBuilding{type=df.building_type.%s%s, pos={x=%d,y=%d,z=rawz}}; if not bld then error('constructBuilding returned nil — bad spot, blocked, or no matching item available') end`,
-		action.Position.Z, spec.BuildingType, subtype, action.Position.X, action.Position.Y,
-	)
+	// Position.Z is elevation; convert to raw z (see submitCamera).
+	script := fmt.Sprintf(`
+local rawz = %d - (df.global.world.map.region_z - 100)
+local btype = df.building_type.%s
+%s
+local bp = require('plugins.buildingplan')
+local filters = dfhack.buildings.getFiltersByType({}, btype, subtype, -1)
+local bld, err = dfhack.buildings.constructBuilding{
+    type = btype, subtype = subtype,
+    pos = {x = %d, y = %d, z = rawz},
+    filters = filters,
+}
+if err then error(tostring(err)) end
+if not bld then error('constructBuilding returned nil — bad spot or blocked') end
+bp.addPlannedBuilding(bld)
+bp.scheduleCycle()`, action.Position.Z, spec.BuildingType, subtypeLua, action.Position.X, action.Position.Y)
 	return s.runLua(script)
 }
 
