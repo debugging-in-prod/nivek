@@ -64,6 +64,11 @@ type Action struct {
 	UnitID int    `json:"unit_id,omitempty"` // target dwarf's DFHack unit.id (stable, rename-proof)
 }
 
+// Position is a tile coordinate as chatters see and type them. X and Y are
+// embark-local; Z is the in-game ELEVATION the dashboard displays — NOT the
+// raw embark-local z. The executor converts to raw z at the DFHack boundary
+// (raw_z = Z - (map.region_z - 100)), so wire consumers above the executor
+// stay in dashboard-native coords and copy-paste works without translation.
 type Position struct {
 	X int `json:"x"`
 	Y int `json:"y"`

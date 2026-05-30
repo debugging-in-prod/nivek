@@ -141,14 +141,15 @@ func (e *RejectReason) Error() string { return e.Msg }
 //     DF Manager refuses to execute orders without one)
 //   - `pause` — pause DF
 //   - `unpause` — unpause DF
-//   - `camera <x> <y> <z>` — recenter DF camera on the given tile (coords
-//     accept space- and/or comma-separated forms: `137 115 150`,
-//     `137,115,150`, `137, 115, 150` all parse the same)
+//   - `camera <x> <y> <z>` — recenter DF camera on the given tile. Z is
+//     the in-game ELEVATION the dashboard displays (executor converts
+//     internally). Coord tolerance: bare `137 115 150`, comma `137,115,150`,
+//     and dashboard-paste `(137, 115, 150)` all parse the same
 //   - `help` — bot posts the command list in chat (short-circuited in
 //     handleDFCommand; no executor round-trip)
 //   - `place <item> <x> <y> <z>` — queue a build job at the given tile for
-//     a furniture/workshop item (commas optional, same coord-format
-//     tolerance as `camera`). Only items in placeableItemToBuilding are
+//     a furniture/workshop item. Z is elevation, same coord-format
+//     tolerance as `camera`. Only items in placeableItemToBuilding are
 //     accepted (most manufacturable items; not block/bucket/barrel/ash/
 //     charcoal, which aren't buildings)
 //   - `brew [qty] <source>` — queue a brew-drink workorder. Source is
@@ -156,11 +157,12 @@ func (e *RejectReason) Error() string { return e.Msg }
 //     (BREW_DRINK_FROM_PLANT). Verbose chatter-friendly forms like
 //     `brew drink from fruit` parse the same because `drink` and `from`
 //     are filler-stripped
-//   - `mine <x1,y1,z> <x2,y2>` — designate a rectangular dig area on a
-//     single Z level. Z is only specified in the first coord; the second
-//     coord's Z is implicit (prevents multi-Z mining commands by design).
-//     Area is capped at 25 tiles per command to keep individual jobs
-//     bounded
+//   - `mine <x1,y1,z> <x2,y2[,z]>` — designate a rectangular dig area on a
+//     single Z level. Z is elevation. The second coord's Z is optional and
+//     always ignored, so a dashboard paste like `(97,87,35) (97,88,35)` is
+//     accepted but the second 35 has no effect — multi-Z mining stays
+//     impossible to express. Area is capped at 25 tiles per command to
+//     keep individual jobs bounded
 //   - `appoint <position> <id>` — assign a dwarf (by its stable unit.id,
 //     shown on the /df/citizens page) to a fort noble position. Positions:
 //     manager, bookkeeper, broker, doctor, commander. `captain` is
@@ -289,21 +291,39 @@ func parseHelp(rest []string) (Action, error) {
 	return Action{Kind: ActionKindHelp}, nil
 }
 
-func parseCamera(rest []string) (Action, error) {
-	// Accept commas as separators in addition to whitespace:
-	// `137,115,150`, `137, 115, 150`, `137 115 150` all parse the same.
-	joined := strings.ReplaceAll(strings.Join(rest, " "), ",", " ")
-	parts := strings.Fields(joined)
-	if len(parts) != 3 {
-		return Action{}, fmt.Errorf("camera needs 3 coordinates, got %d", len(parts))
+// extractCoordInts pulls all integer tokens out of a coord-list. Tolerates
+// the formats chatters actually type or copy off the dashboard:
+//   - bare:               `137 115 150`
+//   - commas:             `137,115,150` / `137, 115, 150`
+//   - dashboard parens:   `(137, 115, 150)` / `(137,115,150) (142,118,150)`
+//
+// Strips `(`, `)`, and `,`, then splits on whitespace and Atoi's each token.
+// Returns the integers in the order the chatter wrote them; callers decide
+// how many they expect and what each slot means.
+func extractCoordInts(rest []string) ([]int, error) {
+	joined := strings.Join(rest, " ")
+	for _, ch := range []string{"(", ")", ","} {
+		joined = strings.ReplaceAll(joined, ch, " ")
 	}
-	coords := make([]int, 3)
+	parts := strings.Fields(joined)
+	out := make([]int, len(parts))
 	for i, p := range parts {
 		n, err := strconv.Atoi(p)
 		if err != nil {
-			return Action{}, fmt.Errorf("invalid coordinate %q", p)
+			return nil, fmt.Errorf("invalid coordinate %q", p)
 		}
-		coords[i] = n
+		out[i] = n
+	}
+	return out, nil
+}
+
+func parseCamera(rest []string) (Action, error) {
+	coords, err := extractCoordInts(rest)
+	if err != nil {
+		return Action{}, err
+	}
+	if len(coords) != 3 {
+		return Action{}, fmt.Errorf("camera needs 3 coordinates, got %d", len(coords))
 	}
 	return Action{
 		Kind:     ActionKindCamera,
@@ -316,23 +336,19 @@ func parseCamera(rest []string) (Action, error) {
 const mineMaxArea = 25
 
 func parseMine(rest []string) (Action, error) {
-	// Liberal coord parsing: commas → spaces, then we expect exactly 5 ints
-	// (x1, y1, z) + (x2, y2). The single-Z constraint is encoded by NOT
-	// asking for a second Z — second coord inherits the first's Z.
-	joined := strings.ReplaceAll(strings.Join(rest, " "), ",", " ")
-	parts := strings.Fields(joined)
-	if len(parts) != 5 {
-		return Action{}, fmt.Errorf("mine needs <x1,y1,z> <x2,y2> — 5 numbers total, got %d", len(parts))
+	// Accept 5 ints (legacy: x1,y1,z + x2,y2) or 6 ints (dashboard copy-paste:
+	// (x1,y1,z) + (x2,y2,z) — the second z is silently discarded to preserve
+	// the single-Z invariant). Anything else rejects.
+	coords, err := extractCoordInts(rest)
+	if err != nil {
+		return Action{}, err
 	}
-	coords := make([]int, 5)
-	for i, p := range parts {
-		n, err := strconv.Atoi(p)
-		if err != nil {
-			return Action{}, fmt.Errorf("invalid coordinate %q", p)
-		}
-		coords[i] = n
+	if len(coords) != 5 && len(coords) != 6 {
+		return Action{}, fmt.Errorf("mine needs (x1,y1,z) (x2,y2[,z]) — 5 or 6 numbers total, got %d", len(coords))
 	}
 	x1, y1, z, x2, y2 := coords[0], coords[1], coords[2], coords[3], coords[4]
+	// coords[5], if present, is the second coord's z — intentionally ignored
+	// so multi-Z mining stays impossible to express.
 
 	dx := abs(x2-x1) + 1
 	dy := abs(y2-y1) + 1
@@ -394,23 +410,19 @@ func parseBrew(tokens []string) (Action, error) {
 }
 
 func parsePlace(rest []string) (Action, error) {
-	// Tolerate comma separators between coords, same as camera.
-	joined := strings.ReplaceAll(strings.Join(rest, " "), ",", " ")
-	parts := strings.Fields(joined)
-	if len(parts) != 4 {
-		return Action{}, fmt.Errorf("place needs <item> <x> <y> <z>, got %d args", len(parts))
+	if len(rest) == 0 {
+		return Action{}, fmt.Errorf("place needs <item> <x> <y> <z>")
 	}
-	item := strings.TrimSuffix(parts[0], "s")
+	item := strings.TrimSuffix(rest[0], "s")
 	if _, ok := placeableItemToBuilding[item]; !ok {
 		return Action{}, fmt.Errorf("not placeable: %q", item)
 	}
-	coords := make([]int, 3)
-	for i := 0; i < 3; i++ {
-		n, err := strconv.Atoi(parts[i+1])
-		if err != nil {
-			return Action{}, fmt.Errorf("invalid coordinate %q", parts[i+1])
-		}
-		coords[i] = n
+	coords, err := extractCoordInts(rest[1:])
+	if err != nil {
+		return Action{}, err
+	}
+	if len(coords) != 3 {
+		return Action{}, fmt.Errorf("place needs 3 coordinates after item, got %d", len(coords))
 	}
 	return Action{
 		Kind:     ActionKindPlace,
