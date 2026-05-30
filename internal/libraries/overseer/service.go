@@ -366,12 +366,13 @@ func (s *nivekOverseerServiceImpl) submitCamera(action Action) error {
 	return s.runLua(script)
 }
 
-// submitCutTree designates every tree-shape tile in the region for
-// chopping. Shares the rectangle / single-Z / raw-z-conversion shape with
-// submitDigDesignation but filters by tiletype_shape so non-tree tiles
-// (walls, floors, etc.) are skipped — chatters can safely cuttree over a
-// region that also contains walls or floors. Errors if zero tiles in the
-// region were trees so the chat-facing log shows useful feedback.
+// submitCutTree designates trees in the region for chopping. DF v50
+// represents trees as plant entities in df.global.world.plants.tree_dry
+// / tree_wet — the underlying tile at the trunk position is usually
+// FLOOR (or whatever ground the tree sits on), NOT a tree-shape tile, so
+// the only reliable way to find trees is iterating the plant vectors and
+// setting the dig designation at each trunk position whose pos falls
+// inside the region. Errors with "no trees in region" if zero matched.
 func (s *nivekOverseerServiceImpl) submitCutTree(action Action) error {
 	if action.Region == nil {
 		return fmt.Errorf("cuttree requires region")
@@ -390,25 +391,22 @@ func (s *nivekOverseerServiceImpl) submitCutTree(action Action) error {
 	}
 	script := fmt.Sprintf(`
 local rawz = %d - (df.global.world.map.region_z - 100)
+local minX, maxX, minY, maxY = %d, %d, %d, %d
 local count = 0
-for x = %d, %d do
-    for y = %d, %d do
-        local block = dfhack.maps.getTileBlock({x=x, y=y, z=rawz})
+local function markIfInRegion(t)
+    local p = t.pos
+    if p.z == rawz and p.x >= minX and p.x <= maxX and p.y >= minY and p.y <= maxY then
+        local block = dfhack.maps.getTileBlock(p)
         if block then
-            local tt = block.tiletype[x%%16][y%%16]
-            local shape = df.tiletype.attrs[tt].shape
-            if shape == df.tiletype_shape.BRANCH
-                or shape == df.tiletype_shape.TRUNK_BRANCH
-                or shape == df.tiletype_shape.TWIG
-                or shape == df.tiletype_shape.SAPLING then
-                block.designation[x%%16][y%%16].dig = df.tile_dig_designation.Default
-                block.occupancy[x%%16][y%%16].dig_marked = false
-                block.flags.designated = true
-                count = count + 1
-            end
+            block.designation[p.x%%16][p.y%%16].dig = df.tile_dig_designation.Default
+            block.occupancy[p.x%%16][p.y%%16].dig_marked = false
+            block.flags.designated = true
+            count = count + 1
         end
     end
 end
+for _, t in ipairs(df.global.world.plants.tree_dry) do markIfInRegion(t) end
+for _, t in ipairs(df.global.world.plants.tree_wet) do markIfInRegion(t) end
 if count == 0 then error("no trees in region") end`, r.Min.Z, minX, maxX, minY, maxY)
 	return s.runLua(script)
 }
