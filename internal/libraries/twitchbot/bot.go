@@ -309,13 +309,15 @@ func dfSuccessReply(username string, action overseer.Action) string {
 		return fmt.Sprintf("@%s placed %s", username, action.Item)
 	case overseer.ActionKindBrew:
 		return fmt.Sprintf("@%s queued %d brew%s from %s", username, action.Quantity, pluralize(action.Quantity), action.Item)
-	case overseer.ActionKindMine, overseer.ActionKindChannel, overseer.ActionKindDigRamp:
+	case overseer.ActionKindMine, overseer.ActionKindChannel, overseer.ActionKindDigRamp, overseer.ActionKindCutTree:
 		noun := "dig"
 		switch action.Kind {
 		case overseer.ActionKindChannel:
 			noun = "channel"
 		case overseer.ActionKindDigRamp:
 			noun = "ramp"
+		case overseer.ActionKindCutTree:
+			noun = "tree-chop"
 		}
 		if action.Region != nil {
 			dx := abs(action.Region.Max.X-action.Region.Min.X) + 1
