@@ -638,13 +638,14 @@ func (s *nivekOverseerServiceImpl) submitPlace(action Action) error {
 	}
 	// Route placements through DFHack's buildingplan plugin: get the
 	// default item filters for this building type via getFiltersByType,
-	// pass them to constructBuilding, then register with buildingplan.
-	// The building enters "planned" state — when matching materials
-	// become available (now or later), buildingplan automatically claims
-	// them and the build starts. This eliminates the previous failure
-	// mode where placing a table with no wood in stock returned nil; chat
-	// doesn't need to specify a material and doesn't need materials to
-	// already exist in the fort.
+	// pass them to constructBuilding, then explicitly mark the post-
+	// construction job_items as accepting any of the common building
+	// materials (wood, stone, metal, gem) via flags3, and register with
+	// buildingplan. Without the flags3 step, DF's planner UI displays
+	// the building's target as "unknown material" since mat_type/
+	// mat_index stay at -1; setting the category flags both gives DF a
+	// readable label and matches what the planner UI does when the
+	// player picks "any" rather than a specific material.
 	subtypeLua := "local subtype = -1"
 	switch {
 	case spec.WorkshopSubtype != "":
@@ -666,6 +667,14 @@ local bld, err = dfhack.buildings.constructBuilding{
 }
 if err then error(tostring(err)) end
 if not bld then error('constructBuilding returned nil — bad spot or blocked') end
+if bld.jobs and #bld.jobs > 0 then
+    for _, ji in ipairs(bld.jobs[0].job_items.elements) do
+        ji.flags3.wood = true
+        ji.flags3.stone = true
+        ji.flags3.metal = true
+        ji.flags3.gem = true
+    end
+end
 bp.addPlannedBuilding(bld)
 bp.scheduleCycle()`, action.Position.Z, spec.BuildingType, subtypeLua, action.Position.X, action.Position.Y)
 	return s.runLua(script)
