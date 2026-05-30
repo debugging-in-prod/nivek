@@ -170,6 +170,12 @@ func (e *RejectReason) Error() string { return e.Msg }
 //   - `digramp <x,y,z>` / `digramp <x1,y1,z> <x2,y2[,z]>` — same shape and
 //     constraints as `mine`, but applies the ramp dig designation (carves
 //     out the tile as an upward ramp, exposing the floor above)
+//   - `cuttree <x,y,z>` / `cuttree <x1,y1,z> <x2,y2[,z]>` — same shape and
+//     constraints as `mine`, but designates only tree-shape tiles (trunk,
+//     branches, twigs, saplings) inside the region for chopping. Wall
+//     tiles are skipped, so `cuttree` over a region that mixes trees and
+//     walls won't accidentally dig the walls. Errors if no trees were
+//     found in the region
 //   - `appoint <position> <id>` — assign a dwarf (by its stable unit.id,
 //     shown on the /df/citizens page) to a fort noble position. Positions:
 //     manager, bookkeeper, broker, doctor, commander. `captain` is
@@ -209,6 +215,8 @@ func ParseCommand(args string) (Action, error) {
 		return parseChannel(rest)
 	case "digramp":
 		return parseDigRamp(rest)
+	case "cuttree":
+		return parseCutTree(rest)
 	case "appoint":
 		return parseAppoint(rest)
 	default:
@@ -410,6 +418,14 @@ func parseDigRamp(rest []string) (Action, error) {
 		return Action{}, err
 	}
 	return Action{Kind: ActionKindDigRamp, Region: region}, nil
+}
+
+func parseCutTree(rest []string) (Action, error) {
+	region, err := parseRegionVerb("cuttree", rest)
+	if err != nil {
+		return Action{}, err
+	}
+	return Action{Kind: ActionKindCutTree, Region: region}, nil
 }
 
 // abs returns |n|. Used by parseRegionVerb to compute rectangle dimensions
