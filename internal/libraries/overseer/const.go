@@ -56,7 +56,8 @@ type Action struct {
 	// For Kind == ActionKindCamera (and future spatial actions):
 	Position *Position `json:"position,omitempty"`
 
-	// For Kind == ActionKindMine (and future range-based spatial actions):
+	// For Kind == ActionKindMine / ActionKindChannel / ActionKindDigRamp
+	// (and future range-based spatial actions):
 	Region *Region `json:"region,omitempty"`
 
 	// For Kind == ActionKindAppoint:
@@ -173,6 +174,8 @@ const (
 	ActionKindPlace       ActionKind = "place"
 	ActionKindBrew        ActionKind = "brew"
 	ActionKindMine        ActionKind = "mine"
+	ActionKindChannel     ActionKind = "channel"
+	ActionKindDigRamp     ActionKind = "digramp"
 	ActionKindAppoint     ActionKind = "appoint"
 )
 
