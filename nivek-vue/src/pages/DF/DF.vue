@@ -659,7 +659,7 @@ canvas {
 .swatch.stair  { background: #665; }
 .swatch.water  { background: #3a8fc7; }
 .swatch.magma  { background: #d04020; }
-.swatch.tree   { background: #2d8a3f; }
+.swatch.tree   { background: #6b3e1c; }
 
 .furniture-legend code {
     background: #333;
