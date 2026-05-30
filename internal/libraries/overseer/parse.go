@@ -157,18 +157,19 @@ func (e *RejectReason) Error() string { return e.Msg }
 //     (BREW_DRINK_FROM_PLANT). Verbose chatter-friendly forms like
 //     `brew drink from fruit` parse the same because `drink` and `from`
 //     are filler-stripped
-//   - `mine <x1,y1,z> <x2,y2[,z]>` — designate a rectangular dig area on a
-//     single Z level. Z is elevation. The second coord's Z is optional and
-//     always ignored, so a dashboard paste like `(97,87,35) (97,88,35)` is
-//     accepted but the second 35 has no effect — multi-Z mining stays
-//     impossible to express. Area is capped at 25 tiles per command to
-//     keep individual jobs bounded
-//   - `channel <x1,y1,z> <x2,y2[,z]>` — same shape and constraints as
-//     `mine`, but applies the channel dig designation (carves the tile
-//     down a level, leaving a ramp below)
-//   - `digramp <x1,y1,z> <x2,y2[,z]>` — same shape and constraints as
-//     `mine`, but applies the ramp dig designation (carves out the tile
-//     as an upward ramp, exposing the floor above)
+//   - `mine <x,y,z>` or `mine <x1,y1,z> <x2,y2[,z]>` — designate a dig area
+//     on a single Z level. Z is elevation. With one coord, designates a
+//     single tile; with two, the rectangle spanning the corners. The
+//     second coord's Z is optional and always ignored, so a dashboard
+//     paste like `(97,87,35) (97,88,35)` is accepted but the second 35
+//     has no effect — multi-Z mining stays impossible to express. Area
+//     is capped at 25 tiles per command to keep individual jobs bounded
+//   - `channel <x,y,z>` / `channel <x1,y1,z> <x2,y2[,z]>` — same shape and
+//     constraints as `mine`, but applies the channel dig designation
+//     (carves the tile down a level, leaving a ramp below)
+//   - `digramp <x,y,z>` / `digramp <x1,y1,z> <x2,y2[,z]>` — same shape and
+//     constraints as `mine`, but applies the ramp dig designation (carves
+//     out the tile as an upward ramp, exposing the floor above)
 //   - `appoint <position> <id>` — assign a dwarf (by its stable unit.id,
 //     shown on the /df/citizens page) to a fort noble position. Positions:
 //     manager, bookkeeper, broker, doctor, commander. `captain` is
@@ -347,21 +348,32 @@ func parseCamera(rest []string) (Action, error) {
 const regionVerbMaxArea = 25
 
 // parseRegionVerb parses the coord-list shared by all rectangular dig verbs.
-// Accepts 5 ints (legacy: x1,y1,z + x2,y2) or 6 ints (dashboard copy-paste:
-// (x1,y1,z) + (x2,y2,z) — the second z is silently discarded to preserve
-// the single-Z invariant). Anything else rejects. verb is the chat-facing
-// verb name, used only in error messages.
+// Accepts:
+//   - 3 ints — single tile (x,y,z); 1×1 region
+//   - 5 ints — legacy two-corner form: x1,y1,z + x2,y2
+//   - 6 ints — dashboard copy-paste: (x1,y1,z) + (x2,y2,z); the second z is
+//     silently discarded to preserve the single-Z invariant
+//
+// Anything else rejects. verb is the chat-facing verb name, used only in
+// error messages.
 func parseRegionVerb(verb string, rest []string) (*Region, error) {
 	coords, err := extractCoordInts(rest)
 	if err != nil {
 		return nil, err
 	}
-	if len(coords) != 5 && len(coords) != 6 {
-		return nil, fmt.Errorf("%s needs (x1,y1,z) (x2,y2[,z]) — 5 or 6 numbers total, got %d", verb, len(coords))
+	var x1, y1, z, x2, y2 int
+	switch len(coords) {
+	case 3:
+		// Single-tile form: second corner equals the first.
+		x1, y1, z = coords[0], coords[1], coords[2]
+		x2, y2 = x1, y1
+	case 5, 6:
+		x1, y1, z, x2, y2 = coords[0], coords[1], coords[2], coords[3], coords[4]
+		// coords[5], if present, is the second coord's z — intentionally
+		// ignored so multi-Z designations stay impossible to express.
+	default:
+		return nil, fmt.Errorf("%s needs (x,y,z) or (x1,y1,z) (x2,y2[,z]) — 3, 5, or 6 numbers total, got %d", verb, len(coords))
 	}
-	x1, y1, z, x2, y2 := coords[0], coords[1], coords[2], coords[3], coords[4]
-	// coords[5], if present, is the second coord's z — intentionally ignored
-	// so multi-Z designations stay impossible to express.
 
 	dx := abs(x2-x1) + 1
 	dy := abs(y2-y1) + 1
