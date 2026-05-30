@@ -38,7 +38,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer/wire"
 )
 
 const (
@@ -114,8 +114,8 @@ func loadConfigOrExit() *config {
 // parseSnapshot decodes the dump JSON into a MapSnapshot for emptiness
 // checking. The pusher otherwise forwards bytes verbatim; this is the only
 // place it inspects the payload.
-func parseSnapshot(body []byte) (*overseer.MapSnapshot, error) {
-	var s overseer.MapSnapshot
+func parseSnapshot(body []byte) (*wire.MapSnapshot, error) {
+	var s wire.MapSnapshot
 	if err := json.Unmarshal(body, &s); err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func parseSnapshot(body []byte) (*overseer.MapSnapshot, error) {
 // no citizens, no furniture, and every tile Unknown across every level. This
 // is the signature of a dump taken with no fort loaded (DF at the menu). Any
 // single piece of real content makes it non-empty.
-func isEmptySnapshot(s *overseer.MapSnapshot) bool {
+func isEmptySnapshot(s *wire.MapSnapshot) bool {
 	if len(s.Citizens) > 0 {
 		return false
 	}
@@ -135,7 +135,7 @@ func isEmptySnapshot(s *overseer.MapSnapshot) bool {
 			return false
 		}
 		for _, t := range s.Levels[i].Tiles {
-			if t != overseer.TileUnknown {
+			if t != wire.TileUnknown {
 				return false
 			}
 		}
