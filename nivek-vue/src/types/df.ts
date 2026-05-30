@@ -26,10 +26,23 @@ export interface FurniturePlace {
     y: number
 }
 
+// Footprint is a multi-tile rectangular building (workshop, furnace,
+// stockpile) drawn under the furniture glyph layer as a tinted region
+// with a centered label. Distinct from FurniturePlace (single-tile).
+export interface Footprint {
+    kind:    string  // "workshop" | "furnace" | "stockpile"
+    subtype: string  // chat-facing workshop/furnace name, or "" for stockpiles
+    x1: number
+    y1: number
+    x2: number
+    y2: number
+}
+
 export interface ZLevel {
     z: number
     tiles: number[]              // row-major TileType values; length = width*height
     furniture: FurniturePlace[]
+    footprints?: Footprint[]     // multi-tile buildings; omitted from old snapshots
 }
 
 // Citizen mirrors overseer.Citizen on the Go side. Stress is the dfhack

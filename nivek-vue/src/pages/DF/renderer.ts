@@ -19,6 +19,16 @@ const TILE_COLORS: Record<number, string> = {
     [TileType.Tree]:    '#6b3e1c',
 }
 
+// Footprint tints by kind. Drawn translucent over the tile layer so the
+// underlying floor/ramp still reads through, with a matching border. The
+// label text color matches the border. Kept distinct from any TILE_COLORS
+// hue so the boundaries are obvious at a glance.
+const FOOTPRINT_STYLES: Record<string, { fill: string; border: string; label: string }> = {
+    workshop:  { fill: 'rgba(160, 110, 50, 0.45)',  border: '#d4a060', label: '#ffe2b8' },
+    furnace:   { fill: 'rgba(190, 70, 40, 0.45)',   border: '#e07050', label: '#ffd4c0' },
+    stockpile: { fill: 'rgba(60, 100, 150, 0.40)',  border: '#6fa0d8', label: '#cfe2ff' },
+}
+
 // One-character glyph for each known furniture type. Anything unrecognized
 // falls back to '?' so missing mappings are visible rather than invisible.
 const FURNITURE_GLYPHS: Record<string, string> = {
@@ -68,6 +78,43 @@ export function drawLevel(canvas: HTMLCanvasElement, snap: MapSnapshot, level: Z
             ctx.moveTo(0, y * cellSize + 0.5)
             ctx.lineTo(snap.width * cellSize, y * cellSize + 0.5)
             ctx.stroke()
+        }
+    }
+
+    // Footprints (workshops, furnaces, stockpiles) — drawn between the
+    // tile layer and the furniture glyph layer so they tint the floor but
+    // don't obscure the single-tile glyph overlays sitting on top.
+    if (level.footprints && level.footprints.length > 0) {
+        for (const fp of level.footprints) {
+            const style = FOOTPRINT_STYLES[fp.kind]
+            if (!style) continue
+            const lx1 = fp.x1 - snap.origin.x
+            const ly1 = fp.y1 - snap.origin.y
+            const lx2 = fp.x2 - snap.origin.x
+            const ly2 = fp.y2 - snap.origin.y
+            const px = lx1 * cellSize
+            const py = ly1 * cellSize
+            const pw = (lx2 - lx1 + 1) * cellSize
+            const ph = (ly2 - ly1 + 1) * cellSize
+            ctx.fillStyle = style.fill
+            ctx.fillRect(px, py, pw, ph)
+            ctx.strokeStyle = style.border
+            ctx.lineWidth = 1
+            ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1)
+
+            // Label: subtype name (e.g. "carpenter", "smelter") centered on
+            // the footprint; falls back to the kind ("stockpile") when the
+            // subtype is empty. Only drawn when the footprint is big enough
+            // to fit readable text.
+            const label = fp.subtype || fp.kind
+            const fontSize = Math.min(cellSize, 14)
+            if (pw >= label.length * fontSize * 0.6 && ph >= fontSize + 2) {
+                ctx.fillStyle = style.label
+                ctx.font = `${fontSize}px monospace`
+                ctx.textAlign = 'center'
+                ctx.textBaseline = 'middle'
+                ctx.fillText(label, px + pw / 2, py + ph / 2)
+            }
         }
     }
 
