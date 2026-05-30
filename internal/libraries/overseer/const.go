@@ -64,7 +64,7 @@ type Action struct {
 	Office string `json:"office,omitempty"`  // noble-position keyword (manager, bookkeeper, broker, doctor, commander)
 	UnitID int    `json:"unit_id,omitempty"` // target dwarf's DFHack unit.id (stable, rename-proof)
 
-	// For Kind == ActionKindCraft:
+	// For Kind == ActionKindTaskat:
 	WorkshopID int `json:"workshop_id,omitempty"` // target workshop's DFHack building.id, surfaced as #id on footprints
 }
 
@@ -198,7 +198,7 @@ const (
 	ActionKindDigRamp     ActionKind = "digramp"
 	ActionKindCutTree     ActionKind = "cuttree"
 	ActionKindStockpile   ActionKind = "stockpile"
-	ActionKindCraft       ActionKind = "craft"
+	ActionKindTaskat      ActionKind = "taskat"
 	ActionKindAppoint     ActionKind = "appoint"
 )
 
