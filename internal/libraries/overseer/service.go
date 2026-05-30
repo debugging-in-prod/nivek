@@ -382,21 +382,21 @@ func (s *nivekOverseerServiceImpl) Submit(action Action) error {
 		return s.submitStockpile(action)
 	case ActionKindAppoint:
 		return s.submitAppoint(action)
-	case ActionKindCraft:
-		return s.submitCraft(action)
+	case ActionKindTaskat:
+		return s.submitTaskat(action)
 	default:
 		return fmt.Errorf("unsupported action kind: %s", action.Kind)
 	}
 }
 
-// craftMaterialLua returns the lua snippet that configures the given
+// taskatMaterialLua returns the lua snippet that configures the given
 // chat material on a freshly-created df.job. v1 supports the material
 // categories DF exposes as bool flags on job.material_category (wood,
 // bone, leather, cloth, shell, metal) plus generic "stone" via the
 // INORGANIC mat_type. Specific metals (iron/copper/etc) need raws
-// lookups and aren't implemented yet — return "" so submitCraft surfaces
+// lookups and aren't implemented yet — return "" so submitTaskat surfaces
 // a chat-visible error rather than queuing an unworkable job.
-func craftMaterialLua(material, jobVar string) string {
+func taskatMaterialLua(material, jobVar string) string {
 	switch material {
 	case "wood", "bone", "leather", "cloth", "shell", "metal":
 		return jobVar + ".material_category." + material + " = true"
@@ -407,17 +407,17 @@ func craftMaterialLua(material, jobVar string) string {
 	return ""
 }
 
-// submitCraft queues N copies of a single-item job directly into the
+// submitTaskat queues N copies of a single-item job directly into the
 // target workshop's job vector, then dfhack.job.linkIntoWorld each one.
 // Bypasses the manager queue entirely — the dwarves see the tasks
 // immediately. Designed for pre-manager bootstrap; once a manager
 // exists, !DF make is the higher-volume path.
-func (s *nivekOverseerServiceImpl) submitCraft(action Action) error {
+func (s *nivekOverseerServiceImpl) submitTaskat(action Action) error {
 	if action.WorkshopID == 0 {
-		return fmt.Errorf("craft requires workshop_id")
+		return fmt.Errorf("taskat requires workshop_id")
 	}
 	if action.Material == nil {
-		return fmt.Errorf("craft requires material")
+		return fmt.Errorf("taskat requires material")
 	}
 
 	var jobType, itemSubtype string
@@ -430,12 +430,12 @@ func (s *nivekOverseerServiceImpl) submitCraft(action Action) error {
 		return fmt.Errorf("no DFHack job_type mapping for item: %s", action.Item)
 	}
 	if itemSubtype != "" {
-		return fmt.Errorf("item %q uses an item_subtype path not yet supported in craft", action.Item)
+		return fmt.Errorf("item %q uses an item_subtype path not yet supported in taskat", action.Item)
 	}
 
-	materialLua := craftMaterialLua(*action.Material, "j")
+	materialLua := taskatMaterialLua(*action.Material, "j")
 	if materialLua == "" {
-		return fmt.Errorf("material %q not supported in craft v1 (try wood, stone, bone, leather, cloth, shell, metal)", *action.Material)
+		return fmt.Errorf("material %q not supported in taskat v1 (try wood, stone, bone, leather, cloth, shell, metal)", *action.Material)
 	}
 
 	qty := action.Quantity

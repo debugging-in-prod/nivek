@@ -340,7 +340,7 @@ func dfSuccessReply(username string, action overseer.Action) string {
 		return fmt.Sprintf("@%s built %s stockpile", username, action.Item)
 	case overseer.ActionKindAppoint:
 		return fmt.Sprintf("@%s appointed unit #%d as %s", username, action.UnitID, action.Office)
-	case overseer.ActionKindCraft:
+	case overseer.ActionKindTaskat:
 		mat := ""
 		if action.Material != nil {
 			mat = *action.Material + " "
