@@ -198,6 +198,7 @@ const (
 	ActionKindDigRamp     ActionKind = "digramp"
 	ActionKindCutTree     ActionKind = "cuttree"
 	ActionKindStockpile   ActionKind = "stockpile"
+	ActionKindZone        ActionKind = "zone"
 	ActionKindTaskat      ActionKind = "taskat"
 	ActionKindAppoint     ActionKind = "appoint"
 )
