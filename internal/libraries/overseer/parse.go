@@ -183,6 +183,14 @@ func (e *RejectReason) Error() string { return e.Msg }
 //     gem, leather, refuse, sheet, stone, weapon, wood, plus `all` for
 //     a stockpile that accepts every default top-level category. Same
 //     coord tolerances and 100-tile cap as the dig verbs
+//   - `craft <workshop_id> [qty] <material> <item>` — queue a job
+//     directly into a specific workshop, bypassing the fortress manager
+//     queue. Useful pre-manager (workorders need a manager to process).
+//     Workshop id matches the `#N` shown on the dashboard footprint
+//     label; a leading `#` is tolerated. Materials supported in v1: wood,
+//     stone, bone, leather, cloth, shell, metal — specific metal types
+//     (iron, copper, etc.) require raws lookup, deferred. The item must
+//     not be a fixed-recipe one (ash/charcoal — use `make` instead)
 //   - `appoint <position> <id>` — assign a dwarf (by its stable unit.id,
 //     shown on the /df/citizens page) to a fort noble position. Positions:
 //     manager, bookkeeper, broker, doctor, commander. `captain` is
@@ -226,6 +234,8 @@ func ParseCommand(args string) (Action, error) {
 		return parseCutTree(rest)
 	case "stockpile":
 		return parseStockpile(rest)
+	case "craft":
+		return parseCraft(rest)
 	case "appoint":
 		return parseAppoint(rest)
 	default:
@@ -435,6 +445,61 @@ func parseCutTree(rest []string) (Action, error) {
 		return Action{}, err
 	}
 	return Action{Kind: ActionKindCutTree, Region: region}, nil
+}
+
+// parseCraft handles `craft <workshop_id> [qty] <material> <item>` — queue
+// a job directly into a specific workshop's task list, bypassing the
+// manager queue. Used to bootstrap a fort before a manager exists.
+// Workshop id matches the #N on the dashboard footprint label. A leading
+// `#` on the id is tolerated. Material/item vocab and the optional qty
+// follow the same shape as `make`.
+func parseCraft(tokens []string) (Action, error) {
+	if len(tokens) < 3 {
+		return Action{}, fmt.Errorf("craft needs <workshop_id> [qty] <material> <item>")
+	}
+	wsTok := strings.TrimPrefix(tokens[0], "#")
+	wsID, err := strconv.Atoi(wsTok)
+	if err != nil || wsID < 0 {
+		return Action{}, fmt.Errorf("invalid workshop id: %q", tokens[0])
+	}
+	tokens = tokens[1:]
+
+	qty := 1
+	if n, parseErr := strconv.Atoi(tokens[0]); parseErr == nil {
+		if n <= 0 {
+			return Action{}, fmt.Errorf("quantity must be positive")
+		}
+		qty = n
+		tokens = tokens[1:]
+	}
+	if len(tokens) < 2 {
+		return Action{}, fmt.Errorf("craft needs material and item after workshop id")
+	}
+
+	itemToken := strings.TrimSuffix(tokens[len(tokens)-1], "s")
+	if _, ok := itemVocab[itemToken]; !ok {
+		return Action{}, fmt.Errorf("unknown item: %q", itemToken)
+	}
+	if _, na := itemMaterialNotApplicable[itemToken]; na {
+		return Action{}, fmt.Errorf("item %q has a fixed recipe — use !DF make, not craft", itemToken)
+	}
+
+	pre := tokens[:len(tokens)-1]
+	if len(pre) != 1 {
+		return Action{}, fmt.Errorf("craft needs exactly one material token, got %q", strings.Join(pre, " "))
+	}
+	matToken := normalizeMaterial(pre[0])
+	if _, ok := materialVocab[matToken]; !ok {
+		return Action{}, fmt.Errorf("unknown material: %q", pre[0])
+	}
+
+	return Action{
+		Kind:       ActionKindCraft,
+		Item:       itemToken,
+		Material:   &matToken,
+		Quantity:   qty,
+		WorkshopID: wsID,
+	}, nil
 }
 
 func parseStockpile(rest []string) (Action, error) {

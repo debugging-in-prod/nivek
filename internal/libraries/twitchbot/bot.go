@@ -340,6 +340,13 @@ func dfSuccessReply(username string, action overseer.Action) string {
 		return fmt.Sprintf("@%s built %s stockpile", username, action.Item)
 	case overseer.ActionKindAppoint:
 		return fmt.Sprintf("@%s appointed unit #%d as %s", username, action.UnitID, action.Office)
+	case overseer.ActionKindCraft:
+		mat := ""
+		if action.Material != nil {
+			mat = *action.Material + " "
+		}
+		return fmt.Sprintf("@%s queued %d %s%s%s at workshop #%d",
+			username, action.Quantity, mat, action.Item, pluralize(action.Quantity), action.WorkshopID)
 	default:
 		return fmt.Sprintf("@%s executed %s", username, action.Kind)
 	}

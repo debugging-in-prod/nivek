@@ -382,9 +382,87 @@ func (s *nivekOverseerServiceImpl) Submit(action Action) error {
 		return s.submitStockpile(action)
 	case ActionKindAppoint:
 		return s.submitAppoint(action)
+	case ActionKindCraft:
+		return s.submitCraft(action)
 	default:
 		return fmt.Errorf("unsupported action kind: %s", action.Kind)
 	}
+}
+
+// craftMaterialLua returns the lua snippet that configures the given
+// chat material on a freshly-created df.job. v1 supports the material
+// categories DF exposes as bool flags on job.material_category (wood,
+// bone, leather, cloth, shell, metal) plus generic "stone" via the
+// INORGANIC mat_type. Specific metals (iron/copper/etc) need raws
+// lookups and aren't implemented yet — return "" so submitCraft surfaces
+// a chat-visible error rather than queuing an unworkable job.
+func craftMaterialLua(material, jobVar string) string {
+	switch material {
+	case "wood", "bone", "leather", "cloth", "shell", "metal":
+		return jobVar + ".material_category." + material + " = true"
+	case "stone":
+		// mat_type 0 = INORGANIC, mat_index -1 = any non-economic stone.
+		return jobVar + ".mat_type = 0; " + jobVar + ".mat_index = -1"
+	}
+	return ""
+}
+
+// submitCraft queues N copies of a single-item job directly into the
+// target workshop's job vector, then dfhack.job.linkIntoWorld each one.
+// Bypasses the manager queue entirely — the dwarves see the tasks
+// immediately. Designed for pre-manager bootstrap; once a manager
+// exists, !DF make is the higher-volume path.
+func (s *nivekOverseerServiceImpl) submitCraft(action Action) error {
+	if action.WorkshopID == 0 {
+		return fmt.Errorf("craft requires workshop_id")
+	}
+	if action.Material == nil {
+		return fmt.Errorf("craft requires material")
+	}
+
+	var jobType, itemSubtype string
+	if spec, hasSubtype := itemToSubtypeJob[action.Item]; hasSubtype {
+		jobType = spec.Job
+		itemSubtype = spec.ItemSubtype
+	} else if jt, ok := itemToJobType[action.Item]; ok {
+		jobType = jt
+	} else {
+		return fmt.Errorf("no DFHack job_type mapping for item: %s", action.Item)
+	}
+	if itemSubtype != "" {
+		return fmt.Errorf("item %q uses an item_subtype path not yet supported in craft", action.Item)
+	}
+
+	materialLua := craftMaterialLua(*action.Material, "j")
+	if materialLua == "" {
+		return fmt.Errorf("material %q not supported in craft v1 (try wood, stone, bone, leather, cloth, shell, metal)", *action.Material)
+	}
+
+	qty := action.Quantity
+	if qty < 1 {
+		qty = 1
+	}
+
+	script := fmt.Sprintf(`
+local bld = df.building.find(%d)
+if not bld then error("no building with id %d") end
+if bld:getType() ~= df.building_type.Workshop then error("building %d is not a workshop") end
+for i = 1, %d do
+    local j = df.job:new()
+    j.job_type = df.job_type.%s
+    j.pos.x = bld.centerx
+    j.pos.y = bld.centery
+    j.pos.z = bld.z
+    j.mat_type = -1
+    j.mat_index = -1
+    %s
+    local bref = df.general_ref_building_holderst:new()
+    bref.building_id = bld.id
+    j.general_refs:insert("#", bref)
+    bld.jobs:insert("#", j)
+    dfhack.job.linkIntoWorld(j, true)
+end`, action.WorkshopID, action.WorkshopID, action.WorkshopID, qty, jobType, materialLua)
+	return s.runLua(script)
 }
 
 func (s *nivekOverseerServiceImpl) submitCamera(action Action) error {
