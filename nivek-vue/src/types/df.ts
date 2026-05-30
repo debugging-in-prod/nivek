@@ -30,6 +30,7 @@ export interface FurniturePlace {
 // stockpile) drawn under the furniture glyph layer as a tinted region
 // with a centered label. Distinct from FurniturePlace (single-tile).
 export interface Footprint {
+    id:      number  // DFHack building.id — stable handle chat uses to target this workshop
     kind:    string  // "workshop" | "furnace" | "stockpile"
     subtype: string  // chat-facing workshop/furnace name, or "" for stockpiles
     x1: number

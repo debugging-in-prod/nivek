@@ -217,7 +217,7 @@ local function gather_footprints_by_z(z_min, z_max)
                 local list = by_z[b.z]
                 if not list then list = {}; by_z[b.z] = list end
                 list[#list + 1] = {
-                    kind = kind, subtype = subtype,
+                    id = b.id, kind = kind, subtype = subtype,
                     x1 = b.x1, y1 = b.y1, x2 = b.x2, y2 = b.y2,
                 }
             end

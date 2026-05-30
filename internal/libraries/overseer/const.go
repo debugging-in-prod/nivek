@@ -63,6 +63,9 @@ type Action struct {
 	// For Kind == ActionKindAppoint:
 	Office string `json:"office,omitempty"`  // noble-position keyword (manager, bookkeeper, broker, doctor, commander)
 	UnitID int    `json:"unit_id,omitempty"` // target dwarf's DFHack unit.id (stable, rename-proof)
+
+	// For Kind == ActionKindCraft:
+	WorkshopID int `json:"workshop_id,omitempty"` // target workshop's DFHack building.id, surfaced as #id on footprints
 }
 
 // Position is a tile coordinate as chatters see and type them. X and Y are
@@ -141,6 +144,7 @@ type ZLevel struct {
 // (matching the !DF place vocab) or category for stockpiles. Empty
 // Subtype is allowed — the renderer falls back to Kind as the label.
 type Footprint struct {
+	ID      int    `json:"id"`      // DFHack building.id — stable handle chat uses to target this workshop / stockpile
 	Kind    string `json:"kind"`    // "workshop", "furnace", "stockpile"
 	Subtype string `json:"subtype"` // workshop/furnace chat name (e.g. "carpenter", "smelter"), or "" when unknown
 	X1      int    `json:"x1"`
@@ -194,6 +198,7 @@ const (
 	ActionKindDigRamp     ActionKind = "digramp"
 	ActionKindCutTree     ActionKind = "cuttree"
 	ActionKindStockpile   ActionKind = "stockpile"
+	ActionKindCraft       ActionKind = "craft"
 	ActionKindAppoint     ActionKind = "appoint"
 )
 
