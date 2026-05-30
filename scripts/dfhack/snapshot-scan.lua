@@ -29,7 +29,7 @@ local json = require('json')
 
 -- ============ CONFIG ============
 local BUDGET_MS = 2          -- max real-time ms of scanning work per frame
-local PASS_GAP_MS = 30000    -- idle gap after a completed pass before the next
+local PASS_GAP_MS = 15000    -- idle gap after a completed pass before the next
 local SCHED_NAME = 'nivek-snapshot-scan'
 local OUT_PATH = dfhack.getDFPath() .. '/nivek-snapshot.json'
 local TMP_PATH = OUT_PATH .. '.tmp'
