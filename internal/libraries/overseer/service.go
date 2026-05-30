@@ -191,6 +191,7 @@ var placeableItemToBuilding = map[string]placeSpec{
 // needs. Mapped via plugins.stockpiles.import_settings on a freshly
 // constructed Stockpile building.
 var stockpileCategoryToPreset = map[string]string{
+	"all":       "library/all", // accepts every default top-level category
 	"ammo":      "library/cat_ammo",
 	"animal":    "library/cat_animals",
 	"armor":     "library/cat_armor",
