@@ -1,4 +1,4 @@
-package overseer
+package wire
 
 import (
 	"encoding/json"
@@ -325,3 +325,12 @@ const (
 	EnvelopeTypeStateSnapshot EnvelopeType = "state_snapshot"
 	EnvelopeTypeExecutedCmd   EnvelopeType = "executed_cmd"
 )
+
+// RejectReason is a parse error whose message is safe and intended to be
+// shown to the chatter. Ordinary parse errors are silently dropped (locked
+// design — keeps chat clean of typo/garbage feedback); a RejectReason is the
+// deliberate exception for a recognized-but-unsupported command, where a
+// short "why" is more helpful than silence.
+type RejectReason struct{ Msg string }
+
+func (e *RejectReason) Error() string { return e.Msg }
