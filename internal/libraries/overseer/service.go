@@ -1,17 +1,23 @@
 package overseer
 
 import (
-	"encoding/json"
 	"fmt"
 	"os/exec"
+
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer/verbs"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer/wire"
 )
 
-// NivekOverseerService submits parsed actions to DFHack.
-// Lives executor-side (machine running DF + DFHack), not Pi-side.
+// NivekOverseerService submits parsed actions to DFHack. Lives
+// executor-side (machine running DF + DFHack), not Pi-side.
 type NivekOverseerService interface {
-	Submit(action Action) error
+	Submit(action wire.Action) error
 }
 
+// nivekOverseerServiceImpl is the production implementation. Each
+// verb's Submit logic lives in package verbs; this type exists to hold
+// the dfhack-run path and to satisfy the verbs.Executor interface for
+// the per-verb submitters.
 type nivekOverseerServiceImpl struct {
 	dfhackRunPath string
 }
@@ -20,768 +26,62 @@ func NewService(dfhackRunPath string) NivekOverseerService {
 	return &nivekOverseerServiceImpl{dfhackRunPath: dfhackRunPath}
 }
 
-// itemToJobType maps chat-facing item nouns to DFHack `job_type` enum names
-// used by the `workorder` script. Chat tokens are singular; DFHack's enum
-// name is whatever DFHack uses internally (chair -> ConstructThrone,
-// chest -> ConstructBox, block -> ConstructBlocks, etc.).
-//
-// Each entry's job_type was verified against `df.job_type` on a live fort
-// (the names in this table all return a non-nil enum value when probed via
-// dfhack-run lua). Items that use a generic `MakeTool` / `MakeWeapon` /
-// `MakeShield` / `MakeTrapComponent` job with an item_subtype live in
-// itemToSubtypeJob instead — that table covers anything DF dispatches by
-// subtype rather than by a dedicated Construct*/Make* job.
-var itemToJobType = map[string]string{
-	"table":       "ConstructTable",
-	"bed":         "ConstructBed",
-	"door":        "ConstructDoor",
-	"chair":       "ConstructThrone",
-	"throne":      "ConstructThrone",
-	"coffin":      "ConstructCoffin",
-	"block":       "ConstructBlocks",
-	"cabinet":     "ConstructCabinet",
-	"chest":       "ConstructChest",
-	"statue":      "ConstructStatue",
-	"floodgate":   "ConstructFloodgate",
-	"bucket":      "MakeBucket",
-	"barrel":      "MakeBarrel",
-	"ash":         "MakeAsh",
-	"charcoal":    "MakeCharcoal",
-	"armorstand":  "ConstructArmorStand",
-	"grate":       "ConstructGrate",
-	"hatchcover":  "ConstructHatchCover",
-	"millstone":   "ConstructMillstone",
-	"quern":       "ConstructQuern",
-	"slab":        "ConstructSlab",
-	"weaponrack":  "ConstructWeaponRack",
-	"cage":        "MakeCage",
-	"animaltrap":  "MakeAnimalTrap",
-	"bin":         "ConstructBin",
-	"crutch":      "ConstructCrutch",
-	"splint":      "ConstructSplint",
-	"pipesection": "MakePipeSection",
-}
-
-// subtypeJobSpec is the {job_type, item_subtype} pair for items DF
-// manufactures via a generic job dispatched by subtype — tools (MakeTool),
-// weapons (MakeWeapon), shields (MakeShield), trap components
-// (MakeTrapComponent). The job picks the right recipe by reading the
-// item_subtype off the workorder.
-type subtypeJobSpec struct {
-	Job         string // df.job_type enum name
-	ItemSubtype string // raws.itemdefs.<bucket>.id (ITEM_TOOL_*, ITEM_WEAPON_*, ...)
-}
-
-// itemToSubtypeJob covers every chat item whose DF manufacture path is
-// "generic job + subtype" rather than a dedicated Construct*/Make* job_type.
-// Subtypes were enumerated live from df.global.world.raws.itemdefs.*; jobs
-// were verified non-nil against df.job_type.
-var itemToSubtypeJob = map[string]subtypeJobSpec{
-	"altar":         {Job: "MakeTool", ItemSubtype: "ITEM_TOOL_ALTAR"},
-	"bookcase":      {Job: "MakeTool", ItemSubtype: "ITEM_TOOL_BOOKCASE"},
-	"pedestal":      {Job: "MakeTool", ItemSubtype: "ITEM_TOOL_PEDESTAL"},
-	"minecart":      {Job: "MakeTool", ItemSubtype: "ITEM_TOOL_MINECART"},
-	"stepladder":    {Job: "MakeTool", ItemSubtype: "ITEM_TOOL_STEPLADDER"},
-	"wheelbarrow":   {Job: "MakeTool", ItemSubtype: "ITEM_TOOL_WHEELBARROW"},
-	"shield":        {Job: "MakeShield", ItemSubtype: "ITEM_SHIELD_SHIELD"},
-	"buckler":       {Job: "MakeShield", ItemSubtype: "ITEM_SHIELD_BUCKLER"},
-	"trainingaxe":   {Job: "MakeWeapon", ItemSubtype: "ITEM_WEAPON_AXE_TRAINING"},
-	"trainingspear": {Job: "MakeWeapon", ItemSubtype: "ITEM_WEAPON_SPEAR_TRAINING"},
-	"trainingsword": {Job: "MakeWeapon", ItemSubtype: "ITEM_WEAPON_SWORD_SHORT_TRAINING"},
-	"corkscrew":     {Job: "MakeTrapComponent", ItemSubtype: "ITEM_TRAPCOMP_ENORMOUSCORKSCREW"},
-	"menacingspike": {Job: "MakeTrapComponent", ItemSubtype: "ITEM_TRAPCOMP_MENACINGSPIKE"},
-	"spikedball":    {Job: "MakeTrapComponent", ItemSubtype: "ITEM_TRAPCOMP_SPIKEDBALL"},
-}
-
-// placeSpec describes how a chat item maps to a DFHack building for
-// dfhack.buildings.constructBuilding. BuildingType is a df.building_type
-// enum name. WorkshopSubtype is a df.workshop_type enum name, set only
-// when BuildingType is "Workshop". FurnaceSubtype is a df.furnace_type
-// enum name, set only when BuildingType is "Furnace". At most one
-// subtype field is populated per entry.
-type placeSpec struct {
-	BuildingType    string
-	WorkshopSubtype string
-	FurnaceSubtype  string
-}
-
-// placeableItemToBuilding maps chat-facing item nouns to the building they
-// construct via `!DF place`. The building_type names differ from the
-// job_type names used for manufacture (e.g. chat "chair" is ConstructThrone
-// as a job_type but Chair as a building_type; "chest" is Box). Every entry
-// here was verified live with constructBuilding on a running fort.
-//
-// Excluded from placement (manufacturable, but not buildings): block (a
-// construction material), bucket/barrel/bin (containers), ash/charcoal
-// (bars), crutch/splint (medical items), minecart/stepladder/wheelbarrow/
-// pipesection (tools / siege parts), shield/buckler (combat gear),
-// trainingaxe/spear/sword (weapons), corkscrew/menacingspike/spikedball
-// (trap components — built into a Trap building, not standalone).
-var placeableItemToBuilding = map[string]placeSpec{
-	"table":      {BuildingType: "Table"},
-	"bed":        {BuildingType: "Bed"},
-	"door":       {BuildingType: "Door"},
-	"chair":      {BuildingType: "Chair"},
-	"throne":     {BuildingType: "Chair"}, // synonym for chair
-	"coffin":     {BuildingType: "Coffin"},
-	"cabinet":    {BuildingType: "Cabinet"},
-	"chest":      {BuildingType: "Box"},
-	"statue":     {BuildingType: "Statue"},
-	"floodgate":  {BuildingType: "Floodgate"},
-	"armorstand": {BuildingType: "Armorstand"},
-	"weaponrack": {BuildingType: "Weaponrack"},
-	"hatchcover": {BuildingType: "Hatch"},
-	"grate":      {BuildingType: "GrateFloor"}, // floor grate; the common case
-	"slab":       {BuildingType: "Slab"},
-	"bookcase":   {BuildingType: "Bookcase"},
-	"pedestal":   {BuildingType: "DisplayFurniture"},
-	"altar":      {BuildingType: "OfferingPlace"},
-	"cage":       {BuildingType: "Cage"},
-	"animaltrap": {BuildingType: "AnimalTrap"},
-	"quern":      {BuildingType: "Workshop", WorkshopSubtype: "Quern"},
-	"millstone":  {BuildingType: "Workshop", WorkshopSubtype: "Millstone"},
-
-	// Workshops (df.workshop_type). Names follow DF's UI; chat tokens are
-	// singular (the parser's trailing-s strip means `carpenters` also works).
-	// Skipped: `Tool` (catch-all, not used in vanilla) and `Custom` (mod
-	// hook, no fixed enum). Magma variants below — they only succeed once
-	// the fort has dug to magma; until then constructBuilding returns nil
-	// and chat gets a "no matching item available" error.
-	"carpenter":     {BuildingType: "Workshop", WorkshopSubtype: "Carpenters"},
-	"farmer":        {BuildingType: "Workshop", WorkshopSubtype: "Farmers"},
-	"mason":         {BuildingType: "Workshop", WorkshopSubtype: "Masons"},
-	"craftsdwarf":   {BuildingType: "Workshop", WorkshopSubtype: "Craftsdwarfs"},
-	"jeweler":       {BuildingType: "Workshop", WorkshopSubtype: "Jewelers"},
-	"forge":         {BuildingType: "Workshop", WorkshopSubtype: "MetalsmithsForge"},
-	"magmaforge":    {BuildingType: "Workshop", WorkshopSubtype: "MagmaForge"},
-	"bowyer":        {BuildingType: "Workshop", WorkshopSubtype: "Bowyers"},
-	"mechanic":      {BuildingType: "Workshop", WorkshopSubtype: "Mechanics"},
-	"siegeworkshop": {BuildingType: "Workshop", WorkshopSubtype: "Siege"},
-	"butcher":       {BuildingType: "Workshop", WorkshopSubtype: "Butchers"},
-	"leatherwork":   {BuildingType: "Workshop", WorkshopSubtype: "Leatherworks"},
-	"tanner":        {BuildingType: "Workshop", WorkshopSubtype: "Tanners"},
-	"clothier":      {BuildingType: "Workshop", WorkshopSubtype: "Clothiers"},
-	"fishery":       {BuildingType: "Workshop", WorkshopSubtype: "Fishery"},
-	"still":         {BuildingType: "Workshop", WorkshopSubtype: "Still"},
-	"loom":          {BuildingType: "Workshop", WorkshopSubtype: "Loom"},
-	"kennel":        {BuildingType: "Workshop", WorkshopSubtype: "Kennels"},
-	"ashery":        {BuildingType: "Workshop", WorkshopSubtype: "Ashery"},
-	"kitchen":       {BuildingType: "Workshop", WorkshopSubtype: "Kitchen"},
-	"dyer":          {BuildingType: "Workshop", WorkshopSubtype: "Dyers"},
-	// SoapMaker and ScrewPress were included originally but aren't present
-	// in this DF version's df.workshop_type enum (it ends at Millstone);
-	// `!DF place soapmaker ...` would fail at constructBuilding with a nil
-	// subtype. Re-add when targeting a DF build that ships them.
-
-	// Furnaces (df.furnace_type). Magma variants need magma access, same
-	// caveat as magmaforge above.
-	"woodfurnace":       {BuildingType: "Furnace", FurnaceSubtype: "WoodFurnace"},
-	"smelter":           {BuildingType: "Furnace", FurnaceSubtype: "Smelter"},
-	"glassfurnace":      {BuildingType: "Furnace", FurnaceSubtype: "GlassFurnace"},
-	"kiln":              {BuildingType: "Furnace", FurnaceSubtype: "Kiln"},
-	"magmasmelter":      {BuildingType: "Furnace", FurnaceSubtype: "MagmaSmelter"},
-	"magmaglassfurnace": {BuildingType: "Furnace", FurnaceSubtype: "MagmaGlassFurnace"},
-	"magmakiln":         {BuildingType: "Furnace", FurnaceSubtype: "MagmaKiln"},
-}
-
-// zoneTypeToCivzoneEnum maps chat-facing zone-type keywords to DFHack
-// df.civzone_type enum names. v1 covers office, bedroom, dormitory —
-// the room-designation set the user asked for. Easy to extend later
-// with dininghall, meetinghall, barracks, tomb, etc. (the full list is
-// in df.civzone_type).
-var zoneTypeToCivzoneEnum = map[string]string{
-	"office":    "Office",
-	"bedroom":   "Bedroom",
-	"dormitory": "Dormitory",
-}
-
-// stockpileCategoryToPreset maps chat-facing stockpile category nouns to
-// the DFHack stockpiles plugin's library preset path. Chat tokens are
-// singular — the parser's trailing-s strip means plurals (animals,
-// weapons, gems, etc.) also work. The presets ship with DFHack at
-// hack/data/stockpiles/cat_*.dfstock; each is "accept this category,
-// reject everything else", exactly what a single-category stockpile
-// needs. Mapped via plugins.stockpiles.import_settings on a freshly
-// constructed Stockpile building.
-var stockpileCategoryToPreset = map[string]string{
-	"all":       "library/all", // accepts every default top-level category
-	"ammo":      "library/cat_ammo",
-	"animal":    "library/cat_animals",
-	"armor":     "library/cat_armor",
-	"bar":       "library/cat_bars_blocks",
-	"cloth":     "library/cat_cloth",
-	"coin":      "library/cat_coins",
-	"corpse":    "library/cat_corpses",
-	"good":      "library/cat_finished_goods",
-	"food":      "library/cat_food",
-	"furniture": "library/cat_furniture",
-	"gem":       "library/cat_gems",
-	"leather":   "library/cat_leather",
-	"refuse":    "library/cat_refuse",
-	"sheet":     "library/cat_sheets",
-	"stone":     "library/cat_stone",
-	"weapon":    "library/cat_weapons",
-	"wood":      "library/cat_wood",
-}
-
-// materialToWorkorderSpec maps chat-facing material tokens to the JSON shape
-// DFHack's `workorder` command expects. Two shapes coexist:
-//
-//   - `material: "INORGANIC[:SUBTYPE]"` for stone (any non-economic rock) and
-//     specific metals (iron, copper, ...). Confirmed via `orders export`.
-//   - `material_category: ["<name>"]` for DF's high-level material categories
-//     (wood, bone, leather, ...). Confirmed for wood; extrapolated for the
-//     rest by category-name analogy.
-//
-// If an extrapolated mapping ever produces "unknown material" in DF, fix the
-// value here.
-var materialToWorkorderSpec = map[string]workorderMaterialSpec{
-	"stone":   {Material: "INORGANIC"},
-	"wood":    {MaterialCategory: []string{"wood"}},
-	"iron":    {Material: "INORGANIC:IRON"},
-	"copper":  {Material: "INORGANIC:COPPER"},
-	"bronze":  {Material: "INORGANIC:BRONZE"},
-	"steel":   {Material: "INORGANIC:STEEL"},
-	"silver":  {Material: "INORGANIC:SILVER"},
-	"gold":    {Material: "INORGANIC:GOLD"},
-	"bone":    {MaterialCategory: []string{"bone"}},
-	"leather": {MaterialCategory: []string{"leather"}},
-	"cloth":   {MaterialCategory: []string{"cloth"}},
-	"shell":   {MaterialCategory: []string{"shell"}},
-	"metal":   {MaterialCategory: []string{"metal"}},
-}
-
-type workorderMaterialSpec struct {
-	Material         string
-	MaterialCategory []string
-}
-
-// workorderRequest is the JSON payload `workorder <json>` accepts.
-// Material xor MaterialCategory — populate whichever the spec uses.
-// ItemSubtype is set only for MakeTool jobs (altar/bookcase/pedestal).
-type workorderRequest struct {
-	Job              string   `json:"job"`
-	AmountTotal      int      `json:"amount_total"`
-	Material         string   `json:"material,omitempty"`
-	MaterialCategory []string `json:"material_category,omitempty"`
-	ItemSubtype      string   `json:"item_subtype,omitempty"`
-}
-
-// officeToPositionCode maps chat-facing noble keywords to DFHack
-// entity_position `code` strings. Confirmed live via the fort entity's
-// positions.own table: MANAGER, BOOKKEEPER, BROKER, CHIEF_MEDICAL_DWARF,
-// MILITIA_COMMANDER. Militia captain (MILITIA_CAPTAIN) is intentionally
-// absent — it's squad-dependent and rejected at the parser.
-var officeToPositionCode = map[string]string{
-	"manager":    "MANAGER",
-	"bookkeeper": "BOOKKEEPER",
-	"broker":     "BROKER",
-	"doctor":     "CHIEF_MEDICAL_DWARF",
-	"commander":  "MILITIA_COMMANDER",
-}
-
-// appointLuaTemplate appoints a unit to a fort noble position. It mirrors
-// DFHack's own make-monarch.lua, adapted from the civ entity (monarch) to
-// the fortress entity (manager/bookkeeper/etc.): set the assignment's
-// histfig/histfig2 to the target's historical figure, drop the previous
-// holder's position entity-link, and add one for the new holder. Verified
-// against the live save's structures (entity_id = fortress_entity.id,
-// histfig2 mirrors histfig, link carries assignment_id/vector_idx/start_year).
-//
-// %d = unit.id, %q = position code. Both come from trusted sources (an int
-// and a value from officeToPositionCode), so there's no lua-injection risk.
-const appointLuaTemplate = `
-local UNIT_ID = %d
-local CODE = %q
-local unit = df.unit.find(UNIT_ID)
-if not unit then error("no unit with id "..UNIT_ID) end
-if not dfhack.units.isCitizen(unit) then error("unit "..UNIT_ID.." is not a citizen of this fort") end
-local figid = unit.hist_figure_id
-if figid < 0 then error("unit "..UNIT_ID.." has no historical figure") end
-local newfig = df.historical_figure.find(figid)
-if not newfig then error("historical figure "..figid.." not found") end
-
-local ent = df.global.plotinfo.main.fortress_entity
-if not ent then error("no fortress entity") end
-
-local posid
-for _,p in ipairs(ent.positions.own) do
-    if p.code == CODE then posid = p.id break end
-end
-if not posid then error("position "..CODE.." not defined for this fort") end
-
-local done = false
-for aidx,a in ipairs(ent.positions.assignments) do
-    if a.position_id == posid then
-        if a.histfig == newfig.id then done = true break end
-        local oldid = a.histfig
-        a.histfig = newfig.id
-        a.histfig2 = newfig.id
-        if oldid >= 0 then
-            local oldfig = df.historical_figure.find(oldid)
-            if oldfig then
-                for k,v in pairs(oldfig.entity_links) do
-                    if df.histfig_entity_link_positionst:is_instance(v)
-                       and v.assignment_id == a.id and v.entity_id == ent.id then
-                        oldfig.entity_links:erase(k)
-                        break
-                    end
-                end
-            end
-        end
-        local has = false
-        for _,v in pairs(newfig.entity_links) do
-            if df.histfig_entity_link_positionst:is_instance(v)
-               and v.assignment_id == a.id and v.entity_id == ent.id then
-                has = true break
-            end
-        end
-        if not has then
-            newfig.entity_links:insert("#", {new=df.histfig_entity_link_positionst,
-                entity_id=ent.id, link_strength=100, assignment_id=a.id,
-                assignment_vector_idx=aidx, start_year=df.global.cur_year})
-        end
-        done = true
-        break
-    end
-end
-if not done then error("no assignment slot for position "..CODE) end
-print("appointed unit "..UNIT_ID.." as "..CODE)
-`
-
-// brewSourceToReaction maps chat-facing brew sources to DFHack reaction
-// IDs used by the workorder script's CustomReaction job_type. Confirmed
-// via `orders export` — these are the two reaction strings DF Premium
-// uses for the default brewing templates.
-var brewSourceToReaction = map[string]string{
-	"fruit": "BREW_DRINK_FROM_PLANT_GROWTH",
-	"plant": "BREW_DRINK_FROM_PLANT",
-}
-
-// customReactionRequest is the workorder JSON payload for CustomReaction
-// jobs (brewing, etc.) — these don't use job_type names like MakeTable
-// but instead specify "job":"CustomReaction" + "reaction":<reaction_id>.
-type customReactionRequest struct {
-	Job         string `json:"job"`
-	Reaction    string `json:"reaction"`
-	AmountTotal int    `json:"amount_total"`
-}
-
-func (s *nivekOverseerServiceImpl) Submit(action Action) error {
-	switch action.Kind {
-	case ActionKindManufacture:
-		return s.submitManufacture(action)
-	case ActionKindPause:
-		return s.runLua("df.global.pause_state=true")
-	case ActionKindUnpause:
-		return s.runLua("df.global.pause_state=false")
-	case ActionKindCamera:
-		return s.submitCamera(action)
-	case ActionKindPlace:
-		return s.submitPlace(action)
-	case ActionKindBrew:
-		return s.submitBrew(action)
-	case ActionKindMine:
-		return s.submitDigDesignation(action, "Default")
-	case ActionKindChannel:
-		return s.submitDigDesignation(action, "Channel")
-	case ActionKindDigRamp:
-		return s.submitDigDesignation(action, "Ramp")
-	case ActionKindCutTree:
-		return s.submitCutTree(action)
-	case ActionKindStockpile:
-		return s.submitStockpile(action)
-	case ActionKindZone:
-		return s.submitZone(action)
-	case ActionKindAppoint:
-		return s.submitAppoint(action)
-	case ActionKindTaskat:
-		return s.submitTaskat(action)
-	default:
-		return fmt.Errorf("unsupported action kind: %s", action.Kind)
-	}
-}
-
-// taskatMaterialLua returns the lua snippet that configures the given
-// chat material on a freshly-created df.job. v1 supports the material
-// categories DF exposes as bool flags on job.material_category (wood,
-// bone, leather, cloth, shell, metal) plus generic "stone" via the
-// INORGANIC mat_type. Specific metals (iron/copper/etc) need raws
-// lookups and aren't implemented yet — return "" so submitTaskat surfaces
-// a chat-visible error rather than queuing an unworkable job.
-func taskatMaterialLua(material, jobVar string) string {
-	switch material {
-	case "wood", "bone", "leather", "cloth", "shell", "metal":
-		return jobVar + ".material_category." + material + " = true"
-	case "stone":
-		// mat_type 0 = INORGANIC, mat_index -1 = any non-economic stone.
-		return jobVar + ".mat_type = 0; " + jobVar + ".mat_index = -1"
-	}
-	return ""
-}
-
-// submitTaskat queues N copies of a single-item job directly into the
-// target workshop's job vector, then dfhack.job.linkIntoWorld each one.
-// Bypasses the manager queue entirely — the dwarves see the tasks
-// immediately. Designed for pre-manager bootstrap; once a manager
-// exists, !DF make is the higher-volume path.
-func (s *nivekOverseerServiceImpl) submitTaskat(action Action) error {
-	if action.WorkshopID == 0 {
-		return fmt.Errorf("taskat requires workshop_id")
-	}
-	if action.Material == nil {
-		return fmt.Errorf("taskat requires material")
-	}
-
-	var jobType, itemSubtype string
-	if spec, hasSubtype := itemToSubtypeJob[action.Item]; hasSubtype {
-		jobType = spec.Job
-		itemSubtype = spec.ItemSubtype
-	} else if jt, ok := itemToJobType[action.Item]; ok {
-		jobType = jt
-	} else {
-		return fmt.Errorf("no DFHack job_type mapping for item: %s", action.Item)
-	}
-	if itemSubtype != "" {
-		return fmt.Errorf("item %q uses an item_subtype path not yet supported in taskat", action.Item)
-	}
-
-	materialLua := taskatMaterialLua(*action.Material, "j")
-	if materialLua == "" {
-		return fmt.Errorf("material %q not supported in taskat v1 (try wood, stone, bone, leather, cloth, shell, metal)", *action.Material)
-	}
-
-	qty := action.Quantity
-	if qty < 1 {
-		qty = 1
-	}
-
-	script := fmt.Sprintf(`
-local bld = df.building.find(%d)
-if not bld then error("no building with id %d") end
-if bld:getType() ~= df.building_type.Workshop then error("building %d is not a workshop") end
-for i = 1, %d do
-    local j = df.job:new()
-    j.job_type = df.job_type.%s
-    j.pos.x = bld.centerx
-    j.pos.y = bld.centery
-    j.pos.z = bld.z
-    j.mat_type = -1
-    j.mat_index = -1
-    %s
-    local bref = df.general_ref_building_holderst:new()
-    bref.building_id = bld.id
-    j.general_refs:insert("#", bref)
-    bld.jobs:insert("#", j)
-    dfhack.job.linkIntoWorld(j, true)
-end`, action.WorkshopID, action.WorkshopID, action.WorkshopID, qty, jobType, materialLua)
-	return s.runLua(script)
-}
-
-func (s *nivekOverseerServiceImpl) submitCamera(action Action) error {
-	if action.Position == nil {
-		return fmt.Errorf("camera requires position")
-	}
-	// Position.Z is elevation (dashboard-native); DFHack APIs want raw
-	// embark-local z. Convert in the lua so we don't need a separate
-	// region_z fetch. See [Position] in const.go.
-	script := fmt.Sprintf(`local rawz = %d - (df.global.world.map.region_z - 100); dfhack.gui.revealInDwarfmodeMap({x=%d,y=%d,z=rawz}, true)`,
-		action.Position.Z, action.Position.X, action.Position.Y)
-	return s.runLua(script)
-}
-
-// submitStockpile builds an abstract Stockpile building covering the
-// region and applies one of DFHack's built-in cat_*.dfstock presets to
-// restrict it to a single top-level category. The `abstract=true` flag
-// is required for stockpiles (they have no item/material requirements,
-// unlike workshops). The preset is applied via plugins.stockpiles'
-// import_settings, defaulting to mode='set' which replaces all
-// settings — the constructed stockpile inherits whatever DF defaults
-// to, but the immediate preset overwrites that wholesale.
-func (s *nivekOverseerServiceImpl) submitStockpile(action Action) error {
-	if action.Region == nil {
-		return fmt.Errorf("stockpile requires region")
-	}
-	preset, ok := stockpileCategoryToPreset[action.Item]
-	if !ok {
-		return fmt.Errorf("no DFHack preset for stockpile category: %s", action.Item)
-	}
-	r := action.Region
-	if r.Min.Z != r.Max.Z {
-		return fmt.Errorf("stockpile region must be on a single Z level (got Min.Z=%d Max.Z=%d)", r.Min.Z, r.Max.Z)
-	}
-	minX, maxX := r.Min.X, r.Max.X
-	if minX > maxX {
-		minX, maxX = maxX, minX
-	}
-	minY, maxY := r.Min.Y, r.Max.Y
-	if minY > maxY {
-		minY, maxY = maxY, minY
-	}
-	script := fmt.Sprintf(`
-local rawz = %d - (df.global.world.map.region_z - 100)
-local sp = dfhack.buildings.constructBuilding{
-    type = df.building_type.Stockpile,
-    abstract = true,
-    pos = {x=%d, y=%d, z=rawz},
-    width = %d, height = %d,
-}
-if not sp then error("constructBuilding returned nil — bad spot or blocked") end
-require("plugins.stockpiles").import_settings(%q, {id=sp.id})`,
-		r.Min.Z, minX, minY, maxX-minX+1, maxY-minY+1, preset)
-	return s.runLua(script)
-}
-
-// submitZone builds an abstract Civzone covering the region and sets
-// its type (df.civzone_type) to the requested room kind. The created
-// zone is unowned — for offices, a noble's `assigned_unit_id` would be
-// set in a separate appoint/assign flow.
-func (s *nivekOverseerServiceImpl) submitZone(action Action) error {
-	if action.Region == nil {
-		return fmt.Errorf("zone requires region")
-	}
-	zoneEnum, ok := zoneTypeToCivzoneEnum[action.Item]
-	if !ok {
-		return fmt.Errorf("no DFHack civzone_type mapping for zone: %s", action.Item)
-	}
-	r := action.Region
-	if r.Min.Z != r.Max.Z {
-		return fmt.Errorf("zone region must be on a single Z level (got Min.Z=%d Max.Z=%d)", r.Min.Z, r.Max.Z)
-	}
-	minX, maxX := r.Min.X, r.Max.X
-	if minX > maxX {
-		minX, maxX = maxX, minX
-	}
-	minY, maxY := r.Min.Y, r.Max.Y
-	if minY > maxY {
-		minY, maxY = maxY, minY
-	}
-	script := fmt.Sprintf(`
-local rawz = %d - (df.global.world.map.region_z - 100)
-local z = dfhack.buildings.constructBuilding{
-    type = df.building_type.Civzone,
-    abstract = true,
-    pos = {x=%d, y=%d, z=rawz},
-    width = %d, height = %d,
-}
-if not z then error("constructBuilding returned nil — bad spot or blocked") end
-z.type = df.civzone_type.%s`,
-		r.Min.Z, minX, minY, maxX-minX+1, maxY-minY+1, zoneEnum)
-	return s.runLua(script)
-}
-
-// submitCutTree designates trees in the region for chopping. DF v50
-// represents trees as plant entities in df.global.world.plants.tree_dry
-// / tree_wet — the underlying tile at the trunk position is usually
-// FLOOR (or whatever ground the tree sits on), NOT a tree-shape tile, so
-// the only reliable way to find trees is iterating the plant vectors and
-// setting the dig designation at each trunk position whose pos falls
-// inside the region. Errors with "no trees in region" if zero matched.
-func (s *nivekOverseerServiceImpl) submitCutTree(action Action) error {
-	if action.Region == nil {
-		return fmt.Errorf("cuttree requires region")
-	}
-	r := action.Region
-	if r.Min.Z != r.Max.Z {
-		return fmt.Errorf("cuttree region must be on a single Z level (got Min.Z=%d Max.Z=%d)", r.Min.Z, r.Max.Z)
-	}
-	minX, maxX := r.Min.X, r.Max.X
-	if minX > maxX {
-		minX, maxX = maxX, minX
-	}
-	minY, maxY := r.Min.Y, r.Max.Y
-	if minY > maxY {
-		minY, maxY = maxY, minY
-	}
-	script := fmt.Sprintf(`
-local rawz = %d - (df.global.world.map.region_z - 100)
-local minX, maxX, minY, maxY = %d, %d, %d, %d
-local count = 0
-local function markIfInRegion(t)
-    local p = t.pos
-    if p.z == rawz and p.x >= minX and p.x <= maxX and p.y >= minY and p.y <= maxY then
-        local block = dfhack.maps.getTileBlock(p)
-        if block then
-            block.designation[p.x%%16][p.y%%16].dig = df.tile_dig_designation.Default
-            block.occupancy[p.x%%16][p.y%%16].dig_marked = false
-            block.flags.designated = true
-            count = count + 1
-        end
-    end
-end
-for _, t in ipairs(df.global.world.plants.tree_dry) do markIfInRegion(t) end
-for _, t in ipairs(df.global.world.plants.tree_wet) do markIfInRegion(t) end
-if count == 0 then error("no trees in region") end`, r.Min.Z, minX, maxX, minY, maxY)
-	return s.runLua(script)
-}
-
-// submitDigDesignation issues a rectangular dig designation across the
-// region in action.Region. designation is the df.tile_dig_designation enum
-// name to apply — "Default" (mine), "Channel" (channel), or "Ramp"
-// (digramp). The shape — single-Z, raw-z conversion, per-tile block lookup
-// — is identical across all three verbs; only the designation differs.
-func (s *nivekOverseerServiceImpl) submitDigDesignation(action Action, designation string) error {
-	if action.Region == nil {
-		return fmt.Errorf("%s requires region", action.Kind)
-	}
-	r := action.Region
-	if r.Min.Z != r.Max.Z {
-		return fmt.Errorf("%s region must be on a single Z level (got Min.Z=%d Max.Z=%d)", action.Kind, r.Min.Z, r.Max.Z)
-	}
-	minX, maxX := r.Min.X, r.Max.X
-	if minX > maxX {
-		minX, maxX = maxX, minX
-	}
-	minY, maxY := r.Min.Y, r.Max.Y
-	if minY > maxY {
-		minY, maxY = maxY, minY
-	}
-	// Iterate each tile in the rectangle, set the dig designation. Block
-	// lookup per-tile rather than batched — at <=25 tiles, RPC overhead is
-	// fine. r.Min.Z is elevation (dashboard-native); convert to raw z
-	// inside the lua, same as submitCamera/submitPlace.
-	script := fmt.Sprintf(`
-local rawz = %d - (df.global.world.map.region_z - 100)
-for x = %d, %d do
-    for y = %d, %d do
-        local block = dfhack.maps.getTileBlock({x=x, y=y, z=rawz})
-        if block then
-            block.designation[x%%16][y%%16].dig = df.tile_dig_designation.%s
-            block.occupancy[x%%16][y%%16].dig_marked = false
-            block.flags.designated = true
-        end
-    end
-end`, r.Min.Z, minX, maxX, minY, maxY, designation)
-	return s.runLua(script)
-}
-
-func (s *nivekOverseerServiceImpl) submitBrew(action Action) error {
-	reaction, ok := brewSourceToReaction[action.Item]
-	if !ok {
-		return fmt.Errorf("no DFHack reaction mapping for brew source: %s", action.Item)
-	}
-	qty := action.Quantity
-	if qty <= 0 {
-		qty = 1
-	}
-	payload, err := json.Marshal(customReactionRequest{
-		Job:         "CustomReaction",
-		Reaction:    reaction,
-		AmountTotal: qty,
-	})
-	if err != nil {
-		return fmt.Errorf("marshal brew workorder json: %w", err)
-	}
-	out, err := exec.Command(s.dfhackRunPath, "workorder", string(payload)).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("dfhack-run failed: %w: %s", err, string(out))
-	}
-	return nil
-}
-
-func (s *nivekOverseerServiceImpl) submitPlace(action Action) error {
-	if action.Position == nil {
-		return fmt.Errorf("place requires position")
-	}
-	spec, ok := placeableItemToBuilding[action.Item]
-	if !ok {
-		return fmt.Errorf("no DFHack building mapping for item: %s", action.Item)
-	}
-	// Route placements through DFHack's buildingplan plugin: get the
-	// default item filters for this building type via getFiltersByType,
-	// pass them to constructBuilding, then register with buildingplan.
-	// The building enters "planned" state — when matching materials
-	// become available (now or later), buildingplan automatically claims
-	// them and the build starts. This eliminates the previous failure
-	// mode where placing a table with no wood in stock returned nil; chat
-	// doesn't need to specify a material and doesn't need materials to
-	// already exist in the fort.
-	subtypeLua := "local subtype = -1"
-	switch {
-	case spec.WorkshopSubtype != "":
-		subtypeLua = fmt.Sprintf("local subtype = df.workshop_type.%s", spec.WorkshopSubtype)
-	case spec.FurnaceSubtype != "":
-		subtypeLua = fmt.Sprintf("local subtype = df.furnace_type.%s", spec.FurnaceSubtype)
-	}
-	// Position.Z is elevation; convert to raw z (see submitCamera).
-	script := fmt.Sprintf(`
-local rawz = %d - (df.global.world.map.region_z - 100)
-local btype = df.building_type.%s
-%s
-local bp = require('plugins.buildingplan')
-local filters = dfhack.buildings.getFiltersByType({}, btype, subtype, -1)
-local bld, err = dfhack.buildings.constructBuilding{
-    type = btype, subtype = subtype,
-    pos = {x = %d, y = %d, z = rawz},
-    filters = filters,
-}
-if err then error(tostring(err)) end
-if not bld then error('constructBuilding returned nil — bad spot or blocked') end
-bp.addPlannedBuilding(bld)
-bp.scheduleCycle()`, action.Position.Z, spec.BuildingType, subtypeLua, action.Position.X, action.Position.Y)
-	return s.runLua(script)
-}
-
-func (s *nivekOverseerServiceImpl) submitAppoint(action Action) error {
-	code, ok := officeToPositionCode[action.Office]
-	if !ok {
-		return fmt.Errorf("no DFHack position code for office: %s", action.Office)
-	}
-	return s.runLua(fmt.Sprintf(appointLuaTemplate, action.UnitID, code))
-}
-
-func (s *nivekOverseerServiceImpl) submitManufacture(action Action) error {
-	qty := action.Quantity
-	if qty <= 0 {
-		qty = 1
-	}
-
-	req := workorderRequest{AmountTotal: qty}
-
-	// Items dispatched by subtype (tools, weapons, shields, trap components)
-	// hit a generic job_type with item_subtype set; everything else has a
-	// dedicated Construct*/Make* job_type and no subtype.
-	if spec, hasSubtype := itemToSubtypeJob[action.Item]; hasSubtype {
-		req.Job = spec.Job
-		req.ItemSubtype = spec.ItemSubtype
-	} else {
-		jobType, ok := itemToJobType[action.Item]
-		if !ok {
-			return fmt.Errorf("no DFHack job_type mapping for item: %s", action.Item)
-		}
-		req.Job = jobType
-	}
-
-	// Material is nil for fixed-recipe jobs (MakeAsh, MakeCharcoal — these
-	// don't take a material slot, the recipe inputs are fixed). For
-	// everything else the parser guarantees Material is set; populate the
-	// workorder material/material_category fields from the translation
-	// table so DFHack queues the right material variant.
-	if action.Material != nil {
-		spec, ok := materialToWorkorderSpec[*action.Material]
-		if !ok {
-			return fmt.Errorf("no DFHack material mapping for material: %s", *action.Material)
-		}
-		req.Material = spec.Material
-		req.MaterialCategory = spec.MaterialCategory
-	}
-
-	payload, err := json.Marshal(req)
-	if err != nil {
-		return fmt.Errorf("marshal workorder json: %w", err)
-	}
-
-	out, err := exec.Command(s.dfhackRunPath, "workorder", string(payload)).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("dfhack-run failed: %w: %s", err, string(out))
-	}
-	return nil
-}
-
-func (s *nivekOverseerServiceImpl) runLua(script string) error {
+// RunLua satisfies verbs.Executor by shelling to `dfhack-run lua` with
+// the script. Combined stdout/stderr is included in error messages so
+// chat-side logging surfaces the real DFHack failure.
+func (s *nivekOverseerServiceImpl) RunLua(script string) error {
 	out, err := exec.Command(s.dfhackRunPath, "lua", script).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("dfhack-run lua failed: %w: %s", err, string(out))
 	}
 	return nil
+}
+
+// RunDFHack satisfies verbs.Executor by shelling to `dfhack-run <args>`.
+// Used by verbs that drive a DFHack subcommand (workorder for
+// manufacture/brew) rather than raw lua.
+func (s *nivekOverseerServiceImpl) RunDFHack(args ...string) error {
+	out, err := exec.Command(s.dfhackRunPath, args...).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("dfhack-run failed: %w: %s", err, string(out))
+	}
+	return nil
+}
+
+// Submit dispatches the action to the right per-verb submitter in
+// package verbs. New verbs land here as one new case plus a new file in
+// verbs/.
+func (s *nivekOverseerServiceImpl) Submit(action wire.Action) error {
+	switch action.Kind {
+	case wire.ActionKindManufacture:
+		return verbs.SubmitManufacture(s, action)
+	case wire.ActionKindPause:
+		return verbs.SubmitPause(s, action)
+	case wire.ActionKindUnpause:
+		return verbs.SubmitUnpause(s, action)
+	case wire.ActionKindCamera:
+		return verbs.SubmitCamera(s, action)
+	case wire.ActionKindPlace:
+		return verbs.SubmitPlace(s, action)
+	case wire.ActionKindBrew:
+		return verbs.SubmitBrew(s, action)
+	case wire.ActionKindMine:
+		return verbs.SubmitMine(s, action)
+	case wire.ActionKindChannel:
+		return verbs.SubmitChannel(s, action)
+	case wire.ActionKindDigRamp:
+		return verbs.SubmitDigRamp(s, action)
+	case wire.ActionKindCutTree:
+		return verbs.SubmitCutTree(s, action)
+	case wire.ActionKindStockpile:
+		return verbs.SubmitStockpile(s, action)
+	case wire.ActionKindZone:
+		return verbs.SubmitZone(s, action)
+	case wire.ActionKindAppoint:
+		return verbs.SubmitAppoint(s, action)
+	case wire.ActionKindTaskat:
+		return verbs.SubmitTaskat(s, action)
+	default:
+		return fmt.Errorf("unsupported action kind: %s", action.Kind)
+	}
 }

@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer/wire"
 )
 
 // Client is a Pi-side WebSocket client to the executor.
@@ -39,7 +41,7 @@ func NewClient(url string, hmacKey []byte) *Client {
 // command and died before acking, the retry will queue a duplicate. Stale
 // connections (the common case) drop the bytes before the server sees them,
 // so no duplication.
-func (c *Client) Send(ctx context.Context, cmd Command) (*ExecutedCmd, error) {
+func (c *Client) Send(ctx context.Context, cmd wire.Command) (*wire.ExecutedCmd, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -56,7 +58,7 @@ func (c *Client) Send(ctx context.Context, cmd Command) (*ExecutedCmd, error) {
 // sendOnceLocked is the single-attempt body of Send. The bool return is
 // true when the failure was transport-level (write/read on what should have
 // been a healthy connection) and a retry on a fresh connection is appropriate.
-func (c *Client) sendOnceLocked(ctx context.Context, cmd Command) (*ExecutedCmd, bool, error) {
+func (c *Client) sendOnceLocked(ctx context.Context, cmd wire.Command) (*wire.ExecutedCmd, bool, error) {
 	if err := c.ensureConnectedLocked(ctx); err != nil {
 		return nil, false, fmt.Errorf("connect: %w", err)
 	}
@@ -64,7 +66,7 @@ func (c *Client) sendOnceLocked(ctx context.Context, cmd Command) (*ExecutedCmd,
 	c.sentSeq++
 	seq := c.sentSeq
 
-	buf, err := MarshalEnvelope(EnvelopeTypeCommand, seq, cmd, c.hmacKey)
+	buf, err := MarshalEnvelope(wire.EnvelopeTypeCommand, seq, cmd, c.hmacKey)
 	if err != nil {
 		return nil, false, fmt.Errorf("marshal command: %w", err)
 	}
@@ -85,7 +87,7 @@ func (c *Client) sendOnceLocked(ctx context.Context, cmd Command) (*ExecutedCmd,
 		c.dropConnLocked()
 		return nil, false, fmt.Errorf("verify ack: %w", err)
 	}
-	if env.Type != EnvelopeTypeExecutedCmd {
+	if env.Type != wire.EnvelopeTypeExecutedCmd {
 		return nil, false, fmt.Errorf("unexpected ack envelope type: %s", env.Type)
 	}
 	if env.Seq <= c.lastAckSeq {
@@ -93,7 +95,7 @@ func (c *Client) sendOnceLocked(ctx context.Context, cmd Command) (*ExecutedCmd,
 	}
 	c.lastAckSeq = env.Seq
 
-	var executed ExecutedCmd
+	var executed wire.ExecutedCmd
 	if err := json.Unmarshal(env.Data, &executed); err != nil {
 		return nil, false, fmt.Errorf("decode ack: %w", err)
 	}
