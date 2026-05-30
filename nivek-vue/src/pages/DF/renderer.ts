@@ -102,11 +102,12 @@ export function drawLevel(canvas: HTMLCanvasElement, snap: MapSnapshot, level: Z
             ctx.lineWidth = 1
             ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1)
 
-            // Label: subtype name (e.g. "carpenter", "smelter") centered on
-            // the footprint; falls back to the kind ("stockpile") when the
-            // subtype is empty. Only drawn when the footprint is big enough
-            // to fit readable text.
-            const label = fp.subtype || fp.kind
+            // Label: "<subtype> #<id>" centered on the footprint, so chat
+            // can target by id (e.g. !DF craft #2 wood table). Falls back
+            // to the kind ("stockpile") when the subtype is empty. Only
+            // drawn when the footprint is big enough to fit readable text.
+            const namePart = fp.subtype || fp.kind
+            const label = fp.id ? `${namePart} #${fp.id}` : namePart
             const fontSize = Math.min(cellSize, 14)
             if (pw >= label.length * fontSize * 0.6 && ph >= fontSize + 2) {
                 ctx.fillStyle = style.label
