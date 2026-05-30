@@ -3,7 +3,8 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { fetchSnapshot } from '@/services/DFService'
 import type { MapSnapshot } from '@/types/df'
 
-// Poll cadence matches the DFHost pusher (30s).
+// DFHost pusher now sends every 15s; lower POLL_INTERVAL_MS in a
+// follow-up to align (see PR #51).
 const POLL_INTERVAL_MS = 30_000
 
 const snapshot = ref<MapSnapshot | null>(null)
@@ -74,7 +75,7 @@ onBeforeUnmount(() => {
 
         <div v-if="!snapshot && !error" class="waiting">
             <p class="waiting-text">Waiting for data…</p>
-            <p class="waiting-hint">The pusher sends one every 30s once DF is running.</p>
+            <p class="waiting-hint">The pusher sends one every 15s once DF is running.</p>
         </div>
 
         <div v-else-if="snapshot && citizens.length === 0" class="waiting">
