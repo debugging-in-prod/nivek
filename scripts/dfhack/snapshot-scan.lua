@@ -54,6 +54,60 @@ local BUILDING_TYPE_TO_CHAT = {
     [df.building_type.AnimalTrap] = 'animaltrap',
 }
 
+-- Build a subtype-enum-value → chat-name map from a list of {enum_name,
+-- chat_name} pairs, silently skipping names that don't exist on this DF
+-- version. Lets us reference SoapMaker/ScrewPress for forward-compat
+-- without crashing on older versions that lack them.
+local function build_subtype_map(enum_table, pairs_list)
+    local m = {}
+    for _, p in ipairs(pairs_list) do
+        local enum_val = enum_table[p[1]]
+        if enum_val then m[enum_val] = p[2] end
+    end
+    return m
+end
+
+-- Workshop subtype (df.workshop_type) → chat name. Mirrors the workshop
+-- entries in placeableItemToBuilding in service.go.
+local WORKSHOP_SUBTYPE_TO_CHAT = build_subtype_map(df.workshop_type, {
+    {'Carpenters', 'carpenter'},
+    {'Farmers', 'farmer'},
+    {'Masons', 'mason'},
+    {'Craftsdwarfs', 'craftsdwarf'},
+    {'Jewelers', 'jeweler'},
+    {'MetalsmithsForge', 'forge'},
+    {'MagmaForge', 'magmaforge'},
+    {'Bowyers', 'bowyer'},
+    {'Mechanics', 'mechanic'},
+    {'Siege', 'siegeworkshop'},
+    {'Butchers', 'butcher'},
+    {'Leatherworks', 'leatherwork'},
+    {'Tanners', 'tanner'},
+    {'Clothiers', 'clothier'},
+    {'Fishery', 'fishery'},
+    {'Still', 'still'},
+    {'Loom', 'loom'},
+    {'Quern', 'quern'},
+    {'Kennels', 'kennel'},
+    {'Ashery', 'ashery'},
+    {'Kitchen', 'kitchen'},
+    {'Dyers', 'dyer'},
+    {'Millstone', 'millstone'},
+    {'SoapMaker', 'soapmaker'},
+    {'ScrewPress', 'screwpress'},
+})
+
+-- Furnace subtype (df.furnace_type) → chat name.
+local FURNACE_SUBTYPE_TO_CHAT = build_subtype_map(df.furnace_type, {
+    {'WoodFurnace', 'woodfurnace'},
+    {'Smelter', 'smelter'},
+    {'GlassFurnace', 'glassfurnace'},
+    {'Kiln', 'kiln'},
+    {'MagmaSmelter', 'magmasmelter'},
+    {'MagmaGlassFurnace', 'magmaglassfurnace'},
+    {'MagmaKiln', 'magmakiln'},
+})
+
 -- Force a lua table to encode as a JSON array rather than an object, so an
 -- empty list serializes as "[]" not "{}".
 local function as_array(t)
@@ -87,6 +141,38 @@ local function gather_furniture_by_z(z_min, z_max)
             local list = by_z[b.z]
             if not list then list = {}; by_z[b.z] = list end
             list[#list + 1] = { type = name, material = 'stone', x = b.x1, y = b.y1 }
+        end
+    end
+    return by_z
+end
+
+-- Multi-tile buildings (workshops, furnaces, stockpiles) get emitted as
+-- footprints with their bounding box and a chat-facing subtype name.
+-- Stockpiles don't carry a b.type field on the building struct, so their
+-- subtype stays empty in v1 (renderer falls back to the kind as label).
+local function gather_footprints_by_z(z_min, z_max)
+    local by_z = {}
+    for _, b in ipairs(df.global.world.buildings.all) do
+        if b.z >= z_min and b.z <= z_max then
+            local btype = b:getType()
+            local kind, subtype = nil, ''
+            if btype == df.building_type.Workshop then
+                kind = 'workshop'
+                subtype = WORKSHOP_SUBTYPE_TO_CHAT[b.type] or ''
+            elseif btype == df.building_type.Furnace then
+                kind = 'furnace'
+                subtype = FURNACE_SUBTYPE_TO_CHAT[b.type] or ''
+            elseif btype == df.building_type.Stockpile then
+                kind = 'stockpile'
+            end
+            if kind then
+                local list = by_z[b.z]
+                if not list then list = {}; by_z[b.z] = list end
+                list[#list + 1] = {
+                    kind = kind, subtype = subtype,
+                    x1 = b.x1, y1 = b.y1, x2 = b.x2, y2 = b.y2,
+                }
+            end
         end
     end
     return by_z
@@ -209,6 +295,7 @@ local function begin_pass()
         z_min = z_min, z_max = z_max, width = width, height = height,
         blocks = blocks,
         furniture_by_z = gather_furniture_by_z(z_min, z_max),
+        footprints_by_z = gather_footprints_by_z(z_min, z_max),
         trees_by_z = gather_trees_by_z(z_min, z_max),
         cur_z = z_min,
         cur_block = 1,
@@ -257,6 +344,8 @@ local function finish_level(p)
     f:write(table.concat(p.tiles, ','))
     f:write('],"furniture":')
     f:write(json.encode(as_array(p.furniture_by_z[p.cur_z] or {})))
+    f:write(',"footprints":')
+    f:write(json.encode(as_array(p.footprints_by_z[p.cur_z] or {})))
     f:write('}')
     p.wrote_level = true
 

@@ -128,9 +128,25 @@ type Citizen struct {
 
 // ZLevel is one floor of the fortress at a specific Z coordinate.
 type ZLevel struct {
-	Z         int              `json:"z"`
-	Tiles     []TileType       `json:"tiles"`     // row-major: index = y*Width + x
-	Furniture []FurniturePlace `json:"furniture"` // placed objects on this Z, world coords
+	Z          int              `json:"z"`
+	Tiles      []TileType       `json:"tiles"`                // row-major: index = y*Width + x
+	Furniture  []FurniturePlace `json:"furniture"`            // placed objects on this Z, world coords (single-tile)
+	Footprints []Footprint      `json:"footprints,omitempty"` // multi-tile buildings (workshops, furnaces, stockpiles)
+}
+
+// Footprint is a multi-tile rectangular building drawn as a tinted region
+// on the dashboard. Distinct from FurniturePlace, which is single-tile
+// glyph overlays. Kind discriminates the visual style and label color;
+// Subtype is the chat-facing name for the specific workshop/furnace
+// (matching the !DF place vocab) or category for stockpiles. Empty
+// Subtype is allowed — the renderer falls back to Kind as the label.
+type Footprint struct {
+	Kind    string `json:"kind"`    // "workshop", "furnace", "stockpile"
+	Subtype string `json:"subtype"` // workshop/furnace chat name (e.g. "carpenter", "smelter"), or "" when unknown
+	X1      int    `json:"x1"`
+	Y1      int    `json:"y1"`
+	X2      int    `json:"x2"`
+	Y2      int    `json:"y2"`
 }
 
 // TileType is the v0 set of tile shapes the dashboard renders. Intentionally
