@@ -95,12 +95,14 @@ var itemToSubtypeJob = map[string]subtypeJobSpec{
 
 // placeSpec describes how a chat item maps to a DFHack building for
 // dfhack.buildings.constructBuilding. BuildingType is a df.building_type
-// enum name. WorkshopSubtype is a df.workshop_type enum name, set only when
-// BuildingType is "Workshop" (quern/millstone are workshop subtypes, not
-// their own building_type) and empty otherwise.
+// enum name. WorkshopSubtype is a df.workshop_type enum name, set only
+// when BuildingType is "Workshop". FurnaceSubtype is a df.furnace_type
+// enum name, set only when BuildingType is "Furnace". At most one
+// subtype field is populated per entry.
 type placeSpec struct {
 	BuildingType    string
 	WorkshopSubtype string
+	FurnaceSubtype  string
 }
 
 // placeableItemToBuilding maps chat-facing item nouns to the building they
@@ -138,6 +140,46 @@ var placeableItemToBuilding = map[string]placeSpec{
 	"animaltrap": {BuildingType: "AnimalTrap"},
 	"quern":      {BuildingType: "Workshop", WorkshopSubtype: "Quern"},
 	"millstone":  {BuildingType: "Workshop", WorkshopSubtype: "Millstone"},
+
+	// Workshops (df.workshop_type). Names follow DF's UI; chat tokens are
+	// singular (the parser's trailing-s strip means `carpenters` also works).
+	// Skipped: `Tool` (catch-all, not used in vanilla) and `Custom` (mod
+	// hook, no fixed enum). Magma variants below — they only succeed once
+	// the fort has dug to magma; until then constructBuilding returns nil
+	// and chat gets a "no matching item available" error.
+	"carpenter":     {BuildingType: "Workshop", WorkshopSubtype: "Carpenters"},
+	"farmer":        {BuildingType: "Workshop", WorkshopSubtype: "Farmers"},
+	"mason":         {BuildingType: "Workshop", WorkshopSubtype: "Masons"},
+	"craftsdwarf":   {BuildingType: "Workshop", WorkshopSubtype: "Craftsdwarfs"},
+	"jeweler":       {BuildingType: "Workshop", WorkshopSubtype: "Jewelers"},
+	"forge":         {BuildingType: "Workshop", WorkshopSubtype: "MetalsmithsForge"},
+	"magmaforge":    {BuildingType: "Workshop", WorkshopSubtype: "MagmaForge"},
+	"bowyer":        {BuildingType: "Workshop", WorkshopSubtype: "Bowyers"},
+	"mechanic":      {BuildingType: "Workshop", WorkshopSubtype: "Mechanics"},
+	"siegeworkshop": {BuildingType: "Workshop", WorkshopSubtype: "Siege"},
+	"butcher":       {BuildingType: "Workshop", WorkshopSubtype: "Butchers"},
+	"leatherwork":   {BuildingType: "Workshop", WorkshopSubtype: "Leatherworks"},
+	"tanner":        {BuildingType: "Workshop", WorkshopSubtype: "Tanners"},
+	"clothier":      {BuildingType: "Workshop", WorkshopSubtype: "Clothiers"},
+	"fishery":       {BuildingType: "Workshop", WorkshopSubtype: "Fishery"},
+	"still":         {BuildingType: "Workshop", WorkshopSubtype: "Still"},
+	"loom":          {BuildingType: "Workshop", WorkshopSubtype: "Loom"},
+	"kennel":        {BuildingType: "Workshop", WorkshopSubtype: "Kennels"},
+	"ashery":        {BuildingType: "Workshop", WorkshopSubtype: "Ashery"},
+	"kitchen":       {BuildingType: "Workshop", WorkshopSubtype: "Kitchen"},
+	"dyer":          {BuildingType: "Workshop", WorkshopSubtype: "Dyers"},
+	"soapmaker":     {BuildingType: "Workshop", WorkshopSubtype: "SoapMaker"},
+	"screwpress":    {BuildingType: "Workshop", WorkshopSubtype: "ScrewPress"},
+
+	// Furnaces (df.furnace_type). Magma variants need magma access, same
+	// caveat as magmaforge above.
+	"woodfurnace":       {BuildingType: "Furnace", FurnaceSubtype: "WoodFurnace"},
+	"smelter":           {BuildingType: "Furnace", FurnaceSubtype: "Smelter"},
+	"glassfurnace":      {BuildingType: "Furnace", FurnaceSubtype: "GlassFurnace"},
+	"kiln":              {BuildingType: "Furnace", FurnaceSubtype: "Kiln"},
+	"magmasmelter":      {BuildingType: "Furnace", FurnaceSubtype: "MagmaSmelter"},
+	"magmaglassfurnace": {BuildingType: "Furnace", FurnaceSubtype: "MagmaGlassFurnace"},
+	"magmakiln":         {BuildingType: "Furnace", FurnaceSubtype: "MagmaKiln"},
 }
 
 // materialToWorkorderSpec maps chat-facing material tokens to the JSON shape
@@ -396,11 +438,15 @@ func (s *nivekOverseerServiceImpl) submitPlace(action Action) error {
 	}
 	// constructBuilding returns the building handle on success, nil on
 	// failure (bad tile, occupied, no item available, etc.). Surface the
-	// nil case as an error so chat sees it. Workshops (quern/millstone)
-	// additionally need a workshop_type subtype.
+	// nil case as an error so chat sees it. Workshops and furnaces
+	// additionally need a subtype from df.workshop_type / df.furnace_type;
+	// the placeSpec carries at most one of the two.
 	subtype := ""
-	if spec.WorkshopSubtype != "" {
+	switch {
+	case spec.WorkshopSubtype != "":
 		subtype = fmt.Sprintf(", subtype=df.workshop_type.%s", spec.WorkshopSubtype)
+	case spec.FurnaceSubtype != "":
+		subtype = fmt.Sprintf(", subtype=df.furnace_type.%s", spec.FurnaceSubtype)
 	}
 	// Position.Z is elevation; convert to raw z in the lua (see submitCamera).
 	script := fmt.Sprintf(
