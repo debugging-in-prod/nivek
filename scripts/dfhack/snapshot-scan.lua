@@ -108,6 +108,53 @@ local FURNACE_SUBTYPE_TO_CHAT = build_subtype_map(df.furnace_type, {
     {'MagmaKiln', 'magmakiln'},
 })
 
+-- Stockpile top-level category bitflag name → chat-facing category name.
+-- Mirrors the keys in stockpileCategoryToPreset in service.go; one flag per
+-- DFHack cat_*.dfstock preset. Stockpile.settings.flags carries one bool
+-- per category, which lets us back-derive the chat subtype for any
+-- stockpile (chat-built or DF-UI-built).
+local STOCKPILE_FLAG_TO_CHAT = {
+    animals        = 'animal',
+    food           = 'food',
+    furniture      = 'furniture',
+    corpses        = 'corpse',
+    refuse         = 'refuse',
+    stone          = 'stone',
+    ammo           = 'ammo',
+    coins          = 'coin',
+    bars_blocks    = 'bar',
+    gems           = 'gem',
+    finished_goods = 'good',
+    leather        = 'leather',
+    cloth          = 'cloth',
+    wood           = 'wood',
+    weapons        = 'weapon',
+    armor          = 'armor',
+    sheet          = 'sheet',
+}
+
+-- detect_stockpile_subtype reads which top-level category flags are
+-- enabled and maps that to a chat-facing label:
+--   zero flags  -> '' (empty / accepts nothing; renderer falls back to
+--                      'stockpile')
+--   one flag    -> that category name (matches !DF stockpile vocab)
+--   all 17 flags -> 'all' (matches the cat_all chat token)
+--   in between  -> 'mixed' (multi-category stockpile, no single chat token)
+local function detect_stockpile_subtype(b)
+    if not b.settings or not b.settings.flags then return '' end
+    local flags = b.settings.flags
+    local hits = {}
+    for df_name, chat_name in pairs(STOCKPILE_FLAG_TO_CHAT) do
+        if flags[df_name] then hits[#hits + 1] = chat_name end
+    end
+    if #hits == 0 then return '' end
+    if #hits == 1 then return hits[1] end
+    local total = 0
+    for _ in pairs(STOCKPILE_FLAG_TO_CHAT) do total = total + 1 end
+    if #hits == total then return 'all' end
+    return 'mixed'
+end
+
 -- Force a lua table to encode as a JSON array rather than an object, so an
 -- empty list serializes as "[]" not "{}".
 local function as_array(t)
@@ -164,6 +211,7 @@ local function gather_footprints_by_z(z_min, z_max)
                 subtype = FURNACE_SUBTYPE_TO_CHAT[b.type] or ''
             elseif btype == df.building_type.Stockpile then
                 kind = 'stockpile'
+                subtype = detect_stockpile_subtype(b)
             end
             if kind then
                 local list = by_z[b.z]
