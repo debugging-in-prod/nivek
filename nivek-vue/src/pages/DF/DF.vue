@@ -4,8 +4,8 @@ import { fetchSnapshot } from '@/services/DFService'
 import type { MapSnapshot, ZLevel } from '@/types/df'
 import { drawLevel, pixelToWorld, DEFAULT_CELL_SIZE, MIN_CELL_SIZE, MAX_CELL_SIZE } from './renderer'
 
-// Poll the snapshot endpoint on a timer. Matched to the DFHost pusher's
-// 30s push cadence so the page sees each push rather than every other one.
+// Poll the snapshot endpoint on a timer. The DFHost pusher now sends
+// every 15s; lower this in a follow-up to align (see PR #51).
 const POLL_INTERVAL_MS = 30_000
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -257,7 +257,7 @@ onBeforeUnmount(() => {
             <p class="waiting-text">Waiting for data…</p>
             <p class="waiting-hint">
                 Server hasn't received a snapshot from the DFHost yet.
-                The pusher sends one every 30s once DF is running.
+                The pusher sends one every 15s once DF is running.
             </p>
         </div>
 
@@ -363,7 +363,7 @@ onBeforeUnmount(() => {
 
         <p class="note">
             Live overview. Browser refreshes every {{ POLL_INTERVAL_MS / 1000 }}s; the DFHost pushes
-            new data every 30s. Citizen roster is on the <router-link to="/df/citizens">Citizens</router-link> page.
+            new data every 15s. Citizen roster is on the <router-link to="/df/citizens">Citizens</router-link> page.
         </p>
     </div>
 </template>
