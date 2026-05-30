@@ -168,8 +168,10 @@ var placeableItemToBuilding = map[string]placeSpec{
 	"ashery":        {BuildingType: "Workshop", WorkshopSubtype: "Ashery"},
 	"kitchen":       {BuildingType: "Workshop", WorkshopSubtype: "Kitchen"},
 	"dyer":          {BuildingType: "Workshop", WorkshopSubtype: "Dyers"},
-	"soapmaker":     {BuildingType: "Workshop", WorkshopSubtype: "SoapMaker"},
-	"screwpress":    {BuildingType: "Workshop", WorkshopSubtype: "ScrewPress"},
+	// SoapMaker and ScrewPress were included originally but aren't present
+	// in this DF version's df.workshop_type enum (it ends at Millstone);
+	// `!DF place soapmaker ...` would fail at constructBuilding with a nil
+	// subtype. Re-add when targeting a DF build that ships them.
 
 	// Furnaces (df.furnace_type). Magma variants need magma access, same
 	// caveat as magmaforge above.
