@@ -176,6 +176,12 @@ func (e *RejectReason) Error() string { return e.Msg }
 //     tiles are skipped, so `cuttree` over a region that mixes trees and
 //     walls won't accidentally dig the walls. Errors if no trees were
 //     found in the region
+//   - `stockpile <category> <x,y,z>` / `stockpile <category> <x1,y1,z>
+//     <x2,y2[,z]>` — builds an abstract stockpile covering the region and
+//     restricts it to a single top-level category. Categories: ammo,
+//     animal, armor, bar, cloth, coin, corpse, good, food, furniture,
+//     gem, leather, refuse, sheet, stone, weapon, wood. Same coord
+//     tolerances and 100-tile cap as the dig verbs
 //   - `appoint <position> <id>` — assign a dwarf (by its stable unit.id,
 //     shown on the /df/citizens page) to a fort noble position. Positions:
 //     manager, bookkeeper, broker, doctor, commander. `captain` is
@@ -217,6 +223,8 @@ func ParseCommand(args string) (Action, error) {
 		return parseDigRamp(rest)
 	case "cuttree":
 		return parseCutTree(rest)
+	case "stockpile":
+		return parseStockpile(rest)
 	case "appoint":
 		return parseAppoint(rest)
 	default:
@@ -426,6 +434,25 @@ func parseCutTree(rest []string) (Action, error) {
 		return Action{}, err
 	}
 	return Action{Kind: ActionKindCutTree, Region: region}, nil
+}
+
+func parseStockpile(rest []string) (Action, error) {
+	if len(rest) == 0 {
+		return Action{}, fmt.Errorf("stockpile needs <category> <coords>")
+	}
+	category := strings.TrimSuffix(rest[0], "s")
+	if _, ok := stockpileCategoryToPreset[category]; !ok {
+		return Action{}, fmt.Errorf("unknown stockpile category: %q", rest[0])
+	}
+	region, err := parseRegionVerb("stockpile", rest[1:])
+	if err != nil {
+		return Action{}, err
+	}
+	return Action{
+		Kind:   ActionKindStockpile,
+		Item:   category,
+		Region: region,
+	}, nil
 }
 
 // abs returns |n|. Used by parseRegionVerb to compute rectangle dimensions
