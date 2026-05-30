@@ -16,7 +16,7 @@ const TILE_COLORS: Record<number, string> = {
     [TileType.Stair]:   '#665',
     [TileType.Water]:   '#3a8fc7',
     [TileType.Magma]:   '#d04020',
-    [TileType.Tree]:    '#2d8a3f',
+    [TileType.Tree]:    '#6b3e1c',
 }
 
 // One-character glyph for each known furniture type. Anything unrecognized
