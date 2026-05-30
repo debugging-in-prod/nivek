@@ -163,7 +163,7 @@ func (e *RejectReason) Error() string { return e.Msg }
 //     second coord's Z is optional and always ignored, so a dashboard
 //     paste like `(97,87,35) (97,88,35)` is accepted but the second 35
 //     has no effect — multi-Z mining stays impossible to express. Area
-//     is capped at 25 tiles per command to keep individual jobs bounded
+//     is capped at 100 tiles per command to keep individual jobs bounded
 //   - `channel <x,y,z>` / `channel <x1,y1,z> <x2,y2[,z]>` — same shape and
 //     constraints as `mine`, but applies the channel dig designation
 //     (carves the tile down a level, leaving a ramp below)
@@ -353,7 +353,7 @@ func parseCamera(rest []string) (Action, error) {
 // regionVerbMaxArea is the per-command cap on the rectangular tile area
 // for region-based dig verbs (mine, channel, digramp). Keeps individual
 // commands bounded.
-const regionVerbMaxArea = 25
+const regionVerbMaxArea = 100
 
 // parseRegionVerb parses the coord-list shared by all rectangular dig verbs.
 // Accepts:
