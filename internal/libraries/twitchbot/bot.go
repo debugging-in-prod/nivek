@@ -309,17 +309,24 @@ func dfSuccessReply(username string, action overseer.Action) string {
 		return fmt.Sprintf("@%s placed %s", username, action.Item)
 	case overseer.ActionKindBrew:
 		return fmt.Sprintf("@%s queued %d brew%s from %s", username, action.Quantity, pluralize(action.Quantity), action.Item)
-	case overseer.ActionKindMine:
+	case overseer.ActionKindMine, overseer.ActionKindChannel, overseer.ActionKindDigRamp:
+		noun := "dig"
+		switch action.Kind {
+		case overseer.ActionKindChannel:
+			noun = "channel"
+		case overseer.ActionKindDigRamp:
+			noun = "ramp"
+		}
 		if action.Region != nil {
 			dx := abs(action.Region.Max.X-action.Region.Min.X) + 1
 			dy := abs(action.Region.Max.Y-action.Region.Min.Y) + 1
-			return fmt.Sprintf("@%s designated %dx%d dig area from (%d, %d, %d) to (%d, %d)",
-				username, dx, dy,
+			return fmt.Sprintf("@%s designated %dx%d %s area from (%d, %d, %d) to (%d, %d)",
+				username, dx, dy, noun,
 				action.Region.Min.X, action.Region.Min.Y, action.Region.Min.Z,
 				action.Region.Max.X, action.Region.Max.Y,
 			)
 		}
-		return fmt.Sprintf("@%s designated dig area", username)
+		return fmt.Sprintf("@%s designated %s area", username, noun)
 	case overseer.ActionKindAppoint:
 		return fmt.Sprintf("@%s appointed unit #%d as %s", username, action.UnitID, action.Office)
 	default:
