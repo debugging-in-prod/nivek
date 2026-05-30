@@ -3,9 +3,9 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { fetchSnapshot } from '@/services/DFService'
 import type { MapSnapshot } from '@/types/df'
 
-// DFHost pusher now sends every 15s; lower POLL_INTERVAL_MS in a
-// follow-up to align (see PR #51).
-const POLL_INTERVAL_MS = 30_000
+// Poll faster than the DFHost pusher's 15s cadence so a new push surfaces
+// within one poll cycle instead of waiting for an aligned tick.
+const POLL_INTERVAL_MS = 10_000
 
 const snapshot = ref<MapSnapshot | null>(null)
 const error = ref<string | null>(null)
