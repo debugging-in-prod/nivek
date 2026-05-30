@@ -180,8 +180,9 @@ func (e *RejectReason) Error() string { return e.Msg }
 //     <x2,y2[,z]>` — builds an abstract stockpile covering the region and
 //     restricts it to a single top-level category. Categories: ammo,
 //     animal, armor, bar, cloth, coin, corpse, good, food, furniture,
-//     gem, leather, refuse, sheet, stone, weapon, wood. Same coord
-//     tolerances and 100-tile cap as the dig verbs
+//     gem, leather, refuse, sheet, stone, weapon, wood, plus `all` for
+//     a stockpile that accepts every default top-level category. Same
+//     coord tolerances and 100-tile cap as the dig verbs
 //   - `appoint <position> <id>` — assign a dwarf (by its stable unit.id,
 //     shown on the /df/citizens page) to a fort noble position. Positions:
 //     manager, bookkeeper, broker, doctor, commander. `captain` is
