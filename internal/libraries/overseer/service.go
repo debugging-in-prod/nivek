@@ -310,8 +310,11 @@ func (s *nivekOverseerServiceImpl) submitCamera(action Action) error {
 	if action.Position == nil {
 		return fmt.Errorf("camera requires position")
 	}
-	script := fmt.Sprintf("dfhack.gui.revealInDwarfmodeMap({x=%d,y=%d,z=%d}, true)",
-		action.Position.X, action.Position.Y, action.Position.Z)
+	// Position.Z is elevation (dashboard-native); DFHack APIs want raw
+	// embark-local z. Convert in the lua so we don't need a separate
+	// region_z fetch. See [Position] in const.go.
+	script := fmt.Sprintf(`local rawz = %d - (df.global.world.map.region_z - 100); dfhack.gui.revealInDwarfmodeMap({x=%d,y=%d,z=rawz}, true)`,
+		action.Position.Z, action.Position.X, action.Position.Y)
 	return s.runLua(script)
 }
 
@@ -334,17 +337,20 @@ func (s *nivekOverseerServiceImpl) submitMine(action Action) error {
 	// Iterate each tile in the rectangle, set the dig designation. Pattern
 	// matches the spatial PoC's single-tile lua, just looped. Block lookup
 	// per-tile rather than batched — at <=25 tiles, RPC overhead is fine.
+	// r.Min.Z is elevation (dashboard-native); convert to raw z inside
+	// the lua, same as submitCamera/submitPlace.
 	script := fmt.Sprintf(`
+local rawz = %d - (df.global.world.map.region_z - 100)
 for x = %d, %d do
     for y = %d, %d do
-        local block = dfhack.maps.getTileBlock({x=x, y=y, z=%d})
+        local block = dfhack.maps.getTileBlock({x=x, y=y, z=rawz})
         if block then
             block.designation[x%%16][y%%16].dig = df.tile_dig_designation.Default
             block.occupancy[x%%16][y%%16].dig_marked = false
             block.flags.designated = true
         end
     end
-end`, minX, maxX, minY, maxY, r.Min.Z)
+end`, r.Min.Z, minX, maxX, minY, maxY)
 	return s.runLua(script)
 }
 
@@ -388,9 +394,10 @@ func (s *nivekOverseerServiceImpl) submitPlace(action Action) error {
 	if spec.WorkshopSubtype != "" {
 		subtype = fmt.Sprintf(", subtype=df.workshop_type.%s", spec.WorkshopSubtype)
 	}
+	// Position.Z is elevation; convert to raw z in the lua (see submitCamera).
 	script := fmt.Sprintf(
-		`local bld = dfhack.buildings.constructBuilding{type=df.building_type.%s%s, pos={x=%d,y=%d,z=%d}}; if not bld then error('constructBuilding returned nil — bad spot, blocked, or no matching item available') end`,
-		spec.BuildingType, subtype, action.Position.X, action.Position.Y, action.Position.Z,
+		`local rawz = %d - (df.global.world.map.region_z - 100); local bld = dfhack.buildings.constructBuilding{type=df.building_type.%s%s, pos={x=%d,y=%d,z=rawz}}; if not bld then error('constructBuilding returned nil — bad spot, blocked, or no matching item available') end`,
+		action.Position.Z, spec.BuildingType, subtype, action.Position.X, action.Position.Y,
 	)
 	return s.runLua(script)
 }
