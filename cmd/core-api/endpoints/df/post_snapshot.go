@@ -13,7 +13,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
-	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer/wire"
 )
 
 // NewPostSnapshotEndpoint accepts a MapSnapshot JSON body, verifies the
@@ -88,7 +88,7 @@ func NewPostSnapshotEndpoint(_ nivek.NivekService) echo.HandlerFunc {
 			})
 		}
 
-		var snap overseer.MapSnapshot
+		var snap wire.MapSnapshot
 		if err := json.Unmarshal(body, &snap); err != nil {
 			return c.JSON(http.StatusBadRequest, map[string]string{
 				"error": "decode snapshot json: " + err.Error(),

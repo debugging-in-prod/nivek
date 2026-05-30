@@ -17,6 +17,7 @@ import (
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/lurk"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer/wire"
 )
 
 type Config struct {
@@ -245,7 +246,7 @@ func (b *Bot) handleDFCommand(rawText, args, username, channel string) {
 
 	// help is a chat-response verb — no DFHack involvement, no executor
 	// round-trip. Short-circuit here before the WS send.
-	if action.Kind == overseer.ActionKindHelp {
+	if action.Kind == wire.ActionKindHelp {
 		b.client.Say(channel, fmt.Sprintf(
 			"@%s !DF: make [N] <material> <item> | place <item> <x> <y> <z> | brew [N] <fruit|plant> | mine <x,y,z> <x,y> | camera <x> <y> <z> | appoint <position> <id> | pause | unpause | help",
 			username,
@@ -254,13 +255,13 @@ func (b *Bot) handleDFCommand(rawText, args, username, channel string) {
 		return
 	}
 
-	cmd := overseer.Command{
+	cmd := wire.Command{
 		ID:         uuid.NewString(),
 		ReceivedAt: time.Now().UTC(),
 		RawText:    rawText,
-		From: overseer.CommandSource{
+		From: wire.CommandSource{
 			Username: username,
-			Platform: overseer.PlatformTwitch,
+			Platform: wire.PlatformTwitch,
 			Channel:  channel,
 		},
 		Action: action,
@@ -276,7 +277,7 @@ func (b *Bot) handleDFCommand(rawText, args, username, channel string) {
 		return
 	}
 
-	if executed.Result == overseer.ExecResultError {
+	if executed.Result == wire.ExecResultError {
 		log.Printf("[DF] [%s] %s: executor error: %s", channel, username, executed.ErrorMessage)
 		b.client.Say(channel, fmt.Sprintf("@%s — couldn't queue: %s", username, executed.ErrorMessage))
 		return
@@ -285,38 +286,38 @@ func (b *Bot) handleDFCommand(rawText, args, username, channel string) {
 	b.client.Say(channel, dfSuccessReply(username, action))
 }
 
-func dfSuccessReply(username string, action overseer.Action) string {
+func dfSuccessReply(username string, action wire.Action) string {
 	switch action.Kind {
-	case overseer.ActionKindManufacture:
+	case wire.ActionKindManufacture:
 		mat := ""
 		if action.Material != nil {
 			mat = *action.Material + " "
 		}
 		return fmt.Sprintf("@%s queued %d %s%s%s", username, action.Quantity, mat, action.Item, pluralize(action.Quantity))
-	case overseer.ActionKindPause:
+	case wire.ActionKindPause:
 		return fmt.Sprintf("@%s paused DF", username)
-	case overseer.ActionKindUnpause:
+	case wire.ActionKindUnpause:
 		return fmt.Sprintf("@%s unpaused DF", username)
-	case overseer.ActionKindCamera:
+	case wire.ActionKindCamera:
 		if action.Position != nil {
 			return fmt.Sprintf("@%s moved camera to (%d, %d, %d)", username, action.Position.X, action.Position.Y, action.Position.Z)
 		}
 		return fmt.Sprintf("@%s moved camera", username)
-	case overseer.ActionKindPlace:
+	case wire.ActionKindPlace:
 		if action.Position != nil {
 			return fmt.Sprintf("@%s placed %s at (%d, %d, %d)", username, action.Item, action.Position.X, action.Position.Y, action.Position.Z)
 		}
 		return fmt.Sprintf("@%s placed %s", username, action.Item)
-	case overseer.ActionKindBrew:
+	case wire.ActionKindBrew:
 		return fmt.Sprintf("@%s queued %d brew%s from %s", username, action.Quantity, pluralize(action.Quantity), action.Item)
-	case overseer.ActionKindMine, overseer.ActionKindChannel, overseer.ActionKindDigRamp, overseer.ActionKindCutTree:
+	case wire.ActionKindMine, wire.ActionKindChannel, wire.ActionKindDigRamp, wire.ActionKindCutTree:
 		noun := "dig"
 		switch action.Kind {
-		case overseer.ActionKindChannel:
+		case wire.ActionKindChannel:
 			noun = "channel"
-		case overseer.ActionKindDigRamp:
+		case wire.ActionKindDigRamp:
 			noun = "ramp"
-		case overseer.ActionKindCutTree:
+		case wire.ActionKindCutTree:
 			noun = "tree-chop"
 		}
 		if action.Region != nil {
@@ -329,7 +330,7 @@ func dfSuccessReply(username string, action overseer.Action) string {
 			)
 		}
 		return fmt.Sprintf("@%s designated %s area", username, noun)
-	case overseer.ActionKindStockpile:
+	case wire.ActionKindStockpile:
 		if action.Region != nil {
 			dx := abs(action.Region.Max.X-action.Region.Min.X) + 1
 			dy := abs(action.Region.Max.Y-action.Region.Min.Y) + 1
@@ -338,7 +339,7 @@ func dfSuccessReply(username string, action overseer.Action) string {
 				action.Region.Min.X, action.Region.Min.Y, action.Region.Min.Z)
 		}
 		return fmt.Sprintf("@%s built %s stockpile", username, action.Item)
-	case overseer.ActionKindZone:
+	case wire.ActionKindZone:
 		if action.Region != nil {
 			dx := abs(action.Region.Max.X-action.Region.Min.X) + 1
 			dy := abs(action.Region.Max.Y-action.Region.Min.Y) + 1
@@ -347,9 +348,9 @@ func dfSuccessReply(username string, action overseer.Action) string {
 				action.Region.Min.X, action.Region.Min.Y, action.Region.Min.Z)
 		}
 		return fmt.Sprintf("@%s designated %s zone", username, action.Item)
-	case overseer.ActionKindAppoint:
+	case wire.ActionKindAppoint:
 		return fmt.Sprintf("@%s appointed unit #%d as %s", username, action.UnitID, action.Office)
-	case overseer.ActionKindTaskat:
+	case wire.ActionKindTaskat:
 		mat := ""
 		if action.Material != nil {
 			mat = *action.Material + " "

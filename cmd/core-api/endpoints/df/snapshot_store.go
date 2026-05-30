@@ -3,7 +3,7 @@ package df
 import (
 	"sync"
 
-	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer/wire"
 )
 
 // snapshotStore holds the most recently received MapSnapshot in memory.
@@ -12,18 +12,18 @@ import (
 // persistence) so memory footprint stays bounded.
 type snapshotStore struct {
 	mu      sync.RWMutex
-	current *overseer.MapSnapshot
+	current *wire.MapSnapshot
 }
 
 var store = &snapshotStore{}
 
-func (s *snapshotStore) get() *overseer.MapSnapshot {
+func (s *snapshotStore) get() *wire.MapSnapshot {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.current
 }
 
-func (s *snapshotStore) set(snap *overseer.MapSnapshot) {
+func (s *snapshotStore) set(snap *wire.MapSnapshot) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.current = snap

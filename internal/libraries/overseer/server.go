@@ -9,10 +9,12 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer/wire"
 )
 
 // SubmitFunc is the executor-side dispatch function for incoming Commands.
-type SubmitFunc func(action Action) error
+type SubmitFunc func(action wire.Action) error
 
 // Server handles incoming WebSocket connections, verifies envelopes, and
 // dispatches Commands to the provided SubmitFunc.
@@ -66,34 +68,34 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		lastReqSeq = env.Seq
 
-		if env.Type != EnvelopeTypeCommand {
+		if env.Type != wire.EnvelopeTypeCommand {
 			log.Printf("[overseer-server] ignoring envelope type %s", env.Type)
 			continue
 		}
 
-		var cmd Command
+		var cmd wire.Command
 		if err := json.Unmarshal(env.Data, &cmd); err != nil {
 			log.Printf("[overseer-server] bad Command JSON: %v", err)
 			continue
 		}
 
 		execErr := s.submit(cmd.Action)
-		executed := ExecutedCmd{
+		executed := wire.ExecutedCmd{
 			CommandID:    cmd.ID,
 			RawText:      cmd.RawText,
 			Action:       cmd.Action,
 			FromUsername: cmd.From.Username,
 			ExecutedAt:   time.Now().UTC(),
 			ChatToExecMs: time.Since(cmd.ReceivedAt).Milliseconds(),
-			Result:       ExecResultOK,
+			Result:       wire.ExecResultOK,
 		}
 		if execErr != nil {
-			executed.Result = ExecResultError
+			executed.Result = wire.ExecResultError
 			executed.ErrorMessage = execErr.Error()
 		}
 
 		ackSeq++
-		ackEnv, err := MarshalEnvelope(EnvelopeTypeExecutedCmd, ackSeq, executed, s.hmacKey)
+		ackEnv, err := MarshalEnvelope(wire.EnvelopeTypeExecutedCmd, ackSeq, executed, s.hmacKey)
 		if err != nil {
 			log.Printf("[overseer-server] marshal ack: %v", err)
 			continue
