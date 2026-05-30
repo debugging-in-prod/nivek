@@ -92,6 +92,26 @@ local function gather_furniture_by_z(z_min, z_max)
     return by_z
 end
 
+-- Trees are plant entities, not tile shapes: in DF v50 the tile at a tree's
+-- trunk position is typically FLOOR with the tree overlaid. tile_at() only
+-- inspects shape and would emit FLOOR for trunk tiles, so we gather tree
+-- positions once per pass (cheap: usually a few hundred trees) and overlay
+-- them onto the tile buffer in finish_level().
+local function gather_trees_by_z(z_min, z_max)
+    local by_z = {}
+    local function add(t)
+        local p = t.pos
+        if p.z >= z_min and p.z <= z_max then
+            local list = by_z[p.z]
+            if not list then list = {}; by_z[p.z] = list end
+            list[#list + 1] = { x = p.x, y = p.y }
+        end
+    end
+    for _, t in ipairs(df.global.world.plants.tree_dry) do add(t) end
+    for _, t in ipairs(df.global.world.plants.tree_wet) do add(t) end
+    return by_z
+end
+
 -- Citizens are bounded by fort population (usually 50-200), so the whole list
 -- is gathered in one slice at finalize time.
 local function gather_citizens()
@@ -189,6 +209,7 @@ local function begin_pass()
         z_min = z_min, z_max = z_max, width = width, height = height,
         blocks = blocks,
         furniture_by_z = gather_furniture_by_z(z_min, z_max),
+        trees_by_z = gather_trees_by_z(z_min, z_max),
         cur_z = z_min,
         cur_block = 1,
         tiles = tiles,
@@ -217,6 +238,19 @@ end
 -- resetting the tile buffer. The big tiles array is joined with table.concat
 -- (fast, once per level) rather than a giant json.encode at end-of-pass.
 local function finish_level(p)
+    -- Overlay trees onto the tile buffer for this z. tile_at() only sees
+    -- the underlying shape (usually FLOOR at a trunk), so trees need to be
+    -- painted on top from the plant vector.
+    local trees = p.trees_by_z[p.cur_z]
+    if trees then
+        local width, height = p.width, p.height
+        for _, t in ipairs(trees) do
+            if t.x >= 0 and t.x < width and t.y >= 0 and t.y < height then
+                p.tiles[t.y * width + t.x + 1] = T_TREE
+            end
+        end
+    end
+
     local f = p.f
     if p.wrote_level then f:write(',') end
     f:write(string.format('{"z":%d,"tiles":[', p.cur_z))
