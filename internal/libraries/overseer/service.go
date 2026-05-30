@@ -184,6 +184,17 @@ var placeableItemToBuilding = map[string]placeSpec{
 	"magmakiln":         {BuildingType: "Furnace", FurnaceSubtype: "MagmaKiln"},
 }
 
+// zoneTypeToCivzoneEnum maps chat-facing zone-type keywords to DFHack
+// df.civzone_type enum names. v1 covers office, bedroom, dormitory —
+// the room-designation set the user asked for. Easy to extend later
+// with dininghall, meetinghall, barracks, tomb, etc. (the full list is
+// in df.civzone_type).
+var zoneTypeToCivzoneEnum = map[string]string{
+	"office":    "Office",
+	"bedroom":   "Bedroom",
+	"dormitory": "Dormitory",
+}
+
 // stockpileCategoryToPreset maps chat-facing stockpile category nouns to
 // the DFHack stockpiles plugin's library preset path. Chat tokens are
 // singular — the parser's trailing-s strip means plurals (animals,
@@ -380,6 +391,8 @@ func (s *nivekOverseerServiceImpl) Submit(action Action) error {
 		return s.submitCutTree(action)
 	case ActionKindStockpile:
 		return s.submitStockpile(action)
+	case ActionKindZone:
+		return s.submitZone(action)
 	case ActionKindAppoint:
 		return s.submitAppoint(action)
 	case ActionKindTaskat:
@@ -516,6 +529,44 @@ local sp = dfhack.buildings.constructBuilding{
 if not sp then error("constructBuilding returned nil — bad spot or blocked") end
 require("plugins.stockpiles").import_settings(%q, {id=sp.id})`,
 		r.Min.Z, minX, minY, maxX-minX+1, maxY-minY+1, preset)
+	return s.runLua(script)
+}
+
+// submitZone builds an abstract Civzone covering the region and sets
+// its type (df.civzone_type) to the requested room kind. The created
+// zone is unowned — for offices, a noble's `assigned_unit_id` would be
+// set in a separate appoint/assign flow.
+func (s *nivekOverseerServiceImpl) submitZone(action Action) error {
+	if action.Region == nil {
+		return fmt.Errorf("zone requires region")
+	}
+	zoneEnum, ok := zoneTypeToCivzoneEnum[action.Item]
+	if !ok {
+		return fmt.Errorf("no DFHack civzone_type mapping for zone: %s", action.Item)
+	}
+	r := action.Region
+	if r.Min.Z != r.Max.Z {
+		return fmt.Errorf("zone region must be on a single Z level (got Min.Z=%d Max.Z=%d)", r.Min.Z, r.Max.Z)
+	}
+	minX, maxX := r.Min.X, r.Max.X
+	if minX > maxX {
+		minX, maxX = maxX, minX
+	}
+	minY, maxY := r.Min.Y, r.Max.Y
+	if minY > maxY {
+		minY, maxY = maxY, minY
+	}
+	script := fmt.Sprintf(`
+local rawz = %d - (df.global.world.map.region_z - 100)
+local z = dfhack.buildings.constructBuilding{
+    type = df.building_type.Civzone,
+    abstract = true,
+    pos = {x=%d, y=%d, z=rawz},
+    width = %d, height = %d,
+}
+if not z then error("constructBuilding returned nil — bad spot or blocked") end
+z.type = df.civzone_type.%s`,
+		r.Min.Z, minX, minY, maxX-minX+1, maxY-minY+1, zoneEnum)
 	return s.runLua(script)
 }
 

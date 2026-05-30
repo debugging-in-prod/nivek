@@ -183,6 +183,11 @@ func (e *RejectReason) Error() string { return e.Msg }
 //     gem, leather, refuse, sheet, stone, weapon, wood, plus `all` for
 //     a stockpile that accepts every default top-level category. Same
 //     coord tolerances and 100-tile cap as the dig verbs
+//   - `zone <type> <x,y,z>` / `zone <type> <x1,y1,z> <x2,y2[,z]>` —
+//     designates a rectangular fortress room as a Civzone of the given
+//     type. v1 types: office, bedroom, dormitory. Same coord tolerances
+//     and 100-tile cap as the dig verbs. The zone is created unowned;
+//     nobles get assigned to offices via a separate appoint flow
 //   - `taskat #<workshop_id> [qty] <material> <item>` — queue a job
 //     directly into a specific workshop, bypassing the fortress manager
 //     queue. Useful pre-manager (workorders need a manager to process).
@@ -235,6 +240,8 @@ func ParseCommand(args string) (Action, error) {
 		return parseCutTree(rest)
 	case "stockpile":
 		return parseStockpile(rest)
+	case "zone":
+		return parseZone(rest)
 	case "taskat":
 		return parseTaskat(rest)
 	case "appoint":
@@ -523,6 +530,29 @@ func parseStockpile(rest []string) (Action, error) {
 	return Action{
 		Kind:   ActionKindStockpile,
 		Item:   category,
+		Region: region,
+	}, nil
+}
+
+// parseZone handles `zone <type> <coords>` — designates a rectangular
+// fortress room. v1 supports office / bedroom / dormitory; same coord
+// tolerances and 100-tile cap as the dig verbs. The DFHack civzone_type
+// mapping lives in zoneTypeToCivzoneEnum (service.go).
+func parseZone(rest []string) (Action, error) {
+	if len(rest) == 0 {
+		return Action{}, fmt.Errorf("zone needs <type> <coords>")
+	}
+	zoneType := strings.TrimSuffix(rest[0], "s")
+	if _, ok := zoneTypeToCivzoneEnum[zoneType]; !ok {
+		return Action{}, fmt.Errorf("unknown zone type: %q (try office, bedroom, dormitory)", rest[0])
+	}
+	region, err := parseRegionVerb("zone", rest[1:])
+	if err != nil {
+		return Action{}, err
+	}
+	return Action{
+		Kind:   ActionKindZone,
+		Item:   zoneType,
 		Region: region,
 	}, nil
 }
