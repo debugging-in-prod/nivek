@@ -177,6 +177,7 @@ const (
 	ActionKindChannel     ActionKind = "channel"
 	ActionKindDigRamp     ActionKind = "digramp"
 	ActionKindCutTree     ActionKind = "cuttree"
+	ActionKindStockpile   ActionKind = "stockpile"
 	ActionKindAppoint     ActionKind = "appoint"
 )
 

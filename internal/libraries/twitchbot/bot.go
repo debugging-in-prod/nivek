@@ -329,6 +329,15 @@ func dfSuccessReply(username string, action overseer.Action) string {
 			)
 		}
 		return fmt.Sprintf("@%s designated %s area", username, noun)
+	case overseer.ActionKindStockpile:
+		if action.Region != nil {
+			dx := abs(action.Region.Max.X-action.Region.Min.X) + 1
+			dy := abs(action.Region.Max.Y-action.Region.Min.Y) + 1
+			return fmt.Sprintf("@%s built %dx%d %s stockpile at (%d, %d, %d)",
+				username, dx, dy, action.Item,
+				action.Region.Min.X, action.Region.Min.Y, action.Region.Min.Z)
+		}
+		return fmt.Sprintf("@%s built %s stockpile", username, action.Item)
 	case overseer.ActionKindAppoint:
 		return fmt.Sprintf("@%s appointed unit #%d as %s", username, action.UnitID, action.Office)
 	default:

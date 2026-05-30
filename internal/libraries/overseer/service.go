@@ -182,6 +182,34 @@ var placeableItemToBuilding = map[string]placeSpec{
 	"magmakiln":         {BuildingType: "Furnace", FurnaceSubtype: "MagmaKiln"},
 }
 
+// stockpileCategoryToPreset maps chat-facing stockpile category nouns to
+// the DFHack stockpiles plugin's library preset path. Chat tokens are
+// singular — the parser's trailing-s strip means plurals (animals,
+// weapons, gems, etc.) also work. The presets ship with DFHack at
+// hack/data/stockpiles/cat_*.dfstock; each is "accept this category,
+// reject everything else", exactly what a single-category stockpile
+// needs. Mapped via plugins.stockpiles.import_settings on a freshly
+// constructed Stockpile building.
+var stockpileCategoryToPreset = map[string]string{
+	"ammo":      "library/cat_ammo",
+	"animal":    "library/cat_animals",
+	"armor":     "library/cat_armor",
+	"bar":       "library/cat_bars_blocks",
+	"cloth":     "library/cat_cloth",
+	"coin":      "library/cat_coins",
+	"corpse":    "library/cat_corpses",
+	"good":      "library/cat_finished_goods",
+	"food":      "library/cat_food",
+	"furniture": "library/cat_furniture",
+	"gem":       "library/cat_gems",
+	"leather":   "library/cat_leather",
+	"refuse":    "library/cat_refuse",
+	"sheet":     "library/cat_sheets",
+	"stone":     "library/cat_stone",
+	"weapon":    "library/cat_weapons",
+	"wood":      "library/cat_wood",
+}
+
 // materialToWorkorderSpec maps chat-facing material tokens to the JSON shape
 // DFHack's `workorder` command expects. Two shapes coexist:
 //
@@ -347,6 +375,8 @@ func (s *nivekOverseerServiceImpl) Submit(action Action) error {
 		return s.submitDigDesignation(action, "Ramp")
 	case ActionKindCutTree:
 		return s.submitCutTree(action)
+	case ActionKindStockpile:
+		return s.submitStockpile(action)
 	case ActionKindAppoint:
 		return s.submitAppoint(action)
 	default:
@@ -363,6 +393,48 @@ func (s *nivekOverseerServiceImpl) submitCamera(action Action) error {
 	// region_z fetch. See [Position] in const.go.
 	script := fmt.Sprintf(`local rawz = %d - (df.global.world.map.region_z - 100); dfhack.gui.revealInDwarfmodeMap({x=%d,y=%d,z=rawz}, true)`,
 		action.Position.Z, action.Position.X, action.Position.Y)
+	return s.runLua(script)
+}
+
+// submitStockpile builds an abstract Stockpile building covering the
+// region and applies one of DFHack's built-in cat_*.dfstock presets to
+// restrict it to a single top-level category. The `abstract=true` flag
+// is required for stockpiles (they have no item/material requirements,
+// unlike workshops). The preset is applied via plugins.stockpiles'
+// import_settings, defaulting to mode='set' which replaces all
+// settings — the constructed stockpile inherits whatever DF defaults
+// to, but the immediate preset overwrites that wholesale.
+func (s *nivekOverseerServiceImpl) submitStockpile(action Action) error {
+	if action.Region == nil {
+		return fmt.Errorf("stockpile requires region")
+	}
+	preset, ok := stockpileCategoryToPreset[action.Item]
+	if !ok {
+		return fmt.Errorf("no DFHack preset for stockpile category: %s", action.Item)
+	}
+	r := action.Region
+	if r.Min.Z != r.Max.Z {
+		return fmt.Errorf("stockpile region must be on a single Z level (got Min.Z=%d Max.Z=%d)", r.Min.Z, r.Max.Z)
+	}
+	minX, maxX := r.Min.X, r.Max.X
+	if minX > maxX {
+		minX, maxX = maxX, minX
+	}
+	minY, maxY := r.Min.Y, r.Max.Y
+	if minY > maxY {
+		minY, maxY = maxY, minY
+	}
+	script := fmt.Sprintf(`
+local rawz = %d - (df.global.world.map.region_z - 100)
+local sp = dfhack.buildings.constructBuilding{
+    type = df.building_type.Stockpile,
+    abstract = true,
+    pos = {x=%d, y=%d, z=rawz},
+    width = %d, height = %d,
+}
+if not sp then error("constructBuilding returned nil — bad spot or blocked") end
+require("plugins.stockpiles").import_settings(%q, {id=sp.id})`,
+		r.Min.Z, minX, minY, maxX-minX+1, maxY-minY+1, preset)
 	return s.runLua(script)
 }
 
