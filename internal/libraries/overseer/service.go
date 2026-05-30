@@ -298,7 +298,11 @@ func (s *nivekOverseerServiceImpl) Submit(action Action) error {
 	case ActionKindBrew:
 		return s.submitBrew(action)
 	case ActionKindMine:
-		return s.submitMine(action)
+		return s.submitDigDesignation(action, "Default")
+	case ActionKindChannel:
+		return s.submitDigDesignation(action, "Channel")
+	case ActionKindDigRamp:
+		return s.submitDigDesignation(action, "Ramp")
 	case ActionKindAppoint:
 		return s.submitAppoint(action)
 	default:
@@ -318,13 +322,18 @@ func (s *nivekOverseerServiceImpl) submitCamera(action Action) error {
 	return s.runLua(script)
 }
 
-func (s *nivekOverseerServiceImpl) submitMine(action Action) error {
+// submitDigDesignation issues a rectangular dig designation across the
+// region in action.Region. designation is the df.tile_dig_designation enum
+// name to apply — "Default" (mine), "Channel" (channel), or "Ramp"
+// (digramp). The shape — single-Z, raw-z conversion, per-tile block lookup
+// — is identical across all three verbs; only the designation differs.
+func (s *nivekOverseerServiceImpl) submitDigDesignation(action Action, designation string) error {
 	if action.Region == nil {
-		return fmt.Errorf("mine requires region")
+		return fmt.Errorf("%s requires region", action.Kind)
 	}
 	r := action.Region
 	if r.Min.Z != r.Max.Z {
-		return fmt.Errorf("mine region must be on a single Z level (got Min.Z=%d Max.Z=%d)", r.Min.Z, r.Max.Z)
+		return fmt.Errorf("%s region must be on a single Z level (got Min.Z=%d Max.Z=%d)", action.Kind, r.Min.Z, r.Max.Z)
 	}
 	minX, maxX := r.Min.X, r.Max.X
 	if minX > maxX {
@@ -334,23 +343,22 @@ func (s *nivekOverseerServiceImpl) submitMine(action Action) error {
 	if minY > maxY {
 		minY, maxY = maxY, minY
 	}
-	// Iterate each tile in the rectangle, set the dig designation. Pattern
-	// matches the spatial PoC's single-tile lua, just looped. Block lookup
-	// per-tile rather than batched — at <=25 tiles, RPC overhead is fine.
-	// r.Min.Z is elevation (dashboard-native); convert to raw z inside
-	// the lua, same as submitCamera/submitPlace.
+	// Iterate each tile in the rectangle, set the dig designation. Block
+	// lookup per-tile rather than batched — at <=25 tiles, RPC overhead is
+	// fine. r.Min.Z is elevation (dashboard-native); convert to raw z
+	// inside the lua, same as submitCamera/submitPlace.
 	script := fmt.Sprintf(`
 local rawz = %d - (df.global.world.map.region_z - 100)
 for x = %d, %d do
     for y = %d, %d do
         local block = dfhack.maps.getTileBlock({x=x, y=y, z=rawz})
         if block then
-            block.designation[x%%16][y%%16].dig = df.tile_dig_designation.Default
+            block.designation[x%%16][y%%16].dig = df.tile_dig_designation.%s
             block.occupancy[x%%16][y%%16].dig_marked = false
             block.flags.designated = true
         end
     end
-end`, r.Min.Z, minX, maxX, minY, maxY)
+end`, r.Min.Z, minX, maxX, minY, maxY, designation)
 	return s.runLua(script)
 }
 

@@ -163,6 +163,12 @@ func (e *RejectReason) Error() string { return e.Msg }
 //     accepted but the second 35 has no effect — multi-Z mining stays
 //     impossible to express. Area is capped at 25 tiles per command to
 //     keep individual jobs bounded
+//   - `channel <x1,y1,z> <x2,y2[,z]>` — same shape and constraints as
+//     `mine`, but applies the channel dig designation (carves the tile
+//     down a level, leaving a ramp below)
+//   - `digramp <x1,y1,z> <x2,y2[,z]>` — same shape and constraints as
+//     `mine`, but applies the ramp dig designation (carves out the tile
+//     as an upward ramp, exposing the floor above)
 //   - `appoint <position> <id>` — assign a dwarf (by its stable unit.id,
 //     shown on the /df/citizens page) to a fort noble position. Positions:
 //     manager, bookkeeper, broker, doctor, commander. `captain` is
@@ -198,6 +204,10 @@ func ParseCommand(args string) (Action, error) {
 		return parseBrew(rest)
 	case "mine":
 		return parseMine(rest)
+	case "channel":
+		return parseChannel(rest)
+	case "digramp":
+		return parseDigRamp(rest)
 	case "appoint":
 		return parseAppoint(rest)
 	default:
@@ -331,42 +341,66 @@ func parseCamera(rest []string) (Action, error) {
 	}, nil
 }
 
-// mineMaxArea is the per-command cap on the rectangular dig area
-// (tiles). Keeps individual commands bounded.
-const mineMaxArea = 25
+// regionVerbMaxArea is the per-command cap on the rectangular tile area
+// for region-based dig verbs (mine, channel, digramp). Keeps individual
+// commands bounded.
+const regionVerbMaxArea = 25
 
-func parseMine(rest []string) (Action, error) {
-	// Accept 5 ints (legacy: x1,y1,z + x2,y2) or 6 ints (dashboard copy-paste:
-	// (x1,y1,z) + (x2,y2,z) — the second z is silently discarded to preserve
-	// the single-Z invariant). Anything else rejects.
+// parseRegionVerb parses the coord-list shared by all rectangular dig verbs.
+// Accepts 5 ints (legacy: x1,y1,z + x2,y2) or 6 ints (dashboard copy-paste:
+// (x1,y1,z) + (x2,y2,z) — the second z is silently discarded to preserve
+// the single-Z invariant). Anything else rejects. verb is the chat-facing
+// verb name, used only in error messages.
+func parseRegionVerb(verb string, rest []string) (*Region, error) {
 	coords, err := extractCoordInts(rest)
 	if err != nil {
-		return Action{}, err
+		return nil, err
 	}
 	if len(coords) != 5 && len(coords) != 6 {
-		return Action{}, fmt.Errorf("mine needs (x1,y1,z) (x2,y2[,z]) — 5 or 6 numbers total, got %d", len(coords))
+		return nil, fmt.Errorf("%s needs (x1,y1,z) (x2,y2[,z]) — 5 or 6 numbers total, got %d", verb, len(coords))
 	}
 	x1, y1, z, x2, y2 := coords[0], coords[1], coords[2], coords[3], coords[4]
 	// coords[5], if present, is the second coord's z — intentionally ignored
-	// so multi-Z mining stays impossible to express.
+	// so multi-Z designations stay impossible to express.
 
 	dx := abs(x2-x1) + 1
 	dy := abs(y2-y1) + 1
 	area := dx * dy
-	if area > mineMaxArea {
-		return Action{}, fmt.Errorf("mine area %dx%d=%d tiles exceeds %d-tile cap", dx, dy, area, mineMaxArea)
+	if area > regionVerbMaxArea {
+		return nil, fmt.Errorf("%s area %dx%d=%d tiles exceeds %d-tile cap", verb, dx, dy, area, regionVerbMaxArea)
 	}
 
-	return Action{
-		Kind: ActionKindMine,
-		Region: &Region{
-			Min: Position{X: x1, Y: y1, Z: z},
-			Max: Position{X: x2, Y: y2, Z: z}, // Z inherits from first coord
-		},
+	return &Region{
+		Min: Position{X: x1, Y: y1, Z: z},
+		Max: Position{X: x2, Y: y2, Z: z}, // Z inherits from first coord
 	}, nil
 }
 
-// abs returns |n|. Used by parseMine to compute rectangle dimensions
+func parseMine(rest []string) (Action, error) {
+	region, err := parseRegionVerb("mine", rest)
+	if err != nil {
+		return Action{}, err
+	}
+	return Action{Kind: ActionKindMine, Region: region}, nil
+}
+
+func parseChannel(rest []string) (Action, error) {
+	region, err := parseRegionVerb("channel", rest)
+	if err != nil {
+		return Action{}, err
+	}
+	return Action{Kind: ActionKindChannel, Region: region}, nil
+}
+
+func parseDigRamp(rest []string) (Action, error) {
+	region, err := parseRegionVerb("digramp", rest)
+	if err != nil {
+		return Action{}, err
+	}
+	return Action{Kind: ActionKindDigRamp, Region: region}, nil
+}
+
+// abs returns |n|. Used by parseRegionVerb to compute rectangle dimensions
 // regardless of which corner the chatter listed first — `mine 0,0,0 5,5`
 // and `mine 5,5,0 0,0` describe the same region, so `Max - Min` can be
 // negative. Go's math.Abs is float64-only, so a 5-line int helper is
