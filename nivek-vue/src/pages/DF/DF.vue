@@ -346,6 +346,9 @@ onBeforeUnmount(() => {
                     <li><span class="swatch water" /> water</li>
                     <li><span class="swatch magma" /> magma</li>
                     <li><span class="swatch tree" /> tree</li>
+                    <li><span class="swatch workshop" /> workshop</li>
+                    <li><span class="swatch furnace" /> furnace</li>
+                    <li><span class="swatch stockpile" /> stockpile</li>
                 </ul>
                 <h3>Furniture glyphs</h3>
                 <ul class="furniture-legend">
@@ -661,6 +664,9 @@ canvas {
 .swatch.water  { background: #3a8fc7; }
 .swatch.magma  { background: #d04020; }
 .swatch.tree   { background: #6b3e1c; }
+.swatch.workshop  { background: #a06e32; }
+.swatch.furnace   { background: #be4628; }
+.swatch.stockpile { background: #3c6496; }
 
 .furniture-legend code {
     background: #333;
