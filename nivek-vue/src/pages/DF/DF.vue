@@ -4,9 +4,10 @@ import { fetchSnapshot } from '@/services/DFService'
 import type { MapSnapshot, ZLevel } from '@/types/df'
 import { drawLevel, pixelToWorld, DEFAULT_CELL_SIZE, MIN_CELL_SIZE, MAX_CELL_SIZE } from './renderer'
 
-// Poll the snapshot endpoint on a timer. The DFHost pusher now sends
-// every 15s; lower this in a follow-up to align (see PR #51).
-const POLL_INTERVAL_MS = 30_000
+// Poll the snapshot endpoint on a timer. Faster than the DFHost pusher's
+// 15s cadence so a new push surfaces within one poll cycle instead of
+// waiting for an aligned tick.
+const POLL_INTERVAL_MS = 10_000
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const viewportRef = ref<HTMLDivElement | null>(null)
