@@ -16,7 +16,7 @@
 //	                            (e.g. https://nivek.life/api/df/snapshot)
 //	DASHBOARD_PUSH_HMAC_KEY     hex-encoded shared secret; must match
 //	                            the same env var on the receiver side
-//	DASHBOARD_PUSH_INTERVAL_SEC (optional, default 300) seconds between
+//	DASHBOARD_PUSH_INTERVAL_SEC (optional, default 15) seconds between
 //	                            pushes; minimum 10 to prevent foot-shooting
 package main
 
@@ -42,7 +42,7 @@ import (
 )
 
 const (
-	defaultIntervalSec = 300
+	defaultIntervalSec = 15
 	minIntervalSec     = 10
 	httpPushTimeout    = 30 * time.Second
 )
