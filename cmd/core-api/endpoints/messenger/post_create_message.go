@@ -13,7 +13,7 @@ func NewCreateMesageEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		var newMessage messagerSvc.Message
 		if err := c.Bind(&newMessage); err != nil {
-			nivek.Logger().Errorf("[Messager] failed to read request body: %w", err)
+			nivek.Logger().Errorf("[Messager] failed to read request body: %v", err)
 			return c.JSON(http.StatusBadRequest, map[string]string{
 				"error": "failed to read request body",
 			})
