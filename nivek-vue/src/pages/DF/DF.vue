@@ -9,6 +9,9 @@ import { drawLevel, pixelToWorld, DEFAULT_CELL_SIZE, MIN_CELL_SIZE, MAX_CELL_SIZ
 // waiting for an aligned tick.
 const POLL_INTERVAL_MS = 10_000
 
+// First commit of the Twitch-plays-DF portion of the repo, in epoch ms.
+const PROJECT_STARTED_MS = 1779331080 * 1000
+
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const viewportRef = ref<HTMLDivElement | null>(null)
 const snapshot = ref<MapSnapshot | null>(null)
@@ -36,6 +39,21 @@ const hoverCoord = ref<Coord | null>(null)
 const selectedCoords = ref<Coord[]>([])
 
 let pollTimer: number | undefined
+let elapsedTimer: number | undefined
+
+const elapsedMs = ref(Date.now() - PROJECT_STARTED_MS)
+
+// Format ms as "Xd Yh Zm Ws" — leading-zero pad the smaller units so the
+// digits don't jump width as they tick.
+const elapsedDisplay = computed(() => {
+    const total = Math.max(0, Math.floor(elapsedMs.value / 1000))
+    const days = Math.floor(total / 86400)
+    const hours = Math.floor((total % 86400) / 3600)
+    const minutes = Math.floor((total % 3600) / 60)
+    const seconds = total % 60
+    const pad = (n: number) => n.toString().padStart(2, '0')
+    return `${days}d ${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`
+})
 
 const currentLevel = computed<ZLevel | null>(() => {
     if (!snapshot.value) return null
@@ -221,6 +239,11 @@ function onKeydown(ev: KeyboardEvent) {
     }
 }
 
+function tickElapsed() {
+    elapsedMs.value = Date.now() - PROJECT_STARTED_MS
+}
+
+
 // Re-render whenever the active Z level or zoom changes (button click,
 // key press, wheel, or snapshot refresh shifting the index).
 watch([currentLevelIdx, cellSize], renderCurrent)
@@ -228,11 +251,13 @@ watch([currentLevelIdx, cellSize], renderCurrent)
 onMounted(() => {
     loadSnapshot()
     pollTimer = window.setInterval(loadSnapshot, POLL_INTERVAL_MS)
+    elapsedTimer = window.setInterval(tickElapsed, 1000)
     window.addEventListener('keydown', onKeydown)
 })
 
 onBeforeUnmount(() => {
     if (pollTimer !== undefined) window.clearInterval(pollTimer)
+    if (elapsedTimer !== undefined) window.clearInterval(elapsedTimer)
     window.removeEventListener('keydown', onKeydown)
 })
 </script>
@@ -368,6 +393,10 @@ onBeforeUnmount(() => {
         <p class="note">
             Live overview. Browser refreshes every {{ POLL_INTERVAL_MS / 1000 }}s; the DFHost pushes
             new data every 15s. Citizen roster is on the <router-link to="/df/citizens">Citizens</router-link> page.
+        </p>
+
+        <p class="note">
+            Time since this project began: T+ <span class="green">{{ elapsedDisplay }}</span>
         </p>
     </div>
 </template>
