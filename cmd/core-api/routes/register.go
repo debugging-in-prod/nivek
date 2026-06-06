@@ -4,6 +4,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/autoshout"
+	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/bot"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/df"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/fishing"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/messenger"
@@ -86,4 +87,13 @@ func RegisterRoutes(nivek nivek.NivekService, e *echo.Group) {
 	// DF dashboard (GET public, POST HMAC-authed in the handler)
 	e.GET(GetDFSnapshot, df.NewGetSnapshotEndpoint(nivek))
 	e.POST(PostDFSnapshot, df.NewPostSnapshotEndpoint(nivek))
+
+	// twitch-bot RPC. HMAC-authed via BOT_API_HMAC_KEY (hex). See
+	// nivekmiddleware.NewHMACMiddleware for the canonical-string format the
+	// bot signs.
+	botAuth := nivekmiddleware.NewHMACMiddleware("BOT_API_HMAC_KEY")
+	e.GET(GetBotChannels, bot.NewGetChannelsEndpoint(nivek), botAuth)
+	e.POST(PostBotBreadIncrement, bot.NewPostBreadIncrementEndpoint(nivek), botAuth)
+	e.GET(GetBotBreadTotal, bot.NewGetBreadTotalEndpoint(nivek), botAuth)
+	e.POST(PostBotLurkMessage, bot.NewPostLurkMessageEndpoint(nivek), botAuth)
 }
