@@ -11,11 +11,6 @@ import (
 
 	"github.com/gempir/go-twitch-irc/v4"
 	"github.com/google/uuid"
-	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/autoshout"
-	bread2 "github.com/tim-the-toolman-taylor/nivek/internal/libraries/bread"
-	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/fishing"
-	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/lurk"
-	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer/wire"
 )
@@ -30,19 +25,20 @@ type Config struct {
 	OverseerHmacKey string // hex-encoded HMAC key, shared with the executor
 }
 
+// Bot has no direct Postgres dependency. All persistent state goes through
+// CoreAPIClient → HMAC-authed RPC → core-api → DB. That way a compromised Pi
+// can't drain prod data: it only has bot-scoped API capability, not raw DB
+// credentials.
 type Bot struct {
 	client         *twitch.Client
 	config         Config
 	counters       *CounterManager
 	location       *time.Location
-	nivek          nivek.NivekService
-	autoShout      autoshout.NivekAutoShoutService
-	bread          bread2.NivekBreadService
-	lurkSvc        lurk.NivekLurkService
+	coreAPI        *CoreAPIClient
 	overseerClient *overseer.Client
 }
 
-func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
+func NewBot(coreAPI *CoreAPIClient, config Config) (*Bot, error) {
 	// Load timezone
 	loc, err := time.LoadLocation(config.Timezone)
 	if err != nil {
@@ -54,16 +50,6 @@ func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create counter manager: %w", err)
 	}
-
-	// auto shout service
-	autoShout := autoshout.NewService(nivek)
-	log.Println("[TwitchBot] created auto shout service")
-
-	// bread service
-	bread := bread2.NewService(nivek)
-
-	// lurk service
-	lurkSvc := lurk.NewService(nivek)
 
 	// overseer (DF Twitch-plays) WebSocket client to the executor
 	hmacKey, err := hex.DecodeString(config.OverseerHmacKey)
@@ -82,10 +68,7 @@ func NewBot(nivek nivek.NivekService, config Config) (*Bot, error) {
 		config:         config,
 		counters:       counters,
 		location:       loc,
-		nivek:          nivek,
-		autoShout:      autoShout,
-		bread:          bread,
-		lurkSvc:        lurkSvc,
+		coreAPI:        coreAPI,
 		overseerClient: overseerCli,
 	}
 
@@ -187,7 +170,7 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	}
 }
 func (b *Bot) handleLurkCommand(username, channel string) {
-	if count := b.lurkSvc.OnMessage(channel, username); count > 0 {
+	if count := b.coreAPI.LurkOnMessage(channel, username); count > 0 {
 
 		b.client.Say(channel, fmt.Sprintf(
 			"thank you for the lurk! @%s You have lurked %d times",
@@ -198,12 +181,12 @@ func (b *Bot) handleLurkCommand(username, channel string) {
 }
 
 func (b *Bot) handleBreadCommand(username, channel string) {
-	count, err := b.bread.IncrementCount(channel, username)
+	count, err := b.coreAPI.IncrementBread(channel, username)
 	if err != nil {
 		log.Printf("error incrementing bread count for channel [%s] chatter [%s]: %s", channel, username, err.Error())
 		return
 	}
-	totalCount, err := b.bread.GetTotalBreadForChannel(channel)
+	totalCount, err := b.coreAPI.GetBreadTotal(channel)
 	if err != nil {
 		log.Printf("error getting total bread count for channel [%s] chatter [%s]: %s", channel, username, err.Error())
 		return
@@ -223,9 +206,11 @@ func (b *Bot) handleBreadCommand(username, channel string) {
 }
 
 func (b *Bot) handleFishCommand(username, channel string) {
-	fishingService := fishing.NewService(b.nivek, channel)
-	response := fishingService.GoFishing(username)
-
+	response, err := b.coreAPI.GoFishing(channel, username)
+	if err != nil {
+		log.Printf("error running fish for channel [%s] chatter [%s]: %s", channel, username, err.Error())
+		return
+	}
 	b.client.Say(channel, response)
 	log.Printf("[FISH] [%s] %s", channel, username)
 }
