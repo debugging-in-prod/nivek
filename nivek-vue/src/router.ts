@@ -1,8 +1,7 @@
 import { createWebHistory, createRouter, RouteRecordRaw } from 'vue-router'
 
 import Welcome from '@/pages/Welcome/Welcome.vue'
-import LoginPage from '@/pages/Login/Login.vue'
-import SignupPage from '@/pages/Signup/Signup.vue'
+import AuthLandingPage from '@/pages/AuthLanding/AuthLanding.vue'
 import DashboardPage from '@/pages/Dashboard/Dashboard.vue'
 import DFPage from '@/pages/DF/DF.vue'
 import DFCitizensPage from '@/pages/DF/DFCitizens.vue'
@@ -10,12 +9,11 @@ import DFCitizensPage from '@/pages/DF/DFCitizens.vue'
 import { TokenManager } from '@/utils/TokenManager'
 import { useAuthStore } from '@/stores/auth'
 
-import { API_ROUTES } from '@/constants'
-
 const routes: Array<RouteRecordRaw> = [
     { name: 'Welcome', path: '/', component: Welcome },
-    { name: 'Login', path: API_ROUTES.Login, component: LoginPage },
-    { name: 'Signup', path: API_ROUTES.Signup, component: SignupPage },
+    // Twitch OAuth callback landing — handles JWT-in-fragment handoff. Public
+    // so unauthenticated visitors can complete sign-in.
+    { name: 'AuthLanding', path: '/auth/landing', component: AuthLandingPage },
     {
         name: 'Dashboard',
         path: '/dashboard',
@@ -51,12 +49,10 @@ router.beforeEach((to, from, next) => {
         return
     }
 
-    // If route requires auth but user is not authenticated
+    // If route requires auth but user is not authenticated, send them home —
+    // the Welcome page is where the "Sign in with Twitch" entry point lives.
     if (requiresAuth && !isAuthenticated) {
-        next({
-            name: 'Login',
-            query: { redirect: to.fullPath } // Save intended destination
-        })
+        next({ name: 'Welcome' })
         return
     }
 
@@ -65,8 +61,7 @@ router.beforeEach((to, from, next) => {
         // Ensure user data is loaded
         if (!authStore.user) {
             console.warn('no user found!')
-            console.log(authStore.user)
-            next({ name: 'Login' })
+            next({ name: 'Welcome' })
             return
         }
 
