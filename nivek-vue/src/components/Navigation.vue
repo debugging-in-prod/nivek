@@ -9,6 +9,7 @@ const route = useRoute()
 <template>
   <nav class="nav">
     <div v-if="route.path !== '/'"><RouterLink to="/">Home</RouterLink></div>
+    <div v-if="route.path !== '/df'"><RouterLink to="/df">DF Dashboard</RouterLink></div>
     <!--
       Plain <a>, not <RouterLink>: /api/auth/twitch/start is a backend route
       that issues a 302 to Twitch. Vue Router would intercept a <RouterLink>
