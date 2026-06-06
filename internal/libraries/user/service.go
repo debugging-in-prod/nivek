@@ -1,6 +1,7 @@
 package user
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
@@ -8,13 +9,19 @@ import (
 )
 
 type NivekUserService interface {
-	Signup(request SignupRequest) (bool, error)
-	Login(request LoginRequest) (*User, error)
 	Logout(request LogoutRequest) (bool, error)
 
 	GetAllActiveUsers() ([]User, error)
 	GetUserById(id int) (*User, error)
 	DeleteUserById(id int) error
+
+	FindOrCreateByTwitchID(profile TwitchProfile) (*User, error)
+}
+
+type TwitchProfile struct {
+	ID          string
+	Login       string
+	DisplayName string
 }
 
 type nivekUserServiceImpl struct {
@@ -67,4 +74,40 @@ func (s *nivekUserServiceImpl) UpdateUser(request *UpdateUserRequest) (*User, er
 	}
 
 	return &request.User, nil
+}
+
+// FindOrCreateByTwitchID returns the user matching the given Twitch ID,
+// inserting a new row if none exists. Display name + login are refreshed on
+// every login so renames on Twitch propagate to our DB.
+func (s *nivekUserServiceImpl) FindOrCreateByTwitchID(profile TwitchProfile) (*User, error) {
+	var existing User
+	err := s.userTable.Find(db.Cond{"twitch_id": profile.ID}).One(&existing)
+	if err == nil {
+		if existing.TwitchLogin != profile.Login || existing.TwitchDisplayName != profile.DisplayName {
+			existing.TwitchLogin = profile.Login
+			existing.TwitchDisplayName = profile.DisplayName
+			existing.Username = profile.Login
+			if err := s.userTable.Find(db.Cond{"id": existing.Id}).Update(existing); err != nil {
+				return nil, fmt.Errorf("error refreshing twitch user fields: %w", err)
+			}
+		}
+		return &existing, nil
+	}
+	if !errors.Is(err, db.ErrNoMoreRows) {
+		return nil, fmt.Errorf("error looking up user by twitch_id: %w", err)
+	}
+
+	newUser := User{
+		Username:          profile.Login,
+		TwitchID:          profile.ID,
+		TwitchLogin:       profile.Login,
+		TwitchDisplayName: profile.DisplayName,
+	}
+	result, err := s.userTable.Insert(newUser)
+	if err != nil {
+		return nil, fmt.Errorf("error inserting twitch user: %w", err)
+	}
+
+	newUser.Id = int(result.ID().(int64))
+	return &newUser, nil
 }

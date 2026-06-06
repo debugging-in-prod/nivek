@@ -2,8 +2,11 @@
 export const API_URL: string = import.meta.env.API_URL ?? window.location.protocol + "//" + window.location.host + '/api'
 
 export const API_ROUTES: object = {
-    Login: '/login',
-    Signup: '/signup',
+    // Twitch OAuth — the SPA navigates the browser to TwitchStart and the
+    // backend handles the full redirect dance, landing the user back at
+    // /auth/landing with the JWT in the URL fragment.
+    TwitchStart: '/api/auth/twitch/start',
+    AuthLanding: '/auth/landing',
 
     Secure: {
         Profile: '/profile',

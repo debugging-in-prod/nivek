@@ -10,6 +10,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/sourcegraph/conc/pool"
+	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/coreconfig"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/routes"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 )
@@ -26,11 +27,11 @@ func main() {
 				RequireStartupConnections:  true,
 				StartupConnectionsPostgres: nivek.GetStartupConnectionsForPostgres(),
 			},
-			CustomConfig: GetCoreApiConfig(),
+			CustomConfig: coreconfig.GetCoreApiConfig(),
 		},
 		func(nivek nivek.NivekService, ctx context.Context) error {
 			// Type assertion to convert interface{} to CoreApiConfig
-			cfg, ok := nivek.CustomConfig().(CoreApiConfig)
+			cfg, ok := nivek.CustomConfig().(coreconfig.CoreApiConfig)
 			if !ok {
 				panic("failed to assert custom config")
 			}
