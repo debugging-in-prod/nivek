@@ -2,6 +2,7 @@
 import Navigation from "@/components/Navigation.vue"
 import Logout from '@/components/Logout.vue'
 import { useAuthStore } from '@/stores/auth'
+import { BUILD_VERSION } from '@/version'
 
 const auth = useAuthStore()
 </script>
@@ -19,9 +20,22 @@ const auth = useAuthStore()
       <RouterView />
     </div>
   </main>
+
+  <footer class="build-tag">
+    peanutbudderbot · build <code>{{ BUILD_VERSION }}</code>
+  </footer>
 </template>
 
 <style scoped>
+.build-tag {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #888);
+  text-align: right;
+  padding: 0.5rem 1rem;
+}
+.build-tag code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
 header {
   line-height: 1.5;
 }
