@@ -32,4 +32,11 @@ const (
 	GetDFSnapshot = "/df/snapshot"
 	// DF dashboard ingest from the DFHost pusher (HMAC-authed in handler)
 	PostDFSnapshot = "/df/snapshot"
+
+	// twitch-bot RPC — Pi calls these instead of touching Postgres directly.
+	// HMAC-authed (BOT_API_HMAC_KEY) via the shared HMACMiddleware.
+	GetBotChannels        = "/bot/channels"
+	PostBotBreadIncrement = "/bot/bread/increment"
+	GetBotBreadTotal      = "/bot/bread/total"
+	PostBotLurkMessage    = "/bot/lurk/message"
 )
