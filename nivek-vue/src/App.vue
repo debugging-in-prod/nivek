@@ -19,19 +19,9 @@ const auth = useAuthStore()
       <RouterView />
     </div>
   </main>
-  
-
-  <p class="small text-center disclaimer p-5">
-    This bot is in very early stages of active development. Expect bugs, errors, failures, letdowns, mischeif, mayhem
-    disappointments, heartbreaks, debauchery, trickery, and general disruptive behavior
-  </p>
 </template>
 
 <style scoped>
-.disclaimer {
-  background: var(--color-background);
-  margin: 0;
-}
 header {
   line-height: 1.5;
 }
