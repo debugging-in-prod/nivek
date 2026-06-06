@@ -12,10 +12,18 @@ import (
 	"github.com/sourcegraph/conc/pool"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/coreconfig"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/routes"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/jwt"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 )
 
 func main() {
+	// Fail fast on missing/weak JWT secret so a misconfigured deploy doesn't
+	// silently mint forgeable tokens. Docker rollout's healthcheck will keep
+	// the previous (healthy) container in place if the new one panics here.
+	if err := jwt.ValidateJWTSecret(); err != nil {
+		panic(err)
+	}
+
 	nivek.Bootstrap(
 		nivek.BootstrapParameters{
 			NivekServiceConfig: nivek.NivekServiceConfig{
