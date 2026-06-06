@@ -28,6 +28,6 @@ The system is built as four independent Go binaries (under `cmd/`) that communic
 - **Efficient snapshot pipeline** — atomic file reads, validation, gzip compression, and outbound HTTPS pushes
 - **Live public dashboard** built with Vite showing fortress state without interrupting the stream
 
-Built live on Twitch. Runs 24/7 during streams with zero downtime for the game.
+Currently unfinished. Intended to run 24/7 during streams with zero downtime for the game.
 
 **Stack**: Go 1.26, Echo, GORM/Postgres, go-twitch-irc, WebSockets, HMAC-SHA256, Logrus
