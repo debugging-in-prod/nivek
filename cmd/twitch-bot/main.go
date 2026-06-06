@@ -9,76 +9,71 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/twitchbot"
-	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/user"
 )
 
+// The bot has no Postgres dependency. It reaches all persistent state through
+// core-api over HMAC-authed HTTPS (see internal/libraries/twitchbot/
+// coreapiclient.go). Required Pi-side env:
+//
+//	CORE_API_URL       — e.g. https://nivek.life
+//	BOT_API_HMAC_KEY   — hex, must match the key core-api validates against
+//	TWITCH_BOT_USERNAME, TWITCH_BOT_OAUTH
+//	EXECUTOR_WS_URL, OVERSEER_HMAC_KEY (for DF Twitch-plays)
 func main() {
-	nivek.Bootstrap(
-		nivek.BootstrapParameters{
-			NivekServiceConfig: nivek.NivekServiceConfig{
-				UsePSQL: true,
+	coreAPIURL := getEnv("CORE_API_URL", "")
+	botHmacKey := getEnv("BOT_API_HMAC_KEY", "")
+	if coreAPIURL == "" || botHmacKey == "" {
+		log.Fatal("Missing required environment variables: CORE_API_URL, BOT_API_HMAC_KEY")
+	}
 
-				//
-				// Startup connections
+	coreAPI, err := twitchbot.NewCoreAPIClient(coreAPIURL, botHmacKey)
+	if err != nil {
+		log.Fatalf("Failed to create core-api client: %v", err)
+	}
 
-				RequireStartupConnections:  true,
-				StartupConnectionsPostgres: nivek.GetStartupConnectionsForPostgres(),
-			},
-		},
-		func(nivek nivek.NivekService, ctx context.Context) error {
+	config := twitchbot.Config{
+		BotUsername:     getEnv("TWITCH_BOT_USERNAME", ""),
+		BotOAuth:        getEnv("TWITCH_BOT_OAUTH", ""),
+		Channels:        getChannelNames(coreAPI),
+		StoragePath:     getEnv("TWITCH_STORAGE_PATH", "./data/twitch-counters.json"),
+		Timezone:        getEnv("TWITCH_TIMEZONE", "America/New_York"),
+		ExecutorWSURL:   getEnv("EXECUTOR_WS_URL", ""),
+		OverseerHmacKey: getEnv("OVERSEER_HMAC_KEY", ""),
+	}
 
-			config := twitchbot.Config{
-				BotUsername:     getEnv("TWITCH_BOT_USERNAME", ""),
-				BotOAuth:        getEnv("TWITCH_BOT_OAUTH", ""),
-				Channels:        getChannelNames(nivek),
-				StoragePath:     getEnv("TWITCH_STORAGE_PATH", "./data/twitch-counters.json"),
-				Timezone:        getEnv("TWITCH_TIMEZONE", "America/New_York"),
-				ExecutorWSURL:   getEnv("EXECUTOR_WS_URL", ""),
-				OverseerHmacKey: getEnv("OVERSEER_HMAC_KEY", ""),
-			}
+	if config.BotUsername == "" || config.BotOAuth == "" || len(config.Channels) == 0 {
+		log.Fatal("Missing required environment variables: TWITCH_BOT_USERNAME, TWITCH_BOT_OAUTH (and core-api must return at least one channel)")
+	}
 
-			// Validate required config
-			if config.BotUsername == "" || config.BotOAuth == "" || len(config.Channels) == 0 {
-				log.Fatal("Missing required environment variables: TWITCH_BOT_USERNAME, TWITCH_BOT_OAUTH, TWITCH_CHANNELS (or TWITCH_CHANNEL)")
-			}
+	bot, err := twitchbot.NewBot(coreAPI, config)
+	if err != nil {
+		log.Fatalf("Failed to create bot: %v", err)
+	}
 
-			// Create bot instance
-			bot, err := twitchbot.NewBot(nivek, config)
-			if err != nil {
-				log.Fatalf("Failed to create bot: %v", err)
-			}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-			// Setup graceful shutdown
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-			sigChan := make(chan os.Signal, 1)
-			signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- bot.Start(ctx)
+	}()
 
-			// Start bot in goroutine
-			errChan := make(chan error, 1)
-			go func() {
-				errChan <- bot.Start(ctx)
-			}()
+	select {
+	case <-sigChan:
+		log.Println("Received shutdown signal, gracefully stopping bot...")
+		cancel()
+		bot.Stop()
+	case err := <-errChan:
+		if err != nil {
+			log.Fatalf("Bot error: %v", err)
+		}
+	}
 
-			// Wait for shutdown signal or error
-			select {
-			case <-sigChan:
-				log.Println("Received shutdown signal, gracefully stopping bot...")
-				cancel()
-				bot.Stop()
-			case err := <-errChan:
-				if err != nil {
-					log.Fatalf("Bot error: %v", err)
-				}
-			}
-
-			log.Println("Bot stopped successfully")
-			return nil
-		},
-	)
+	log.Println("Bot stopped successfully")
 }
 
 func getEnv(key, defaultValue string) string {
@@ -90,26 +85,27 @@ func getEnv(key, defaultValue string) string {
 
 var validTwitchLogin = regexp.MustCompile(`^[a-z0-9_]{4,25}$`)
 
-func getChannelNames(nivek nivek.NivekService) []string {
-	userService := user.NewService(nivek)
-	users, err := userService.GetAllActiveUsers()
+// getChannelNames fetches the active-user list from core-api and filters to
+// valid Twitch logins. The filter stays bot-side because it's an IRC-protocol
+// concern (4-25 chars, lowercase, [a-z0-9_]), not something the API should
+// gatekeep.
+func getChannelNames(coreAPI *twitchbot.CoreAPIClient) []string {
+	users, err := coreAPI.GetChannels()
 	if err != nil {
-		log.Fatalf("Failed to get all active users: %v", err)
+		log.Fatalf("Failed to fetch active channels from core-api: %v", err)
 	}
-
 	if len(users) == 0 {
-		log.Fatal("No active users found")
+		log.Fatal("No active users returned by core-api")
 	}
 
 	channels := make([]string, 0, len(users))
-	for _, usr := range users {
-		name := strings.ToLower(strings.TrimSpace(usr.Username))
+	for _, u := range users {
+		name := strings.ToLower(strings.TrimSpace(u))
 		if !validTwitchLogin.MatchString(name) {
-			log.Printf("skipping invalid Twitch login %q (active_users row id=%v)", usr.Username, usr.Id)
+			log.Printf("skipping invalid Twitch login %q", u)
 			continue
 		}
 		channels = append(channels, name)
 	}
-
 	return channels
 }
