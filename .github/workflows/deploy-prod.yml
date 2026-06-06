@@ -33,5 +33,15 @@ jobs:
     runs-on: [self-hosted, linux, prod]
 
     steps:
+      # Stamp the short commit SHA into the SPA bundle so the footer build tag
+      # reflects what was actually deployed. Overwrites the committed 'dev'
+      # placeholder before env-setup.sh kicks off the docker build.
+      - name: Stamp build version
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          cat > nivek-vue/src/version.ts <<EOF
+          export const BUILD_VERSION = '${SHA}'
+          EOF
+
       - name: Env Setup
         run: /home/deploy/actions-runner/env-setup.sh

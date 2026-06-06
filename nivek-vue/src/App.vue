@@ -2,6 +2,7 @@
 import Navigation from "@/components/Navigation.vue"
 import Logout from '@/components/Logout.vue'
 import { useAuthStore } from '@/stores/auth'
+import { BUILD_VERSION } from '@/version'
 
 const auth = useAuthStore()
 </script>
@@ -19,18 +20,21 @@ const auth = useAuthStore()
       <RouterView />
     </div>
   </main>
-  
 
-  <p class="small text-center disclaimer p-5">
-    This bot is in very early stages of active development. Expect bugs, errors, failures, letdowns, mischeif, mayhem
-    disappointments, heartbreaks, debauchery, trickery, and general disruptive behavior
-  </p>
+  <footer class="build-tag">
+    peanutbudderbot · build <code>{{ BUILD_VERSION }}</code>
+  </footer>
 </template>
 
 <style scoped>
-.disclaimer {
-  background: var(--color-background);
-  margin: 0;
+.build-tag {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #888);
+  text-align: right;
+  padding: 0.5rem 1rem;
+}
+.build-tag code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 header {
   line-height: 1.5;
