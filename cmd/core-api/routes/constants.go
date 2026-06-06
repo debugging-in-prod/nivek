@@ -3,10 +3,10 @@ package routes
 const (
 	HelloWorld = "/"
 
-	PostCreateUser = "/user"
-
-	PostSignup = "/signup"
-	PostLogin  = "/login"
+	// Twitch OAuth — see endpoints/user/auth/twitch.go. /start kicks off the
+	// authorize redirect; /callback is what Twitch sends the user back to.
+	GetTwitchStart    = "/auth/twitch/start"
+	GetTwitchCallback = "/auth/twitch/callback"
 
 	//
 	// secure routes

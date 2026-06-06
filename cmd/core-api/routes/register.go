@@ -25,12 +25,13 @@ func RegisterRoutes(nivek nivek.NivekService, e *echo.Group) {
 	// Hello World
 	e.GET(HelloWorld, endpoints.NewIndexEndpoint(nivek))
 
-	e.POST(PostCreateUser, user.NewCreateUserEndpoint(nivek))
-
 	//
-	// Login, Signup
-	e.POST(PostSignup, auth.NewSignupEndpoint(nivek))
-	e.POST(PostLogin, auth.NewLoginEndpoint(nivek))
+	// Auth — Twitch OAuth is the only signup/login path. /start redirects to
+	// Twitch with a CSRF state cookie; /callback exchanges the code, fetches
+	// the user's Twitch profile, find-or-creates a row, issues our JWT, and
+	// 302s back to the frontend with the token in the URL fragment.
+	e.GET(GetTwitchStart, auth.NewTwitchStartEndpoint(nivek))
+	e.GET(GetTwitchCallback, auth.NewTwitchCallbackEndpoint(nivek))
 
 	//
 	// Secure routes:

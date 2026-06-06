@@ -9,14 +9,30 @@ create TABLE IF NOT EXISTS nivek.app (
 );
 
 -- Create users table
--- this table will represent every channel the twitch bot should join. The "users" of the twitch bot
+-- this table will represent every channel the twitch bot should join. The "users" of the twitch bot.
+-- New rows are created via Twitch OAuth (twitch_id is canonical). The legacy
+-- email/password columns are kept nullable so pre-OAuth rows continue to load,
+-- but no new flow writes to them.
 CREATE TABLE IF NOT EXISTS nivek.users (
     id SERIAL PRIMARY KEY,
-    username VARCHAR(50) NOT NULL UNIQUE,
-    email VARCHAR(100) NOT NULL UNIQUE, -- filler for now
-    password TEXT NOT NULL,             -- added password field
+    username VARCHAR(50) UNIQUE,
+    email VARCHAR(100) UNIQUE,
+    password TEXT,
+    twitch_id VARCHAR(64) UNIQUE,
+    twitch_login VARCHAR(50),
+    twitch_display_name VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Idempotent upgrades for any existing database that pre-dates the Twitch
+-- OAuth migration. `IF NOT EXISTS` keeps re-runs safe and lets older rows stay
+-- valid with NULL twitch_* values until the user signs in via Twitch again.
+ALTER TABLE nivek.users ALTER COLUMN username DROP NOT NULL;
+ALTER TABLE nivek.users ALTER COLUMN email DROP NOT NULL;
+ALTER TABLE nivek.users ALTER COLUMN password DROP NOT NULL;
+ALTER TABLE nivek.users ADD COLUMN IF NOT EXISTS twitch_id VARCHAR(64) UNIQUE;
+ALTER TABLE nivek.users ADD COLUMN IF NOT EXISTS twitch_login VARCHAR(50);
+ALTER TABLE nivek.users ADD COLUMN IF NOT EXISTS twitch_display_name VARCHAR(100);
 
 -- Table to track fishing scores per user
 create TABLE IF NOT EXISTS nivek.fish_score (
