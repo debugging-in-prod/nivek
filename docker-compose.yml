@@ -40,6 +40,7 @@ services:
       - TWITCH_REDIRECT_URI=${TWITCH_REDIRECT_URI}
       - FRONTEND_BASE_URL=${FRONTEND_BASE_URL}
       - DASHBOARD_PUSH_HMAC_KEY=${DASHBOARD_PUSH_HMAC_KEY}
+      - BOT_API_HMAC_KEY=${BOT_API_HMAC_KEY}
     networks:
       - nivek-internal
       - gateway
