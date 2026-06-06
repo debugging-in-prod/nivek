@@ -6,8 +6,11 @@ services:
       - POSTGRES_USER=${POSTGRES_USERNAME}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
-    ports:
-      - "5432:5432"
+    # No `ports:` mapping: Postgres is reached only over the nivek-internal
+    # Docker network by core-api. Publishing 5432 also punches a hole through
+    # the host firewall via docker's iptables rules, which exposed the DB to
+    # public credential-stuffing scanners. For admin access use
+    # `docker compose exec postgres psql`.
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
