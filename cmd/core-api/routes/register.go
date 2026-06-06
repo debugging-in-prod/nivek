@@ -96,4 +96,5 @@ func RegisterRoutes(nivek nivek.NivekService, e *echo.Group) {
 	e.POST(PostBotBreadIncrement, bot.NewPostBreadIncrementEndpoint(nivek), botAuth)
 	e.GET(GetBotBreadTotal, bot.NewGetBreadTotalEndpoint(nivek), botAuth)
 	e.POST(PostBotLurkMessage, bot.NewPostLurkMessageEndpoint(nivek), botAuth)
+	e.POST(PostBotFishGo, bot.NewPostFishGoEndpoint(nivek), botAuth)
 }

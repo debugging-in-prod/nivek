@@ -39,4 +39,5 @@ const (
 	PostBotBreadIncrement = "/bot/bread/increment"
 	GetBotBreadTotal      = "/bot/bread/total"
 	PostBotLurkMessage    = "/bot/lurk/message"
+	PostBotFishGo         = "/bot/fish/go"
 )
