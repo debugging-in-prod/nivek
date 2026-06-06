@@ -7,8 +7,12 @@ const auth = useAuthStore()
 <template>
   <nav class="nav">
     <div><RouterLink to="/">Home</RouterLink></div>
-    <div v-if="!auth.user"><RouterLink to="/login">Log In</RouterLink></div>
-    <div v-if="!auth.user"><RouterLink to="/signup">Sign Up</RouterLink></div>
+    <!--
+      Plain <a>, not <RouterLink>: /api/auth/twitch/start is a backend route
+      that issues a 302 to Twitch. Vue Router would intercept a <RouterLink>
+      and try to match it against SPA routes.
+    -->
+    <div v-if="!auth.user"><a href="/api/auth/twitch/start">Sign in with Twitch</a></div>
   </nav>
 </template>
 

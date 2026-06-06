@@ -9,7 +9,6 @@ const auth = useAuthStore()
 <template>
   <header>
     <img v-if="auth.user" class="logo" src="./assets/munk.gif" width="125" height="125"/>
-    <img v-else class="logo" src="./assets/pepelogo.jpg" width="125" height="125">
   </header>
   <Navigation/>
 
