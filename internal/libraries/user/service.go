@@ -76,9 +76,18 @@ func (s *nivekUserServiceImpl) UpdateUser(request *UpdateUserRequest) (*User, er
 	return &request.User, nil
 }
 
-// FindOrCreateByTwitchID returns the user matching the given Twitch ID,
-// inserting a new row if none exists. Display name + login are refreshed on
-// every login so renames on Twitch propagate to our DB.
+// FindOrCreateByTwitchID resolves the canonical user row for a Twitch login.
+// Lookup order:
+//  1. By twitch_id — the canonical key for OAuth-created users.
+//  2. By username (case-insensitive) — legacy rows from the pre-OAuth
+//     email/password era used the streamer's Twitch login as their username,
+//     so a match here means we're claiming an existing row instead of
+//     stranding it. Backfill the Twitch columns onto the existing row and
+//     return it so user_id stays stable.
+//  3. Otherwise INSERT a new row.
+//
+// Display name + login are refreshed on every login so renames on Twitch
+// propagate to our DB.
 func (s *nivekUserServiceImpl) FindOrCreateByTwitchID(profile TwitchProfile) (*User, error) {
 	var existing User
 	err := s.userTable.Find(db.Cond{"twitch_id": profile.ID}).One(&existing)
@@ -95,6 +104,25 @@ func (s *nivekUserServiceImpl) FindOrCreateByTwitchID(profile TwitchProfile) (*U
 	}
 	if !errors.Is(err, db.ErrNoMoreRows) {
 		return nil, fmt.Errorf("error looking up user by twitch_id: %w", err)
+	}
+
+	// No twitch_id match — look for a legacy row by username before inserting.
+	// ILIKE handles any case mismatch between historical stored usernames and
+	// the lowercase login Twitch returns.
+	var legacy User
+	err = s.userTable.Find(db.Cond{"username ILIKE": profile.Login}).One(&legacy)
+	if err == nil {
+		legacy.TwitchID = profile.ID
+		legacy.TwitchLogin = profile.Login
+		legacy.TwitchDisplayName = profile.DisplayName
+		legacy.Username = profile.Login
+		if err := s.userTable.Find(db.Cond{"id": legacy.Id}).Update(legacy); err != nil {
+			return nil, fmt.Errorf("error backfilling twitch fields onto legacy user: %w", err)
+		}
+		return &legacy, nil
+	}
+	if !errors.Is(err, db.ErrNoMoreRows) {
+		return nil, fmt.Errorf("error looking up legacy user by username: %w", err)
 	}
 
 	newUser := User{
