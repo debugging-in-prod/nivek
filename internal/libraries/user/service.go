@@ -92,9 +92,9 @@ func (s *nivekUserServiceImpl) FindOrCreateByTwitchID(profile TwitchProfile) (*U
 	var existing User
 	err := s.userTable.Find(db.Cond{"twitch_id": profile.ID}).One(&existing)
 	if err == nil {
-		if existing.TwitchLogin != profile.Login || existing.TwitchDisplayName != profile.DisplayName {
-			existing.TwitchLogin = profile.Login
-			existing.TwitchDisplayName = profile.DisplayName
+		if derefOrEmpty(existing.TwitchLogin) != profile.Login || derefOrEmpty(existing.TwitchDisplayName) != profile.DisplayName {
+			existing.TwitchLogin = &profile.Login
+			existing.TwitchDisplayName = &profile.DisplayName
 			existing.Username = profile.Login
 			if err := s.userTable.Find(db.Cond{"id": existing.Id}).Update(existing); err != nil {
 				return nil, fmt.Errorf("error refreshing twitch user fields: %w", err)
@@ -112,9 +112,9 @@ func (s *nivekUserServiceImpl) FindOrCreateByTwitchID(profile TwitchProfile) (*U
 	var legacy User
 	err = s.userTable.Find(db.Cond{"username ILIKE": profile.Login}).One(&legacy)
 	if err == nil {
-		legacy.TwitchID = profile.ID
-		legacy.TwitchLogin = profile.Login
-		legacy.TwitchDisplayName = profile.DisplayName
+		legacy.TwitchID = &profile.ID
+		legacy.TwitchLogin = &profile.Login
+		legacy.TwitchDisplayName = &profile.DisplayName
 		legacy.Username = profile.Login
 		if err := s.userTable.Find(db.Cond{"id": legacy.Id}).Update(legacy); err != nil {
 			return nil, fmt.Errorf("error backfilling twitch fields onto legacy user: %w", err)
@@ -127,9 +127,9 @@ func (s *nivekUserServiceImpl) FindOrCreateByTwitchID(profile TwitchProfile) (*U
 
 	newUser := User{
 		Username:          profile.Login,
-		TwitchID:          profile.ID,
-		TwitchLogin:       profile.Login,
-		TwitchDisplayName: profile.DisplayName,
+		TwitchID:          &profile.ID,
+		TwitchLogin:       &profile.Login,
+		TwitchDisplayName: &profile.DisplayName,
 	}
 	result, err := s.userTable.Insert(newUser)
 	if err != nil {
@@ -138,4 +138,11 @@ func (s *nivekUserServiceImpl) FindOrCreateByTwitchID(profile TwitchProfile) (*U
 
 	newUser.Id = int(result.ID().(int64))
 	return &newUser, nil
+}
+
+func derefOrEmpty(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
