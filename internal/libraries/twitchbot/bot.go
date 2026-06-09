@@ -20,6 +20,13 @@ import (
 // dropped at dispatch — they never reach the executor on pad.
 const dfCommandChannel = "timallenfanclubofficial"
 
+// dfWelcomeInterval is how often the bot posts the orientation message
+// in dfCommandChannel. First tick fires one interval after bot start,
+// not immediately — restarts shouldn't spam the channel.
+const dfWelcomeInterval = 10 * time.Minute
+
+const dfWelcomeMessage = `Welcome to the TWITCH PLAYS DWARF FORTRESS project! This is a work-in-progress. Please view the helpdoc at https://nivek.life/df/help to learn how to play. I intend for https://nivek.life/df to be used as your "dashboard" for viewing fortress information. Poke around and have fun!`
+
 type Config struct {
 	BotUsername     string
 	BotOAuth        string
@@ -101,6 +108,9 @@ func (b *Bot) Start(ctx context.Context) error {
 
 	// Start reset timer
 	go b.counters.StartResetTimer(ctx)
+
+	// Start the DF welcome/orientation announcer in dfCommandChannel.
+	go b.runDFWelcomeLoop(ctx)
 
 	// Start IRC client with panic recovery and auto-reconnect
 	go func() {
@@ -221,6 +231,22 @@ func (b *Bot) handleFishCommand(username, channel string) {
 	}
 	b.client.Say(channel, response)
 	log.Printf("[FISH] [%s] %s", channel, username)
+}
+
+// runDFWelcomeLoop posts dfWelcomeMessage to dfCommandChannel on
+// dfWelcomeInterval ticks. Ticker waits one interval before the first
+// tick, which is the desired behavior — bot restarts don't re-announce.
+func (b *Bot) runDFWelcomeLoop(ctx context.Context) {
+	ticker := time.NewTicker(dfWelcomeInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			b.client.Say(dfCommandChannel, dfWelcomeMessage)
+		}
+	}
 }
 
 func (b *Bot) handleDFCommand(rawText, args, username, channel string) {
