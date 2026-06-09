@@ -15,6 +15,11 @@ import (
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer/wire"
 )
 
+// dfCommandChannel is the only Twitch channel from which !DF commands are
+// accepted. Messages with the !df prefix from any other joined channel are
+// dropped at dispatch — they never reach the executor on pad.
+const dfCommandChannel = "timallenfanclubofficial"
+
 type Config struct {
 	BotUsername     string
 	BotOAuth        string
@@ -152,6 +157,9 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 
 	// !DF takes arguments — handle separately from the exact-match commands below
 	if msg == "!df" || strings.HasPrefix(msg, "!df ") {
+		if channel != dfCommandChannel {
+			return
+		}
 		args := strings.TrimSpace(strings.TrimPrefix(msg, "!df"))
 		b.handleDFCommand(message.Message, args, chattername, channel)
 		return
