@@ -267,7 +267,10 @@ onBeforeUnmount(() => {
         <header>
             <div class="header-row">
                 <h1>DF Twitch-plays — live overview</h1>
-                <router-link to="/df/citizens" class="nav-btn">Citizens</router-link>
+                <div class="nav-group">
+                    <router-link to="/df/citizens" class="nav-btn">Citizens</router-link>
+                    <router-link to="/df/help" class="nav-btn">Help</router-link>
+                </div>
             </div>
             <p v-if="snapshot" class="capture-info">
                 Captured {{ new Date(snapshot.captured_at).toLocaleString() }}
@@ -421,6 +424,11 @@ onBeforeUnmount(() => {
 header h1 {
     margin: 0 0 0.25rem 0;
     color: #6fb;
+}
+
+.nav-group {
+    display: flex;
+    gap: 0.5rem;
 }
 
 /* Themed button-link: dark surface, green accent matching .hud headings. */

@@ -5,6 +5,7 @@ import AuthLandingPage from '@/pages/AuthLanding/AuthLanding.vue'
 import DashboardPage from '@/pages/Dashboard/Dashboard.vue'
 import DFPage from '@/pages/DF/DF.vue'
 import DFCitizensPage from '@/pages/DF/DFCitizens.vue'
+import DFHelpPage from '@/pages/DF/DFHelp.vue'
 
 import { TokenManager } from '@/utils/TokenManager'
 import { useAuthStore } from '@/stores/auth'
@@ -22,6 +23,7 @@ const routes: Array<RouteRecordRaw> = [
     },
     { name: 'DF', path: '/df', component: DFPage },
     { name: 'DFCitizens', path: '/df/citizens', component: DFCitizensPage },
+    { name: 'DFHelp', path: '/df/help', component: DFHelpPage },
 ]
 
 // Switched from createMemoryHistory to createWebHistory so URLs reflect
