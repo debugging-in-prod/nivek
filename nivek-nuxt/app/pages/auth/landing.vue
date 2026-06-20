@@ -44,7 +44,7 @@ onMounted(async () => {
     window.history.replaceState({}, '', '/auth/landing')
 
     await auth.fetchUserProfile()
-    await navigateTo('/dashboard')
+    await navigateTo('/')
 })
 </script>
 
