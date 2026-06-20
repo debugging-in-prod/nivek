@@ -2,7 +2,7 @@
 
 Lua scripts that run inside DFHack on the DFHost. They produce data the
 rest of the nivek pipeline consumes — currently the map snapshot that feeds
-the `/df` dashboard on nivek.life.
+the `/df` dashboard on peanutbudderbot.com.
 
 ## Installation on DFHost
 
