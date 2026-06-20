@@ -9,6 +9,8 @@ const auth = useAuthStore()
     </header>
     <Navigation />
 
+    <div v-if="auth.user"><Logout /></div>
+
     <main>
       <div class="wrapper">
         <NuxtPage />
