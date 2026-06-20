@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -65,24 +64,10 @@ func main() {
 				AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
 			}))
 
-			// Static SPA served from /app/dist (baked into the image alongside
-			// the Go binary; see Dockerfile.core-api.prod). HTML5 fallback means
-			// unknown paths return index.html so Vue Router can take over
-			// client-side. Skip /api/* so API route handlers run instead.
-			e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
-				Root:   "/app/dist",
-				Index:  "index.html",
-				HTML5:  true,
-				Browse: false,
-				Skipper: func(c echo.Context) bool {
-					return strings.HasPrefix(c.Request().URL.Path, "/api")
-				},
-			}))
-
 			//
-			// Register REST routes under /api so the root is free for the SPA.
-			// External URLs are unchanged (nginx used to strip /api/ before
-			// proxying; now Echo's group does the equivalent in-process).
+			// Register REST routes under /api. Nuxt (the `web` service) owns
+			// every other path on nivek.life via Traefik path-based routing,
+			// so this binary only ever sees /api/* now.
 			api := e.Group("/api")
 
 			// Liveness/readiness probe for the container healthcheck and
