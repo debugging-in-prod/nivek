@@ -15,7 +15,7 @@ The system is built as four independent Go binaries (under `cmd/`) that communic
 
 - **`cmd/df-snapshot-pusher`** — Runs as a daemon on the DF host. Every ~15 seconds it reads the latest atomic snapshot JSON produced by a DFHack Lua script (`snapshot-scan.lua`), validates it, signs it with HMAC-SHA256, gzips the payload, and POSTs it to the dashboard API. Zero inbound connections — fully outbound and secure.
 
-- **`cmd/core-api`** — Echo-based web backend serving the public dashboard at [nivek.life/df](https://nivek.life/df). Handles snapshot ingestion, HMAC verification, and serves real-time fortress data.
+- **`cmd/core-api`** — Echo-based web backend serving the public dashboard at [peanutbudderbot.com/df](https://peanutbudderbot.com/df). Handles snapshot ingestion, HMAC verification, and serves real-time fortress data.
 
 ### Key Technical Highlights
 

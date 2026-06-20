@@ -1,6 +1,6 @@
 // df-snapshot-pusher runs on the DFHost. It reads the snapshot JSON file
 // published by the snapshot-scan DFHack script on a slow timer, HMAC-signs
-// the body, gzip-compresses it, and POSTs to nivek.life's dashboard ingest
+// the body, gzip-compresses it, and POSTs to peanutbudderbot.com's dashboard ingest
 // endpoint. All flow is outbound from DFHost — no inbound socket, no
 // persistent authenticated channel.
 //
@@ -13,7 +13,7 @@
 //	DASHBOARD_SNAPSHOT_FILE     absolute path to the snapshot JSON written by
 //	                            snapshot-scan.lua (e.g. <DF>/nivek-snapshot.json)
 //	DASHBOARD_PUSH_URL          full URL of the receiver endpoint
-//	                            (e.g. https://nivek.life/api/df/snapshot)
+//	                            (e.g. https://peanutbudderbot.com/api/df/snapshot)
 //	DASHBOARD_PUSH_HMAC_KEY     hex-encoded shared secret; must match
 //	                            the same env var on the receiver side
 //	DASHBOARD_PUSH_INTERVAL_SEC (optional, default 15) seconds between

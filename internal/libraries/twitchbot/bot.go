@@ -25,7 +25,7 @@ const dfCommandChannel = "timallenfanclubofficial"
 // not immediately — restarts shouldn't spam the channel.
 const dfWelcomeInterval = 10 * time.Minute
 
-const dfWelcomeMessage = `Welcome to the TWITCH PLAYS DWARF FORTRESS project! This is a work-in-progress. Please view the helpdoc at https://nivek.life/df/help to learn how to play. I intend for https://nivek.life/df to be used as your "dashboard" for viewing fortress information. Poke around and have fun!`
+const dfWelcomeMessage = `Welcome to the TWITCH PLAYS DWARF FORTRESS project! This is a work-in-progress. Please view the helpdoc at https://peanutbudderbot.com/df/help to learn how to play. I intend for https://peanutbudderbot.com/df to be used as your "dashboard" for viewing fortress information. Poke around and have fun!`
 
 type Config struct {
 	BotUsername     string
