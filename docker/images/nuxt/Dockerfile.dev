@@ -1,0 +1,10 @@
+# Dev container for nivek-nuxt — runs `nuxt dev` with HMR. Source is
+# bind-mounted by docker-compose.override.yml so edits hot-reload without
+# rebuilds; node_modules is an anonymous volume so the in-container install
+# isn't shadowed by the host mount.
+FROM node:20-alpine
+WORKDIR /app
+COPY ./nivek-nuxt .
+RUN npm install --no-fund --no-audit
+EXPOSE 3000
+CMD ["npx", "nuxt", "dev", "--host", "0.0.0.0"]

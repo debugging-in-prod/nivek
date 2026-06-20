@@ -1,0 +1,34 @@
+# Multi-stage build for the Nuxt 4 SSR frontend (nivek-nuxt). Runtime is
+# the standalone Nitro node-server output — no node_modules needed in the
+# final image, the bundle is self-contained.
+#
+# Build context is the repo root (same as Dockerfile.core-api.prod) so the
+# COPY paths are prefixed with nivek-nuxt/.
+
+# Stage 1: install deps (cache-friendly — only re-runs when lockfile changes)
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY nivek-nuxt/package.json nivek-nuxt/package-lock.json ./
+RUN npm ci --no-fund --no-audit
+
+# Stage 2: build
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY nivek-nuxt/ ./
+RUN npm run build
+
+# Stage 3: runtime — minimal node + .output/
+FROM node:20-alpine AS runtime
+WORKDIR /app
+# Non-root user, matches the container-hardening direction from the audit
+# memo. node:alpine ships with a `node` user (uid 1000) by default.
+COPY --chown=node:node --from=builder /app/.output ./.output
+USER node
+EXPOSE 3000
+# wget ships in alpine; matches the core-api healthcheck pattern so
+# `docker rollout` can wait for the new container to serve before
+# retiring the old one.
+HEALTHCHECK --interval=10s --timeout=3s --retries=3 --start-period=15s \
+    CMD wget -q -O - http://localhost:3000/ >/dev/null 2>&1 || exit 1
+CMD ["node", ".output/server/index.mjs"]
