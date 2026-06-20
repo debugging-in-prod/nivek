@@ -54,31 +54,23 @@ services:
       timeout: 3s
       retries: 3
       start_period: 15s
-    # Traefik routes nivek.life directly to this container (was nginx). Echo
-    # serves the SPA at / and the API under /api, so there's only one backend
-    # to talk to — no more nginx for static files or /api proxying.
+    # Traefik now only routes /api/* to core-api on nivek.life — the rest
+    # of the site is served by the Nuxt SSR `web` service below. Rule-length
+    # priority puts the compound rule (Host && PathPrefix) ahead of `web`'s
+    # bare Host rule for /api/* matches; everything else falls through.
     #
-    # Mid-migration to Nuxt SSR: the SPA serving here remains the
-    # production frontend for nivek.life. After staging verification on
-    # nuxt.nivek.life (see `web` service below), a follow-up commit will
-    # change this route's rule to Host(`nivek.life`) && PathPrefix(`/api`)
-    # so Nuxt takes over /, and the SPA build stage from
-    # Dockerfile.core-api.prod can be removed.
+    # The SPA dist baked into this container by the prod Dockerfile is now
+    # dead weight (never reached by Traefik) — removing the SPA build stage
+    # from Dockerfile.core-api.prod is a follow-up cleanup commit.
     labels:
       - traefik.enable=true
-      - traefik.http.routers.nivek.rule=Host(`nivek.life`)
+      - traefik.http.routers.nivek.rule=Host(`nivek.life`) && PathPrefix(`/api`)
       - traefik.http.routers.nivek.entrypoints=websecure
       - traefik.http.routers.nivek.tls.certresolver=letsencrypt
       - traefik.http.services.nivek.loadbalancer.server.port=8080
 
-  # Nuxt 4 SSR frontend. Staging during migration — points at the
-  # nuxt.nivek.life subdomain so the production nivek.life route on
-  # core-api stays untouched until parity is verified in the browser.
-  #
-  # Prereqs before this can be deployed:
-  #   1. DNS A record for nuxt.nivek.life pointing at the Vultr IP.
-  #   2. env-setup.sh on Vultr updated to run `docker compose build web`
-  #      and `docker rollout web` alongside core-api.
+  # Nuxt 4 SSR frontend — serves nivek.life for every path that doesn't
+  # match /api/*. Replaces SPA-on-core-api as the production frontend.
   web:
     build:
       dockerfile: docker/images/nuxt/Dockerfile.prod
@@ -94,7 +86,7 @@ services:
       start_period: 15s
     labels:
       - traefik.enable=true
-      - traefik.http.routers.nivek-web.rule=Host(`nuxt.nivek.life`)
+      - traefik.http.routers.nivek-web.rule=Host(`nivek.life`)
       - traefik.http.routers.nivek-web.entrypoints=websecure
       - traefik.http.routers.nivek-web.tls.certresolver=letsencrypt
       - traefik.http.services.nivek-web.loadbalancer.server.port=3000
