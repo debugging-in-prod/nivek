@@ -16,7 +16,7 @@ import (
 // core-api over HMAC-authed HTTPS (see internal/libraries/twitchbot/
 // coreapiclient.go). Required Pi-side env:
 //
-//	CORE_API_URL       — e.g. https://nivek.life
+//	CORE_API_URL       — e.g. https://peanutbudderbot.com
 //	BOT_API_HMAC_KEY   — hex, must match the key core-api validates against
 //	TWITCH_BOT_USERNAME, TWITCH_BOT_OAUTH
 //	EXECUTOR_WS_URL, OVERSEER_HMAC_KEY (for DF Twitch-plays)

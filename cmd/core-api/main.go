@@ -66,7 +66,7 @@ func main() {
 
 			//
 			// Register REST routes under /api. Nuxt (the `web` service) owns
-			// every other path on nivek.life via Traefik path-based routing,
+			// every other path on peanutbudderbot.com via Traefik path-based routing,
 			// so this binary only ever sees /api/* now.
 			api := e.Group("/api")
 

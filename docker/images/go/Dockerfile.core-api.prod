@@ -1,6 +1,6 @@
 # Builds the Go core-api binary into a minimal Alpine runtime. The SPA
 # stage that used to live here was retired when the Nuxt `web` service
-# took over the frontend — Traefik now routes nivek.life/* to web and
+# took over the frontend — Traefik now routes peanutbudderbot.com/* to web and
 # only sends /api/* here, so the static-file serving disappeared from
 # Echo too.
 
