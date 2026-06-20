@@ -57,12 +57,47 @@ services:
     # Traefik routes nivek.life directly to this container (was nginx). Echo
     # serves the SPA at / and the API under /api, so there's only one backend
     # to talk to — no more nginx for static files or /api proxying.
+    #
+    # Mid-migration to Nuxt SSR: the SPA serving here remains the
+    # production frontend for nivek.life. After staging verification on
+    # nuxt.nivek.life (see `web` service below), a follow-up commit will
+    # change this route's rule to Host(`nivek.life`) && PathPrefix(`/api`)
+    # so Nuxt takes over /, and the SPA build stage from
+    # Dockerfile.core-api.prod can be removed.
     labels:
       - traefik.enable=true
       - traefik.http.routers.nivek.rule=Host(`nivek.life`)
       - traefik.http.routers.nivek.entrypoints=websecure
       - traefik.http.routers.nivek.tls.certresolver=letsencrypt
       - traefik.http.services.nivek.loadbalancer.server.port=8080
+
+  # Nuxt 4 SSR frontend. Staging during migration — points at the
+  # nuxt.nivek.life subdomain so the production nivek.life route on
+  # core-api stays untouched until parity is verified in the browser.
+  #
+  # Prereqs before this can be deployed:
+  #   1. DNS A record for nuxt.nivek.life pointing at the Vultr IP.
+  #   2. env-setup.sh on Vultr updated to run `docker compose build web`
+  #      and `docker rollout web` alongside core-api.
+  web:
+    build:
+      dockerfile: docker/images/nuxt/Dockerfile.prod
+      pull: true
+    networks:
+      - gateway
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:3000/ >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.nivek-web.rule=Host(`nuxt.nivek.life`)
+      - traefik.http.routers.nivek-web.entrypoints=websecure
+      - traefik.http.routers.nivek-web.tls.certresolver=letsencrypt
+      - traefik.http.services.nivek-web.loadbalancer.server.port=3000
 
 volumes:
   postgres_data:
