@@ -54,7 +54,7 @@ services:
       timeout: 3s
       retries: 3
       start_period: 15s
-    # Traefik now only routes /api/* to core-api on nivek.life — the rest
+    # Traefik now only routes /api/* to core-api on peanutbudderbot.com — the rest
     # of the site is served by the Nuxt SSR `web` service below. Rule-length
     # priority puts the compound rule (Host && PathPrefix) ahead of `web`'s
     # bare Host rule for /api/* matches; everything else falls through.
@@ -64,12 +64,12 @@ services:
     # from Dockerfile.core-api.prod is a follow-up cleanup commit.
     labels:
       - traefik.enable=true
-      - traefik.http.routers.nivek.rule=Host(`nivek.life`) && PathPrefix(`/api`)
+      - traefik.http.routers.nivek.rule=Host(`peanutbudderbot.com`) && PathPrefix(`/api`)
       - traefik.http.routers.nivek.entrypoints=websecure
       - traefik.http.routers.nivek.tls.certresolver=letsencrypt
       - traefik.http.services.nivek.loadbalancer.server.port=8080
 
-  # Nuxt 4 SSR frontend — serves nivek.life for every path that doesn't
+  # Nuxt 4 SSR frontend — serves peanutbudderbot.com for every path that doesn't
   # match /api/*. Replaces SPA-on-core-api as the production frontend.
   web:
     build:
@@ -86,7 +86,7 @@ services:
       start_period: 15s
     labels:
       - traefik.enable=true
-      - traefik.http.routers.nivek-web.rule=Host(`nivek.life`)
+      - traefik.http.routers.nivek-web.rule=Host(`peanutbudderbot.com`)
       - traefik.http.routers.nivek-web.entrypoints=websecure
       - traefik.http.routers.nivek-web.tls.certresolver=letsencrypt
       - traefik.http.services.nivek-web.loadbalancer.server.port=3000
