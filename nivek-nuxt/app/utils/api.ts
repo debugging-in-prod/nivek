@@ -17,6 +17,7 @@
 import { TokenManager } from './TokenManager'
 
 export const api = $fetch.create({
+    baseURL: '/api',
     onRequest({ options }) {
         if (typeof window === 'undefined') return
         const token = TokenManager.getInstance().getToken()
