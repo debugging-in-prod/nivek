@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"maps"
 	"strings"
+	"slices"
 	"time"
 
 	"github.com/gempir/go-twitch-irc/v4"
@@ -26,6 +28,8 @@ const dfCommandChannel = "timallenfanclubofficial"
 const dfWelcomeInterval = 10 * time.Minute
 
 const dfWelcomeMessage = `Welcome to the TWITCH PLAYS DWARF FORTRESS project! This is a work-in-progress. Please view the helpdoc at https://peanutbudderbot.com/df/help to learn how to play. I intend for https://peanutbudderbot.com/df to be used as your "dashboard" for viewing fortress information. Poke around and have fun!`
+
+type commandHandler func(b *Bot, chattername, channel string)
 
 type Config struct {
 	BotUsername     string
@@ -157,7 +161,14 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	chattername := message.User.Name
 	channel := message.Channel
 
-	if strings.HasPrefix(msg, "!") {
+	var commands = map[string]commandHandler{
+		"!bread": (*Bot).handleBreadCommand,
+		"!fish":  (*Bot).handleFishCommand,
+		"!dad":   func(b *Bot, _, channel string) { b.client.Say(channel, "still out getting milk!") },
+		"!lurk":  (* Bot).handleLurkCommand,
+	}
+
+	if slices.Contains(slices.Collect(maps.Keys(commands)), msg) {
 		log.Printf("[CMD-RECV] [%s] %s: %q", channel, chattername, msg)
 	}
 
@@ -176,17 +187,13 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	}
 
 	// Check for commands
-	switch {
-	case strings.Contains(msg, "!bread"):
-		b.handleBreadCommand(chattername, channel)
-	case strings.Contains(msg, "!fish"):
-		b.handleFishCommand(chattername, channel)
-	case strings.Contains(msg, "!dad"):
-		b.client.Say(channel, "still out getting milk!")
-	case strings.Contains(msg, "!lurk"):
-		b.handleLurkCommand(chattername, channel)
+	for cmd, handler := range commands {
+		if strings.Contains(msg, cmd) {
+			go handler(b, chattername, channel)
+		}
 	}
 }
+
 func (b *Bot) handleLurkCommand(username, channel string) {
 	if count := b.coreAPI.LurkOnMessage(channel, username); count > 0 {
 		b.client.Say(channel, fmt.Sprintf(
