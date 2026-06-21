@@ -176,20 +176,19 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	}
 
 	// Check for commands
-	switch msg {
-	case "!bread":
+	switch {
+	case strings.Contains(msg, "!bread"):
 		b.handleBreadCommand(chattername, channel)
-	case "!fish":
+	case strings.Contains(msg, "!fish"):
 		b.handleFishCommand(chattername, channel)
-	case "!dad":
+	case strings.Contains(msg, "!dad"):
 		b.client.Say(channel, "still out getting milk!")
-	case "!lurk":
+	case strings.Contains(msg, "!lurk"):
 		b.handleLurkCommand(chattername, channel)
 	}
 }
 func (b *Bot) handleLurkCommand(username, channel string) {
 	if count := b.coreAPI.LurkOnMessage(channel, username); count > 0 {
-
 		b.client.Say(channel, fmt.Sprintf(
 			"thank you for the lurk! @%s You have lurked %d times",
 			username,
