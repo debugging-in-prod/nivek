@@ -198,7 +198,7 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	// Check for commands
 	for cmd, handler := range commands {
 		if strings.Contains(msg, cmd) {
-			go handler(b, chattername, channel)
+			handler(b, chattername, channel)
 		}
 	}
 }
