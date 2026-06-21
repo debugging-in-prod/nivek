@@ -204,11 +204,9 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 }
 
 func (b *Bot) senderLoop() {
-	tick := time.NewTicker(1500 * time.Millisecond)
-	defer tick.Stop()
 	for req := range b.sayQueue {
 		b.client.Say(req.channel, req.message)
-		<-tick.C
+		time.Sleep(1500 * time.Millisecond)
 	}
 }
 
