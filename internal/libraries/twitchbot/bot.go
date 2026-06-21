@@ -41,6 +41,11 @@ type Config struct {
 	OverseerHmacKey string // hex-encoded HMAC key, shared with the executor
 }
 
+type sayRequest struct {
+	channel string
+	message string
+}
+
 // Bot has no direct Postgres dependency. All persistent state goes through
 // CoreAPIClient → HMAC-authed RPC → core-api → DB. That way a compromised Pi
 // can't drain prod data: it only has bot-scoped API capability, not raw DB
@@ -52,6 +57,7 @@ type Bot struct {
 	location       *time.Location
 	coreAPI        *CoreAPIClient
 	overseerClient *overseer.Client
+	sayQueue       chan sayRequest
 }
 
 func NewBot(coreAPI *CoreAPIClient, config Config) (*Bot, error) {
@@ -87,6 +93,9 @@ func NewBot(coreAPI *CoreAPIClient, config Config) (*Bot, error) {
 		coreAPI:        coreAPI,
 		overseerClient: overseerCli,
 	}
+
+	bot.sayQueue = make(chan sayRequest, 64)
+	go bot.senderLoop()
 
 	// Register message handler
 	client.OnPrivateMessage(bot.handleMessage)
@@ -194,49 +203,17 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	}
 }
 
-func (b *Bot) handleLurkCommand(username, channel string) {
-	if count := b.coreAPI.LurkOnMessage(channel, username); count > 0 {
-		b.client.Say(channel, fmt.Sprintf(
-			"thank you for the lurk! @%s You have lurked %d times",
-			username,
-			count,
-		))
+func (b *Bot) senderLoop() {
+	tick := time.NewTicker(750 * time.Millisecond)
+	defer tick.Stop()
+	for req := range b.sayQueue {
+		b.client.Say(req.channel, req.message)
+		<-tick.C
 	}
 }
 
-func (b *Bot) handleBreadCommand(username, channel string) {
-	count, err := b.coreAPI.IncrementBread(channel, username)
-	if err != nil {
-		log.Printf("error incrementing bread count for channel [%s] chatter [%s]: %s", channel, username, err.Error())
-		return
-	}
-	totalCount, err := b.coreAPI.GetBreadTotal(channel)
-	if err != nil {
-		log.Printf("error getting total bread count for channel [%s] chatter [%s]: %s", channel, username, err.Error())
-		return
-	}
-
-	response := fmt.Sprintf(
-		"@%s has baked %d loaf%s of bread today! 🍞 This chat has baked %d loaf%s total in the last 24 hours.",
-		username,
-		count,
-		pluralize(count),
-		totalCount,
-		pluralize(totalCount),
-	)
-
-	b.client.Say(channel, response)
-	log.Printf("[BREAD] [%s] %s: %d (Total: %d)", channel, username, count, totalCount)
-}
-
-func (b *Bot) handleFishCommand(username, channel string) {
-	response, err := b.coreAPI.GoFishing(channel, username)
-	if err != nil {
-		log.Printf("error running fish for channel [%s] chatter [%s]: %s", channel, username, err.Error())
-		return
-	}
-	b.client.Say(channel, response)
-	log.Printf("[FISH] [%s] %s", channel, username)
+func (b *Bot) say(channel, message string) {
+	b.sayQueue <- sayRequest{channel, message}
 }
 
 // runDFWelcomeLoop posts dfWelcomeMessage to dfCommandChannel on
