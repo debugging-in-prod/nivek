@@ -6,6 +6,8 @@ A Go-based Twitch integration platform for live Dwarf Fortress streaming.
 
 ### Architecture
 
+![Architecture diagram](docs/architecture.png)
+
 The system is built as four independent Go binaries (under `cmd/`) that communicate securely:
 
 - **`cmd/twitch-bot`** — Production Twitch IRC bot built on `go-twitch-irc`.  
