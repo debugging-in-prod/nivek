@@ -13,6 +13,7 @@ const route = useRoute()
       against app routes.
     -->
     <div v-if="!auth.user"><a href="/api/auth/twitch/start">Sign in with Twitch</a></div>
+    <div><a href="/devlog">Devlog</a></div>
   </nav>
 </template>
 
