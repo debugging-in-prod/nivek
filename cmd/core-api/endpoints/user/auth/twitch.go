@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -299,8 +300,100 @@ type TransportStruct struct {
 	Secret   string `json:"secret"`
 }
 
+// App access token cache for EventSub webhook creates.
+// https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#client-credentials-grant-flow
+// Tokens expire (expires_in); we mint via client_credentials and reuse until near expiry.
+// Refresh by re-minting — app tokens cannot be refreshed with a refresh_token.
+var (
+	appTokenMu     sync.Mutex
+	appToken       string
+	appTokenExpiry time.Time
+)
+
+// Refresh a minute early so we don't race the exact expiry second.
+const appTokenExpirySkew = time.Minute
+
+// getAppAccessToken returns a cached app access token, minting one if needed.
+func getAppAccessToken(ctx context.Context, cfg coreconfig.CoreApiConfig) (string, error) {
+	appTokenMu.Lock()
+	defer appTokenMu.Unlock()
+
+	if appToken != "" && time.Now().Before(appTokenExpiry.Add(-appTokenExpirySkew)) {
+		return appToken, nil
+	}
+
+	token, expiresIn, err := fetchAppAccessToken(ctx, cfg)
+	if err != nil {
+		return "", err
+	}
+	appToken = token
+	appTokenExpiry = time.Now().Add(time.Duration(expiresIn) * time.Second)
+	return appToken, nil
+}
+
+// invalidateAppAccessToken drops the cache (e.g. after Helix 401).
+func invalidateAppAccessToken() {
+	appTokenMu.Lock()
+	defer appTokenMu.Unlock()
+	appToken = ""
+	appTokenExpiry = time.Time{}
+}
+
+// fetchAppAccessToken mints a new app access token (client credentials).
+// Prefer getAppAccessToken so callers share the in-memory cache.
+func fetchAppAccessToken(ctx context.Context, cfg coreconfig.CoreApiConfig) (token string, expiresIn int, err error) {
+	if cfg.TwitchClientID == "" || cfg.TwitchClientSecret == "" {
+		return "", 0, errors.New("TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET are required for app access tokens")
+	}
+
+	form := url.Values{}
+	form.Set("client_id", cfg.TwitchClientID)
+	form.Set("client_secret", cfg.TwitchClientSecret)
+	form.Set("grant_type", "client_credentials")
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, twitchTokenURL, strings.NewReader(form.Encode()))
+	if err != nil {
+		return "", 0, fmt.Errorf("building app token request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	client := &http.Client{Timeout: httpTimeout}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", 0, fmt.Errorf("app token request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", 0, fmt.Errorf("reading app token response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", 0, fmt.Errorf("app token endpoint returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	var parsed struct {
+		AccessToken string `json:"access_token"`
+		ExpiresIn   int    `json:"expires_in"`
+		TokenType   string `json:"token_type"`
+	}
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return "", 0, fmt.Errorf("decoding app token response: %w", err)
+	}
+	if parsed.AccessToken == "" {
+		return "", 0, errors.New("app token response missing access_token")
+	}
+	if parsed.ExpiresIn <= 0 {
+		// Defensive default if Twitch omits expires_in (should not happen).
+		parsed.ExpiresIn = int((24 * time.Hour).Seconds())
+	}
+	return parsed.AccessToken, parsed.ExpiresIn, nil
+}
+
 //
 // https://dev.twitch.tv/docs/api/reference#create-eventsub-subscription
+// Webhook transport requires an app access token (not a user token):
+// https://dev.twitch.tv/docs/eventsub/manage-subscriptions/#authorization
 //
 func subscribeToUserWebhooks(ctx context.Context, cfg coreconfig.CoreApiConfig, twitchUserId string, logger *logrus.Logger) {
 	payload := webhookSubscriptionPayload{
@@ -325,21 +418,45 @@ func subscribeToUserWebhooks(ctx context.Context, cfg coreconfig.CoreApiConfig, 
 		return
 	}
 
-	req, err := http.NewRequest(http.MethodPost,
-		"https://api.twitch.tv/helix/eventsub/subscriptions",
-		bytes.NewReader(body),
-	)
-	req.Header.Set("Authorization", "")
-	req.Header.Set("Client-Id", cfg.TwitchClientID)
-	req.Header.Set("Content-Type", "application/json")
+	// One retry if Helix rejects a stale cached token (401).
+	for attempt := 0; attempt < 2; attempt++ {
+		appToken, err := getAppAccessToken(ctx, cfg)
+		if err != nil {
+			logger.Errorf("failed to subscribe to webhook - app token: %s", err.Error())
+			return
+		}
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		logger.Errorf("failed to subscribe to webhook - error sending subscription request: %s", err.Error())
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+			"https://api.twitch.tv/helix/eventsub/subscriptions",
+			bytes.NewReader(body),
+		)
+		if err != nil {
+			logger.Errorf("failed to subscribe to webhook - build request: %s", err.Error())
+			return
+		}
+		req.Header.Set("Authorization", "Bearer "+appToken)
+		req.Header.Set("Client-Id", cfg.TwitchClientID)
+		req.Header.Set("Content-Type", "application/json")
+
+		client := &http.Client{Timeout: httpTimeout}
+		resp, err := client.Do(req)
+		if err != nil {
+			logger.Errorf("failed to subscribe to webhook - error sending subscription request: %s", err.Error())
+			return
+		}
+
+		respBody, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		if resp.StatusCode == http.StatusUnauthorized && attempt == 0 {
+			invalidateAppAccessToken()
+			continue
+		}
+
+		logger.Debugf("webhook subscription response: status [%d] %s", resp.StatusCode, string(respBody))
+		if resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusOK {
+			logger.Errorf("failed to subscribe to webhook - unexpected status [%d] %s", resp.StatusCode, string(respBody))
+		}
 		return
 	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-	logger.Debugf("webhook subscription response: status [%d] %s", resp.StatusCode, string(respBody))
 }
