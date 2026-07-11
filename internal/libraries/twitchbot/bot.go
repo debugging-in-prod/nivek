@@ -123,7 +123,7 @@ func (b *Bot) Start(ctx context.Context) error {
 	go b.counters.StartResetTimer(ctx)
 
 	// Start the DF welcome/orientation announcer in dfCommandChannel.
-	go b.runDFWelcomeLoop(ctx)
+	// go b.runDFWelcomeLoop(ctx) // temporarily disabled while bot is migrated from Pi -> VPS
 
 	// Start IRC client with panic recovery and auto-reconnect
 	go func() {
