@@ -225,7 +225,7 @@ func (b *Bot) runDFWelcomeLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			b.say(dfCommandChannel, dfWelcomeMessage)
+//			b.say(dfCommandChannel, dfWelcomeMessage)
 		}
 	}
 }
