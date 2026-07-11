@@ -5,6 +5,7 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/sirupsen/logrus"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/coreconfig"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/jwt"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
@@ -141,7 +143,7 @@ func NewTwitchCallbackEndpoint(svc nivek.NivekService) echo.HandlerFunc {
 		}
 
 		userService := userLib.NewService(svc)
-		usr, err := userService.FindOrCreateByTwitchID(userLib.TwitchProfile{
+		usr, isNew, err := userService.FindOrCreateByTwitchID(userLib.TwitchProfile{
 			ID:          profile.ID,
 			Login:       profile.Login,
 			DisplayName: profile.DisplayName,
@@ -149,6 +151,15 @@ func NewTwitchCallbackEndpoint(svc nivek.NivekService) echo.HandlerFunc {
 		if err != nil {
 			svc.Logger().Errorf("twitch oauth: user upsert failed: %s", err.Error())
 			return fail("user_upsert_failed")
+		}
+
+		if isNew {
+			// @TODO::subscribe to webhooks for this new user
+			// I want users to eventually opt-in and opt-out of having the bot in chat, regardless of
+			// if they have signed up for the website
+			// currently signing up for the website is an automatic opt-in, so this logic needs to be
+			// de-coupled
+			go subscribeToUserWebhooks(context.Background(), cfg, profile.ID, svc.Logger())
 		}
 
 		jwtService := jwt.NewJWTService(svc)
@@ -259,4 +270,76 @@ func randomURLSafe(nBytes int) (string, error) {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(buf), nil
+}
+
+//
+// Webhook subscription stuff
+//
+
+type webhookSubscriptionPayload struct {
+	Type      string          `json:"type"`
+	Version   string          `json:"version"`
+	Condition ConditionStruct `json:"condition"`
+	Transport TransportStruct `json:"transport"`
+}
+
+//
+// for stream-online and stream-offline subscriptions, we need this condition
+//
+// https://dev.twitch.tv/docs/eventsub/eventsub-subscription-types#streamonline
+// https://dev.twitch.tv/docs/eventsub/eventsub-subscription-types#streamoffline
+//
+type ConditionStruct struct {
+	BroadcasterUserId string `json:"broadcaster_user_id"`
+}
+
+type TransportStruct struct {
+	Method   string `json:"method"`
+	Callback string `json:"callback"`
+	Secret   string `json:"secret"`
+}
+
+//
+// https://dev.twitch.tv/docs/api/reference#create-eventsub-subscription
+//
+func subscribeToUserWebhooks(ctx context.Context, cfg coreconfig.CoreApiConfig, twitchUserId string, logger *logrus.Logger) {
+	payload := webhookSubscriptionPayload{
+		Type:    "stream.online",
+		Version: "1",
+		Condition: ConditionStruct{
+			BroadcasterUserId: twitchUserId,
+		},
+		Transport: TransportStruct{
+			Method: "webhook",
+			Callback: fmt.Sprintf(
+				"https://peanutbudderbot.com/%s",
+				"api/twitch/eventsub",
+			),
+			Secret: cfg.TwitchEventSubSecret,
+		},
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		logger.Errorf("failed to subscribe to webhook - could not marshal jsonBody: %s", err.Error())
+		return
+	}
+
+	req, err := http.NewRequest(http.MethodPost,
+		"https://api.twitch.tv/helix/eventsub/subscriptions",
+		bytes.NewReader(body),
+	)
+	req.Header.Set("Authorization", "")
+	req.Header.Set("Client-Id", cfg.TwitchClientID)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		logger.Errorf("failed to subscribe to webhook - error sending subscription request: %s", err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	logger.Debugf("webhook subscription response: status [%d] %s", resp.StatusCode, string(respBody))
 }

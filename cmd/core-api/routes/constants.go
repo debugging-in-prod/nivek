@@ -8,6 +8,12 @@ const (
 	GetTwitchStart    = "/auth/twitch/start"
 	GetTwitchCallback = "/auth/twitch/callback"
 
+  //
+  // Twitch Webhook Subscription Callback
+  //
+
+  TwitchWebhookSubscriptionRequest = "/api/twitch/eventsub"
+
 	//
 	// secure routes
 	//

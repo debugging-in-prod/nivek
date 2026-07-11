@@ -113,6 +113,7 @@ func NewBot(coreAPI *CoreAPIClient, config Config) (*Bot, error) {
 }
 
 func (b *Bot) Start(ctx context.Context) error {
+
 	// Join all channels
 	for _, channel := range b.config.Channels {
 		b.client.Join(channel)

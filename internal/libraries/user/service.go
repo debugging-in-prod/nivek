@@ -15,7 +15,7 @@ type NivekUserService interface {
 	GetUserById(id int) (*User, error)
 	DeleteUserById(id int) error
 
-	FindOrCreateByTwitchID(profile TwitchProfile) (*User, error)
+	FindOrCreateByTwitchID(profile TwitchProfile) (*User, bool, error)
 }
 
 type TwitchProfile struct {
@@ -88,7 +88,7 @@ func (s *nivekUserServiceImpl) UpdateUser(request *UpdateUserRequest) (*User, er
 //
 // Display name + login are refreshed on every login so renames on Twitch
 // propagate to our DB.
-func (s *nivekUserServiceImpl) FindOrCreateByTwitchID(profile TwitchProfile) (*User, error) {
+func (s *nivekUserServiceImpl) FindOrCreateByTwitchID(profile TwitchProfile) (*User, bool, error) {
 	var existing User
 	err := s.userTable.Find(db.Cond{"twitch_id": profile.ID}).One(&existing)
 	if err == nil {
@@ -97,13 +97,13 @@ func (s *nivekUserServiceImpl) FindOrCreateByTwitchID(profile TwitchProfile) (*U
 			existing.TwitchDisplayName = &profile.DisplayName
 			existing.Username = profile.Login
 			if err := s.userTable.Find(db.Cond{"id": existing.Id}).Update(existing); err != nil {
-				return nil, fmt.Errorf("error refreshing twitch user fields: %w", err)
+				return nil, false, fmt.Errorf("error refreshing twitch user fields: %w", err)
 			}
 		}
-		return &existing, nil
+		return &existing, false, nil
 	}
 	if !errors.Is(err, db.ErrNoMoreRows) {
-		return nil, fmt.Errorf("error looking up user by twitch_id: %w", err)
+		return nil, false, fmt.Errorf("error looking up user by twitch_id: %w", err)
 	}
 
 	// No twitch_id match — look for a legacy row by username before inserting.
@@ -117,12 +117,12 @@ func (s *nivekUserServiceImpl) FindOrCreateByTwitchID(profile TwitchProfile) (*U
 		legacy.TwitchDisplayName = &profile.DisplayName
 		legacy.Username = profile.Login
 		if err := s.userTable.Find(db.Cond{"id": legacy.Id}).Update(legacy); err != nil {
-			return nil, fmt.Errorf("error backfilling twitch fields onto legacy user: %w", err)
+			return nil, false, fmt.Errorf("error backfilling twitch fields onto legacy user: %w", err)
 		}
-		return &legacy, nil
+		return &legacy, false, nil
 	}
 	if !errors.Is(err, db.ErrNoMoreRows) {
-		return nil, fmt.Errorf("error looking up legacy user by username: %w", err)
+		return nil, false, fmt.Errorf("error looking up legacy user by username: %w", err)
 	}
 
 	newUser := User{
@@ -133,11 +133,12 @@ func (s *nivekUserServiceImpl) FindOrCreateByTwitchID(profile TwitchProfile) (*U
 	}
 	result, err := s.userTable.Insert(newUser)
 	if err != nil {
-		return nil, fmt.Errorf("error inserting twitch user: %w", err)
+		return nil, false, fmt.Errorf("error inserting twitch user: %w", err)
 	}
 
 	newUser.Id = int(result.ID().(int64))
-	return &newUser, nil
+
+	return &newUser, true, nil
 }
 
 func derefOrEmpty(s *string) string {
@@ -146,3 +147,6 @@ func derefOrEmpty(s *string) string {
 	}
 	return *s
 }
+
+
+
