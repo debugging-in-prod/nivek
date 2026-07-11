@@ -6,7 +6,7 @@ toolchain go1.26.3
 
 require (
 	github.com/coder/websocket v1.8.14
-	github.com/gempir/go-twitch-irc/v4 v4.3.0
+	github.com/gempir/go-twitch-irc/v4 v4.4.1
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/ipinfo/go/v2 v2.11.0
@@ -17,7 +17,6 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/sourcegraph/conc v0.3.0
 	github.com/upper/db/v4 v4.10.0
-	golang.org/x/crypto v0.45.0
 	golang.org/x/sync v0.18.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
@@ -41,6 +40,7 @@ require (
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
