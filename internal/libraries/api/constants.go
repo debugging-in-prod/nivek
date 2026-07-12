@@ -12,7 +12,7 @@ const (
   // Twitch Webhook Subscription Callback
   //
 
-  TwitchWebhookSubscriptionRequest = "/api/twitch/eventsub"
+  TwitchWebhookSubscriptionRequest = "/eventsub"
 
 	//
 	// secure routes
