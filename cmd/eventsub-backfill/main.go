@@ -124,7 +124,7 @@ func main() {
 }
 
 func loadUsersWithTwitchID() ([]user.User, error) {
-	host := mustEnv("POSTGRES_HOST")
+	host := "0.0.0.0"
 	username := mustEnv("POSTGRES_USERNAME")
 	password := mustEnv("POSTGRES_PASSWORD")
 	database := mustEnv("POSTGRES_DB")
