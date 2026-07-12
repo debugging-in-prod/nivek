@@ -53,12 +53,7 @@ func RegisterRoutes(nivek nivek.NivekService, e *echo.Group) {
 		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
 	)
 
-  e.POST(
-    apilib.TwitchWebhookSubscriptionRequest,
-    endpoints.NewTwitchEventSubEndpoint(nivek),
-  )
-
-	// weather
+  	// weather
 	e.POST(apilib.PostWeather, weather.NewGetWeatherEndpoint(nivek),
 		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
 	)

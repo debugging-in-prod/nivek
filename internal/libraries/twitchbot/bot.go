@@ -7,15 +7,15 @@ import (
 	"fmt"
 	"log"
 	"maps"
-	"strings"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/gempir/go-twitch-irc/v4"
 	"github.com/google/uuid"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/api"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer/wire"
-  "github.com/tim-the-toolman-taylor/nivek/internal/libraries/api"
 )
 
 // dfCommandChannel is the only Twitch channel from which !DF commands are
@@ -62,6 +62,10 @@ type Bot struct {
 }
 
 func NewBot(coreAPI *api.CoreAPIClient, config Config) (*Bot, error) {
+
+  // setup webhook listener
+  NewWebhookListener()
+
 	// Load timezone
 	loc, err := time.LoadLocation(config.Timezone)
 	if err != nil {
