@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+  "github.com/tim-the-toolman-taylor/nivek/internal/libraries/user"
 )
 
 // CoreAPIClient is the bot's only path to persistent state. Every call signs
@@ -128,6 +130,7 @@ func (c *CoreAPIClient) do(method, path, rawQuery string, body []byte, out any) 
 	return nil
 }
 
+// likely to be deprecated after webhook integration
 func (c *CoreAPIClient) GetChannels() ([]string, error) {
 	var resp struct {
 		Channels []string `json:"channels"`
@@ -136,6 +139,16 @@ func (c *CoreAPIClient) GetChannels() ([]string, error) {
 		return nil, err
 	}
 	return resp.Channels, nil
+}
+
+func (c *CoreAPIClient) GetActiveChannels() ([]user.User, error) {
+  var resp struct {
+    Channels []user.User `json:"channels"`
+  }
+  if err := c.do(http.MethodGet, "/bot/channels/active", "", nil, &resp); err != nil {
+    return nil, err
+  }
+  return resp.Channels, nil
 }
 
 func (c *CoreAPIClient) IncrementBread(channel, chatter string) (int, error) {

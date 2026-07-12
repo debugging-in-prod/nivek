@@ -16,5 +16,6 @@ type User struct {
 	TwitchID          *string `db:"twitch_id" json:"twitch_id"`
 	TwitchLogin       *string `db:"twitch_login" json:"twitch_login"`
 	TwitchDisplayName *string `db:"twitch_display_name" json:"twitch_display_name"`
+	BotOptIn          bool    `db:"bot_opt_in" json:"bot_opt_in"`
 	CreatedAt         string  `db:"created_at" json:"created_at"`
 }

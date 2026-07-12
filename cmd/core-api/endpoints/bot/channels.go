@@ -29,3 +29,16 @@ func NewGetChannelsEndpoint(nivekSvc nivek.NivekService) echo.HandlerFunc {
 		return c.JSON(http.StatusOK, map[string]any{"channels": channels})
 	}
 }
+
+func NewGetActiveChannelsEndpoint(nivekSvc nivek.NivekService) echo.HandlerFunc {
+  userService := user.NewService(nivekSvc)
+	return func(c echo.Context) error {
+		users, err := userService.GetAllActiveUsers()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "fetch active users",
+			})
+		}
+		return c.JSON(http.StatusOK, map[string]any{"channels": users})
+	}
+}

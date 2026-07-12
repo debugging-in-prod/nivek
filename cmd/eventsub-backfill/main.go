@@ -25,7 +25,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"time"
@@ -33,8 +32,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/twitcheventsub"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/user"
-	"github.com/upper/db/v4"
-	"github.com/upper/db/v4/adapter/postgresql"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/twitchbot"
 )
 
 func main() {
@@ -124,30 +122,23 @@ func main() {
 }
 
 func loadUsersWithTwitchID() ([]user.User, error) {
-	host := "0.0.0.0"
-	username := mustEnv("POSTGRES_USERNAME")
-	password := mustEnv("POSTGRES_PASSWORD")
-	database := mustEnv("POSTGRES_DB")
-	port := envOr("POSTGRES_PORT", "5432")
-
-	sess, err := postgresql.Open(postgresql.ConnectionURL{
-		User:     username,
-		Password: password,
-		Database: database,
-		Host:     fmt.Sprintf("%s:%s", host, port),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("open postgres: %w", err)
+  coreAPIURL := envOr("CORE_API_URL", "")
+	botHmacKey := envOr("BOT_API_HMAC_KEY", "")
+	if coreAPIURL == "" || botHmacKey == "" {
+		log.Fatal("Missing required environment variables: CORE_API_URL, BOT_API_HMAC_KEY")
 	}
-	defer sess.Close()
 
-	var users []user.User
-	// upper/db: non-null twitch_id
-	err = sess.Collection(user.TableUser).Find(db.Cond{
-		"twitch_id >": "",
-	}).All(&users)
+	coreAPI, err := twitchbot.NewCoreAPIClient(coreAPIURL, botHmacKey)
 	if err != nil {
-		return nil, fmt.Errorf("query users: %w", err)
+		log.Fatalf("Failed to create core-api client: %v", err)
+	}
+
+  users, err := coreAPI.GetActiveChannels()
+	if err != nil {
+		log.Fatalf("Failed to fetch active channels from core-api: %v", err)
+	}
+	if len(users) == 0 {
+		log.Fatal("No active users returned by core-api")
 	}
 
 	// Defensive: drop any row with nil/empty twitch_id (Cond may vary by adapter).
@@ -174,3 +165,4 @@ func envOr(key, def string) string {
 	}
 	return def
 }
+

@@ -39,9 +39,11 @@ func NewService(service nivek.NivekService) NivekUserService {
 func (s *nivekUserServiceImpl) GetAllActiveUsers() ([]User, error) {
 	var users []User
 
-	if err := s.userTable.Find().All(&users); err != nil {
+	if err := s.userTable.Find(db.Cond{
+    "bot_opt_in": true,
+  }).All(&users); err != nil {
 		return nil, fmt.Errorf("error getting all users: %w", err)
-	}
+  }
 
 	return users, nil
 }

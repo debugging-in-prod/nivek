@@ -98,6 +98,7 @@ func RegisterRoutes(nivek nivek.NivekService, e *echo.Group) {
 	// bot signs.
 	botAuth := nivekmiddleware.NewHMACMiddleware("BOT_API_HMAC_KEY")
 	e.GET(GetBotChannels, bot.NewGetChannelsEndpoint(nivek), botAuth)
+  e.GET(GetActiveChannels, bot.NewGetActiveChannelsEndpoint(nivek), botAuth)
 	e.POST(PostBotBreadIncrement, bot.NewPostBreadIncrementEndpoint(nivek), botAuth)
 	e.GET(GetBotBreadTotal, bot.NewGetBreadTotalEndpoint(nivek), botAuth)
 	e.POST(PostBotLurkMessage, bot.NewPostLurkMessageEndpoint(nivek), botAuth)

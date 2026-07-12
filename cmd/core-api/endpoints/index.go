@@ -90,6 +90,11 @@ func NewTwitchEventSubEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
     }
 
     if MESSAGE_TYPE_NOTIFICATION == c.Request().Header.Get(MESSAGE_TYPE) {
+      // this is where stream.online and stream.offline are going to be handled
+      // I could put this on the bot directly, but having it here makes more sense as incoming requests are already routed to this API service
+      // so if I want to keep this setup, then this API is going to need to be able to manage the bot connecting and disconnecting to streams
+
+
       // @TODO::do something with notifications
       nivek.Logger().Debugf("Event Type: %s", notification.Subscription.Type)
       nivek.Logger().Debugf("notification: %+v", notification)

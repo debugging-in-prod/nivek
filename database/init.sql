@@ -33,6 +33,7 @@ ALTER TABLE nivek.users ALTER COLUMN password DROP NOT NULL;
 ALTER TABLE nivek.users ADD COLUMN IF NOT EXISTS twitch_id VARCHAR(64) UNIQUE;
 ALTER TABLE nivek.users ADD COLUMN IF NOT EXISTS twitch_login VARCHAR(50);
 ALTER TABLE nivek.users ADD COLUMN IF NOT EXISTS twitch_display_name VARCHAR(100);
+ALTER TABLE nivek.users ADD COLUMN IF NOT EXISTS bot_opt_in BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Table to track fishing scores per user
 create TABLE IF NOT EXISTS nivek.fish_score (
