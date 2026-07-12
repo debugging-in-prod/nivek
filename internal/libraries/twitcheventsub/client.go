@@ -17,12 +17,13 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/api"
 )
 
 const (
 	tokenURL               = "https://id.twitch.tv/oauth2/token"
 	eventSubSubscriptionsURL = "https://api.twitch.tv/helix/eventsub/subscriptions"
-	DefaultCallbackURL     = "https://peanutbudderbot.com/api/twitch/eventsub"
 	defaultHTTPTimeout     = 10 * time.Second
 	// Refresh a minute early so we don't race the exact expiry second.
 	appTokenExpirySkew = time.Minute
@@ -56,7 +57,7 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, errors.New("TWITCH_EVENTSUB_SECRET is required")
 	}
 	if cfg.CallbackURL == "" {
-		cfg.CallbackURL = DefaultCallbackURL
+		cfg.CallbackURL = fmt.Sprintf("%s%s", "https://peanutbudderbot.com", api.TwitchWebhookSubscriptionRequest)
 	}
 	timeout := cfg.HTTPClientTimeout
 	if timeout <= 0 {

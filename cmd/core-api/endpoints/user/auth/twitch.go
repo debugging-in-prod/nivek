@@ -20,6 +20,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/coreconfig"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/api"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/jwt"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/twitcheventsub"
@@ -279,7 +280,7 @@ func subscribeToUserWebhooks(ctx context.Context, cfg coreconfig.CoreApiConfig, 
 		ClientID:       cfg.TwitchClientID,
 		ClientSecret:   cfg.TwitchClientSecret,
 		EventSubSecret: cfg.TwitchEventSubSecret,
-		CallbackURL:    twitcheventsub.DefaultCallbackURL,
+    CallbackURL:    fmt.Sprintf("https://peanutbudderbot.com%s", api.TwitchWebhookSubscriptionRequest),
 	})
 	if err != nil {
 		logger.Errorf("failed to subscribe to webhook - client: %s", err.Error())

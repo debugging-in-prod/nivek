@@ -25,6 +25,7 @@ package main
 import (
 	"context"
 	"flag"
+  "fmt"
 	"log"
 	"os"
 	"time"
@@ -45,7 +46,7 @@ func main() {
 	clientID := mustEnv("TWITCH_CLIENT_ID")
 	clientSecret := mustEnv("TWITCH_CLIENT_SECRET")
 	eventSubSecret := mustEnv("TWITCH_EVENTSUB_SECRET")
-	callback := envOr("TWITCH_EVENTSUB_CALLBACK", twitcheventsub.DefaultCallbackURL)
+  callback := envOr("TWITCH_EVENTSUB_CALLBACK", fmt.Sprintf("https://peanutbudderbot.com%s", api.TwitchWebhookSubscriptionRequest))
 
 	ctx := context.Background()
 

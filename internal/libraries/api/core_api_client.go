@@ -135,7 +135,7 @@ func (c *CoreAPIClient) GetChannels() ([]string, error) {
 	var resp struct {
 		Channels []string `json:"channels"`
 	}
-	if err := c.do(http.MethodGet, "/bot/channels", "", nil, &resp); err != nil {
+	if err := c.do(http.MethodGet, GetBotChannels, "", nil, &resp); err != nil {
 		return nil, err
 	}
 	return resp.Channels, nil
@@ -145,7 +145,7 @@ func (c *CoreAPIClient) GetActiveChannels() ([]user.User, error) {
   var resp struct {
     Channels []user.User `json:"channels"`
   }
-  if err := c.do(http.MethodGet, "/bot/channels/active", "", nil, &resp); err != nil {
+  if err := c.do(http.MethodGet, GetActiveChannels, "", nil, &resp); err != nil {
     return nil, err
   }
   return resp.Channels, nil
