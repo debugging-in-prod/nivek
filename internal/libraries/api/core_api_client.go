@@ -1,4 +1,4 @@
-package twitchbot
+package api
 
 import (
 	"bytes"

@@ -32,7 +32,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/twitcheventsub"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/user"
-	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/twitchbot"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/api"
 )
 
 func main() {
@@ -128,7 +128,7 @@ func loadUsersWithTwitchID() ([]user.User, error) {
 		log.Fatal("Missing required environment variables: CORE_API_URL, BOT_API_HMAC_KEY")
 	}
 
-	coreAPI, err := twitchbot.NewCoreAPIClient(coreAPIURL, botHmacKey)
+	coreAPI, err := api.NewCoreAPIClient(coreAPIURL, botHmacKey)
 	if err != nil {
 		log.Fatalf("Failed to create core-api client: %v", err)
 	}

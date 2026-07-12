@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/twitchbot"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/api"
 )
 
 // The bot has no Postgres dependency. It reaches all persistent state through
@@ -27,7 +28,7 @@ func main() {
 		log.Fatal("Missing required environment variables: CORE_API_URL, BOT_API_HMAC_KEY")
 	}
 
-	coreAPI, err := twitchbot.NewCoreAPIClient(coreAPIURL, botHmacKey)
+	coreAPI, err := api.NewCoreAPIClient(coreAPIURL, botHmacKey)
 	if err != nil {
 		log.Fatalf("Failed to create core-api client: %v", err)
 	}
@@ -89,7 +90,7 @@ var validTwitchLogin = regexp.MustCompile(`^[a-z0-9_]{4,25}$`)
 // valid Twitch logins. The filter stays bot-side because it's an IRC-protocol
 // concern (4-25 chars, lowercase, [a-z0-9_]), not something the API should
 // gatekeep.
-func getChannelNames(coreAPI *twitchbot.CoreAPIClient) []string {
+func getChannelNames(coreAPI *api.CoreAPIClient) []string {
 	users, err := coreAPI.GetChannels()
 	if err != nil {
 		log.Fatalf("Failed to fetch active channels from core-api: %v", err)

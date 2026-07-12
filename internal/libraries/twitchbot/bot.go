@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer/wire"
+  "github.com/tim-the-toolman-taylor/nivek/internal/libraries/api"
 )
 
 // dfCommandChannel is the only Twitch channel from which !DF commands are
@@ -55,12 +56,12 @@ type Bot struct {
 	config         Config
 	counters       *CounterManager
 	location       *time.Location
-	coreAPI        *CoreAPIClient
+	coreAPI        *api.CoreAPIClient
 	overseerClient *overseer.Client
 	sayQueue       chan sayRequest
 }
 
-func NewBot(coreAPI *CoreAPIClient, config Config) (*Bot, error) {
+func NewBot(coreAPI *api.CoreAPIClient, config Config) (*Bot, error) {
 	// Load timezone
 	loc, err := time.LoadLocation(config.Timezone)
 	if err != nil {

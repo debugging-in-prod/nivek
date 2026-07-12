@@ -14,6 +14,7 @@ import (
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/weather"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivekmiddleware"
+  apilib "github.com/tim-the-toolman-taylor/nivek/internal/libraries/api"
 )
 
 // RegisterRoutes attaches the API handlers to the given router group. It takes
@@ -24,83 +25,83 @@ func RegisterRoutes(nivek nivek.NivekService, e *echo.Group) {
 
 	//
 	// Hello World
-	e.GET(HelloWorld, endpoints.NewIndexEndpoint(nivek))
+	e.GET(apilib.HelloWorld, endpoints.NewIndexEndpoint(nivek))
 
 	//
 	// Auth — Twitch OAuth is the only signup/login path. /start redirects to
 	// Twitch with a CSRF state cookie; /callback exchanges the code, fetches
 	// the user's Twitch profile, find-or-creates a row, issues our JWT, and
 	// 302s back to the frontend with the token in the URL fragment.
-	e.GET(GetTwitchStart, auth.NewTwitchStartEndpoint(nivek))
-	e.GET(GetTwitchCallback, auth.NewTwitchCallbackEndpoint(nivek))
+	e.GET(apilib.GetTwitchStart, auth.NewTwitchStartEndpoint(nivek))
+	e.GET(apilib.GetTwitchCallback, auth.NewTwitchCallbackEndpoint(nivek))
 
 	//
 	// Secure routes:
-	e.POST(PostLogout, auth.NewLogoutEndpoint(nivek),
+	e.POST(apilib.PostLogout, auth.NewLogoutEndpoint(nivek),
 		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
 	)
 
-	e.POST(PostFetchUserData, user.NewGetProfileEndpoint(nivek),
+	e.POST(apilib.PostFetchUserData, user.NewGetProfileEndpoint(nivek),
 		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
 	)
 
-	e.GET(GetUserTasks, task.NewGetUserTasksEndpoint(nivek),
+	e.GET(apilib.GetUserTasks, task.NewGetUserTasksEndpoint(nivek),
 		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
 	)
 
-	e.POST(PostCreateUserTask, task.NewPostCreateUserTaskEndpoint(nivek),
+	e.POST(apilib.PostCreateUserTask, task.NewPostCreateUserTaskEndpoint(nivek),
 		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
 	)
 
   e.POST(
-    TwitchWebhookSubscriptionRequest,
+    apilib.TwitchWebhookSubscriptionRequest,
     endpoints.NewTwitchEventSubEndpoint(nivek),
   )
 
 	// weather
-	e.POST(PostWeather, weather.NewGetWeatherEndpoint(nivek),
+	e.POST(apilib.PostWeather, weather.NewGetWeatherEndpoint(nivek),
 		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
 	)
 
 	// fishing
-	e.GET(GetFishingScore, fishing.NewGetFishingScoreEndpoint(nivek),
+	e.GET(apilib.GetFishingScore, fishing.NewGetFishingScoreEndpoint(nivek),
 		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
 	)
 
 	// auto shout
-	e.GET(GetAutoShoutChatters, autoshout.NewGetAutoShoutChattersEndpoint(nivek),
+	e.GET(apilib.GetAutoShoutChatters, autoshout.NewGetAutoShoutChattersEndpoint(nivek),
 		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
 	)
-	e.POST(PostCreateAutoShoutChatter, autoshout.NewCreateAutoShoutChatterEndpoint(nivek),
+	e.POST(apilib.PostCreateAutoShoutChatter, autoshout.NewCreateAutoShoutChatterEndpoint(nivek),
 		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
 	)
-	e.POST(PostUpdateAutoShoutChatter, autoshout.NewUpdateAutoShoutChatterEndpoint(nivek),
+	e.POST(apilib.PostUpdateAutoShoutChatter, autoshout.NewUpdateAutoShoutChatterEndpoint(nivek),
 		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
 	)
-	e.DELETE(DeleteAutoShoutChatter, autoshout.NewDeleteAutoShoutChatterEndpoint(nivek),
+	e.DELETE(apilib.DeleteAutoShoutChatter, autoshout.NewDeleteAutoShoutChatterEndpoint(nivek),
 		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
 	)
 
 	// messager
-	e.POST(PostCreateMessage, messenger.NewCreateMesageEndpoint(nivek),
+	e.POST(apilib.PostCreateMessage, messenger.NewCreateMesageEndpoint(nivek),
 		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
 	)
-	e.GET(GetMessages, messenger.NewGetMessagesEndpoint(nivek),
+	e.GET(apilib.GetMessages, messenger.NewGetMessagesEndpoint(nivek),
 		nivekmiddleware.NewJWTMiddleware(nivek).Middleware(),
 	)
 
 	// DF dashboard (GET public, POST HMAC-authed in the handler)
-	e.GET(GetDFSnapshot, df.NewGetSnapshotEndpoint(nivek))
-	e.POST(PostDFSnapshot, df.NewPostSnapshotEndpoint(nivek))
+	e.GET(apilib.GetDFSnapshot, df.NewGetSnapshotEndpoint(nivek))
+	e.POST(apilib.PostDFSnapshot, df.NewPostSnapshotEndpoint(nivek))
 
 	// twitch-bot RPC. HMAC-authed via BOT_API_HMAC_KEY (hex). See
 	// nivekmiddleware.NewHMACMiddleware for the canonical-string format the
 	// bot signs.
 	botAuth := nivekmiddleware.NewHMACMiddleware("BOT_API_HMAC_KEY")
-	e.GET(GetBotChannels, bot.NewGetChannelsEndpoint(nivek), botAuth)
-  e.GET(GetActiveChannels, bot.NewGetActiveChannelsEndpoint(nivek), botAuth)
-	e.POST(PostBotBreadIncrement, bot.NewPostBreadIncrementEndpoint(nivek), botAuth)
-	e.GET(GetBotBreadTotal, bot.NewGetBreadTotalEndpoint(nivek), botAuth)
-	e.POST(PostBotLurkMessage, bot.NewPostLurkMessageEndpoint(nivek), botAuth)
-	e.POST(PostBotFishGo, bot.NewPostFishGoEndpoint(nivek), botAuth)
+	e.GET(apilib.GetBotChannels, bot.NewGetChannelsEndpoint(nivek), botAuth)
+  e.GET(apilib.GetActiveChannels, bot.NewGetActiveChannelsEndpoint(nivek), botAuth)
+	e.POST(apilib.PostBotBreadIncrement, bot.NewPostBreadIncrementEndpoint(nivek), botAuth)
+	e.GET(apilib.GetBotBreadTotal, bot.NewGetBreadTotalEndpoint(nivek), botAuth)
+	e.POST(apilib.PostBotLurkMessage, bot.NewPostLurkMessageEndpoint(nivek), botAuth)
+	e.POST(apilib.PostBotFishGo, bot.NewPostFishGoEndpoint(nivek), botAuth)
 }
