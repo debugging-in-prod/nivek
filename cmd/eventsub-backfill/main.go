@@ -80,27 +80,37 @@ func main() {
 		log.Fatalf("eventsub client: %v", err)
 	}
 
+  webhooks := map[string]func(context.Context, string) (twitcheventsub.SubscribeResult, error){
+    "stream.online":  client.SubscribeStreamOnline,
+    "stream.offline": client.SubscribeStreamOffline,
+  }
+
 	var ok, exists, failed int
 	for i, u := range users {
 		twitchID := *u.TwitchID
-		result, err := client.SubscribeStreamOnline(ctx, twitchID)
-		if err != nil {
-			failed++
-			log.Printf("[%d/%d] FAIL user_id=%d username=%s twitch_id=%s err=%v",
-				i+1, len(users), u.Id, u.Username, twitchID, err)
-		} else if result.AlreadyExists() {
-			exists++
-			log.Printf("[%d/%d] already-subscribed user_id=%d username=%s twitch_id=%s",
-				i+1, len(users), u.Id, u.Username, twitchID)
-		} else if result.OK() {
-			ok++
-			log.Printf("[%d/%d] subscribed user_id=%d username=%s twitch_id=%s status=%d",
-				i+1, len(users), u.Id, u.Username, twitchID, result.StatusCode)
-		} else {
-			failed++
-			log.Printf("[%d/%d] FAIL user_id=%d username=%s twitch_id=%s status=%d body=%s",
-				i+1, len(users), u.Id, u.Username, twitchID, result.StatusCode, string(result.Body))
-		}
+
+    for webhookName, webhookFunc := range webhooks {
+
+      result, err := webhookFunc(ctx, twitchID)
+      if err != nil {
+        failed++
+        log.Printf("[%d/%d] FAIL %s user_id=%d username=%s twitch_id=%s err=%v",
+          i+1, len(users), webhookName, u.Id, u.Username, twitchID, err)
+      } else if result.AlreadyExists() {
+        exists++
+        log.Printf("[%d/%d] already-subscribed user_id=%d username=%s twitch_id=%s",
+          i+1, len(users), u.Id, u.Username, twitchID)
+      } else if result.OK() {
+        ok++
+        log.Printf("[%d/%d] subscribed user_id=%d username=%s twitch_id=%s status=%d",
+          i+1, len(users), u.Id, u.Username, twitchID, result.StatusCode)
+      } else {
+        failed++
+        log.Printf("[%d/%d] FAIL user_id=%d username=%s twitch_id=%s status=%d body=%s",
+          i+1, len(users), u.Id, u.Username, twitchID, result.StatusCode, string(result.Body))
+      }
+
+    }
 
 		if i < len(users)-1 && *delay > 0 {
 			time.Sleep(*delay)
