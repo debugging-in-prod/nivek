@@ -463,9 +463,9 @@ func (b *Bot) runPromotionMessageLoop(ctx context.Context) {
 // channel (case-insensitive login match): the creator's channel and the bot's
 // own channel. These are joined at boot regardless of live state, never departed
 // on go-offline, and can never be banished.
-func (b *Bot) isPermanentChannel(chatterUserLogin string) bool {
-	login := strings.ToLower(chatterUserLogin)
-	return login == botCreatorChannel || login == strings.ToLower(b.config.BotUsername)
+func (b *Bot) isPermanentChannel(channel string) bool {
+	channel = strings.ToLower(channel)
+	return channel == botCreatorChannel || channel == strings.ToLower(b.config.BotUsername)
 }
 
 // isTrackedChannel reports whether login is currently tracked in config.Channels

@@ -94,6 +94,14 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 		return
 	}
 
+	// log everything from timallenfanclubofficial chat - need to see moobot message format for shoutouts
+	if b.isPermanentChannel(messageEvent.BroadcasterUserLogin) {
+		// only want to see message from moobot
+		if messageEvent.ChatterUserName == "Moobot" {
+			fmt.Println(messageEvent)
+		}
+	}
+
 	if messageEvent.ChatterUserId == b.config.BotId || strings.EqualFold(messageEvent.ChatterUserLogin, b.config.BotUsername) {
 		return
 	}
