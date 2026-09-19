@@ -63,6 +63,7 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 	guess := fields[0]
 	game.Guesses = append(game.Guesses, guess)
 	b.say(channelId, printState(game))
+	fmt.Printf("[HANGMAN] handling guess %s for word %s", guess, game.Word)
 }
 
 func printState(game *Game) string {
