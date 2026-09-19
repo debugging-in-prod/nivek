@@ -15,9 +15,14 @@ type Game struct {
 	Guesses []string
 }
 
+const hangmanMaxWrong = 6
+var hangmanFaces = [hangmanMaxWrong + 1]string{
+	"😀", "😧", "😨", "😰", "😱", "😵", "💀", // index 6 = dead / game over
+}
+
 func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 	channel := message.BroadcasterUserLogin
-	channelId := message.BroadcasterUserId
+//	channelId := message.BroadcasterUserId
 
 	hangman := Hangman{
 		Games: make(map[string]Game),
@@ -40,7 +45,7 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 
 			// new game
 
-			hangman.Games[channel] = Game{
+			newgame := Game{
 				Word:    "",
 				Guesses: []string{},
 			}
@@ -54,9 +59,9 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 			defer resp.Body.Close()
 			body, err := io.ReadAll(resp.Body)
 
-			fmt.Printf("[HANGMAN] word generated for new game: %+v\n", body)
+			fmt.Printf("[HANGMAN] word generated for new game: %s\n", body)
 
-			b.printman(channelId)
+			newgame.Word = ""
 		}
 	} else {
 
@@ -66,13 +71,4 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 			fmt.Println("hangman default switchcase")
 		}
 	}
-}
-
-func (b *Bot) printman(channelId string) {
-	b.say(channelId, "+---+")
-	b.say(channelId, "|   |")
-	b.say(channelId, "|   O")
-	b.say(channelId, "|  /|\\")
-	b.say(channelId, "|  / \\")
-	b.say(channelId, "=======")
 }
