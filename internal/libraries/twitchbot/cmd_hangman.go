@@ -113,10 +113,6 @@ func printState(game *Game) string {
 		}
 	}
 
-	if !slices.Contains(slots, "_") {
-		game.GameOver = true
-	}
-
 	misses, wrong := calcMisses(game)
 
 	line := fmt.Sprintf("%s  %s", hangmanFaces[wrong], strings.Join(slots, " "))
@@ -125,13 +121,12 @@ func printState(game *Game) string {
 	}
 	line += fmt.Sprintf(" (%d/%d)", wrong, hangmanMaxWrong)
 
-	if game.GameOver {
-		line += " You win! Use '!hangman' to start a new game"
-	}
-
 	if wrong >= hangmanMaxWrong {
 		line += " Game over!"
 		game.GameOver = true
+	} else if !slices.Contains(slots, "_") {
+		game.GameOver = true
+		line += " You win! Use '!hangman' to start a new game"
 	}
 
 	return line
