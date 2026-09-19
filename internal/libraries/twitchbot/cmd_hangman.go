@@ -59,9 +59,9 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 			defer resp.Body.Close()
 			body, err := io.ReadAll(resp.Body)
 
-			fmt.Printf("[HANGMAN] word generated for new game: %s\n", body)
+			fmt.Printf("[HANGMAN] word generated for new game: %s\n", string(body))
 
-			newgame.Word = ""
+			newgame.Word = string(body)
 		}
 	} else {
 
