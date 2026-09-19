@@ -77,7 +77,7 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 	}
 
 	b.say(channelId, printState(game))
-	fmt.Printf("[HANGMAN] handling guess %s for word %s", guess, game.Word)
+	fmt.Printf("[HANGMAN] handling guess %s for word %s\n", guess, game.Word)
 }
 
 // calcMisses figure out how many wrong guesses have been made and which letters are wrong
