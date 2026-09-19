@@ -69,10 +69,10 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 }
 
 func (b *Bot) printman(channelId string) {
-	b.say(channelId, "  +---+")
-	b.say(channelId, "  |   |")
-	b.say(channelId, "  O   |")
-	b.say(channelId, " /|\\  |")
-	b.say(channelId, " / \\  |")
+	b.say(channelId, "+---+")
+	b.say(channelId, "|   |")
+	b.say(channelId, "|   O")
+	b.say(channelId, "|  /|\\")
+	b.say(channelId, "|  / \\")
 	b.say(channelId, "=======")
 }
