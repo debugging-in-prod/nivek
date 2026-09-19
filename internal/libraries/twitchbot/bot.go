@@ -159,6 +159,8 @@ type Bot struct {
 	liveMu sync.Mutex
 	live   map[string]bool
 
+	hangmanGames map[string]*Game
+
 	// customMu guards customCommands, the per-channel custom ("channel"-scoped)
 	// command sets. Outer key is the lowercased channel login (what handleMessage
 	// dispatches on); inner key is the lowercased trigger. Loaded on stream.online

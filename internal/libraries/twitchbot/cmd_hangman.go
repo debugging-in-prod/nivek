@@ -26,10 +26,10 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 	channel := message.BroadcasterUserLogin
 	channelId := message.BroadcasterUserId
 
-	hangman := Hangman{
-		Games: make(map[string]*Game),
-	}
+	// get game record
+	game := b.hangmanGames[channel]
 
+	// get command args
 	raw := strings.TrimSpace(message.Message.Text)
 	args := ""
 	if idx := strings.IndexAny(raw, " \t"); idx != -1 {
@@ -37,12 +37,13 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 	}
 	fields := strings.Fields(args)
 
+	// if no args, either new game or checking game state
 	if len(fields) == 0 {
-		if game, ok := hangman.Games[channel]; ok {
+		if game != nil {
 
-			// resume existing game
+			// resume existing game -- print current game state
 			fmt.Printf("[HANGMAN] game found! %+v\n", game)
-			b.say(channelId, printstate(game))
+			b.say(channelId, printState(game))
 		} else {
 
 			// new game
@@ -51,21 +52,20 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 				b.say(channelId, "whoops! Failed to start new game")
 			} else {
 				b.say(channelId, "New game started!")
-				b.say(channelId, printstate(newgame))
-				hangman.Games[channel] = newgame
+				b.say(channelId, printState(newgame))
+				b.hangmanGames[channel] = newgame
 			}
 		}
-	} else {
-
-		// handle guess
-		switch strings.ToLower(fields[0]) {
-		default:
-			fmt.Println("hangman default switchcase")
-		}
+		return
 	}
+
+	// handle guess
+	guess := fields[0]
+	game.Guesses = append(game.Guesses, guess)
+	b.say(channelId, printState(game))
 }
 
-func printstate(game *Game) string {
+func printState(game *Game) string {
 	guessed := make(map[rune]bool, len(game.Guesses))
 	for _, g := range game.Guesses {
 		for _, r := range strings.ToLower(g) {
