@@ -111,10 +111,10 @@ func printState(game *Game) string {
 		} else {
 			slots = append(slots, "_")
 		}
+	}
 
-		if !slices.Contains(slots, "_") {
-			game.GameOver = true
-		}
+	if !slices.Contains(slots, "_") {
+		game.GameOver = true
 	}
 
 	misses, wrong := calcMisses(game)
