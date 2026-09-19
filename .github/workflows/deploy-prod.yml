@@ -4,91 +4,53 @@ on:
   push:
     branches:
       - main
+    # Optional: limit triggers to certain paths if you want
+    # paths:
+    #   - 'cmd/core-api/**'
+    #   - 'internal/**'
+    #   - 'pkg/**'
+    #   - 'go.mod'
+    #   - 'go.sum'
 
 permissions:
   contents: write
 
-concurrency:
-  group: production-deploy
-  cancel-in-progress: false
-
 jobs:
-  # Decide which parts of the stack a push actually touched, so a bot-only edit
-  # no longer waits on (or triggers) a full website recreate. Shared Go code
-  # (internal/, pkg/, go.mod/go.sum) intentionally flags BOTH api and bot.
-  # docker-compose.yml flags both container services since it can affect either.
-  changes:
-    runs-on: [self-hosted, linux, prod]
-    outputs:
-      web: ${{ steps.filter.outputs.web }}
-      api: ${{ steps.filter.outputs.api }}
-      bot: ${{ steps.filter.outputs.bot }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # paths-filter needs history to diff against the push base
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            web:
-              - 'nivek-nuxt/**'
-              - 'docker/images/nuxt/**'
-              - 'docker-compose.yml'
-            api:
-              - 'cmd/core-api/**'
-              - 'internal/**'
-              - 'pkg/**'
-              - 'go.{mod,sum}'
-              - 'docker/images/go/**'
-              - 'docker-compose.yml'
-            bot:
-              - 'cmd/twitch-bot/**'
-              - 'internal/**'
-              - 'pkg/**'
-              - 'go.{mod,sum}'
+  pull:
+    runs-on: [self-hosted, linux, prod]  # Vultr runner labels
 
-  # Website (Nuxt "web" container). env-setup.sh is invoked with the "web" scope
-  # so it recreates only that service (see the VPS-side --no-deps change).
-  deploy-web:
-    needs: changes
-    if: needs.changes.outputs.web == 'true'
-    runs-on: [self-hosted, linux, prod]
     steps:
-      - name: Checkout repository
+      - name: Checkout repository (default workspace)
         uses: actions/checkout@v4
-      # Stamp the short commit SHA into the Nuxt bundle so the footer build tag
-      # reflects what was deployed. Only needed on web deploys.
+
+      - name: List pulled files (sanity check)
+        run: |
+          echo "Repository pulled to runner workspace"
+          pwd
+          ls -la
+  deploy:
+    needs: pull
+    runs-on: [self-hosted, linux, prod]
+
+    steps:
+      # Stamp the short commit SHA into the Nuxt bundle so the footer build
+      # tag reflects what was actually deployed. Overwrites the committed
+      # 'dev' placeholder before env-setup.sh kicks off the docker build.
       - name: Stamp build version
         run: |
           SHA=$(git rev-parse --short HEAD)
-          printf "export const BUILD_VERSION = '%s'\n" "$SHA" \
-            > nivek-nuxt/app/utils/version.ts
-      - name: Deploy web
-        run: /home/deploy/actions-runner/env-setup.sh web
+          cat > nivek-nuxt/app/utils/version.ts <<EOF
+          export const BUILD_VERSION = '${SHA}'
+          EOF
 
-  # core-api container.
-  deploy-api:
-    needs: changes
-    if: needs.changes.outputs.api == 'true'
-    runs-on: [self-hosted, linux, prod]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Deploy core-api
-        run: /home/deploy/actions-runner/env-setup.sh api
+      - name: Env Setup
+        run: /home/deploy/actions-runner/env-setup.sh
 
-  # twitch-bot host daemon (a binary, not a container). git clean (-x) in the
-  # deploy wipes the gitignored bin/ every run, so rebuild it here. This does NOT
-  # restart the daemon; that stays a manual step so the bot is only bounced
-  # intentionally (a running bot survives the delete via its open inode).
-  deploy-bot:
-    needs: changes
-    if: needs.changes.outputs.bot == 'true'
-    runs-on: [self-hosted, linux, prod]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      # Rebuild the twitch-bot host-daemon binary. git clean (-x) wipes the
+      # gitignored bin/ on every deploy, so without this the binary would be
+      # missing until manually rebuilt — a running bot survives the delete
+      # (Linux keeps the open inode) but the NEXT restart would fail to find it.
+      # Building here does not restart the daemon; that stays a manual step so
+      # the bot is only bounced intentionally.
       - name: Build twitch-bot binary
         run: /usr/local/go/bin/go build -o bin/twitch-bot ./cmd/twitch-bot
