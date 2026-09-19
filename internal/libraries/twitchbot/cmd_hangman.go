@@ -2,6 +2,7 @@ package twitchbot
 
 import (
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -10,18 +11,18 @@ type Hangman struct {
 }
 
 type Game struct {
-	Word string
+	Word    string
 	Guesses []string
 }
 
-func (b *Bot)handleHangmanCommand(message *chatMessageEvent) {
+func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 	channel := message.BroadcasterUserLogin
 	channelId := message.BroadcasterUserId
 
 	hangman := Hangman{
 		Games: make(map[string]Game),
 	}
-	
+
 	raw := strings.TrimSpace(message.Message.Text)
 	args := ""
 	if idx := strings.IndexAny(raw, " \t"); idx != -1 {
@@ -50,20 +51,22 @@ func (b *Bot)handleHangmanCommand(message *chatMessageEvent) {
 				fmt.Printf("[HANGMAN] failed to fetch word! %s\n", err.Error())
 				return
 			}
+			defer resp.Body.Close()
+			body, err := io.ReadAll(resp.Body)
 
-			fmt.Printf("[HANGMAN] word generated for new game: %+v\n", resp)
+			fmt.Printf("[HANGMAN] word generated for new game: %+v\n", body)
 
 			b.printman(channelId)
 		}
-	}
+	} else {
 
-	// handle guess
-	switch strings.ToLower(fields[0]) {
+		// handle guess
+		switch strings.ToLower(fields[0]) {
 		default:
 			fmt.Println("hangman default switchcase")
+		}
 	}
 }
-
 
 func (b *Bot) printman(channelId string) {
 	b.say(channelId, "  +---+")

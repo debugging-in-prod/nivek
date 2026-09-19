@@ -81,7 +81,8 @@ INSERT INTO nivek.command (trigger, kind, handler_key, min_role, description) VA
     ('!banish',     'builtin', 'banish',      'mod',      'Remove the bot from your channel (kept your data — just opts out). Broadcaster or moderator only.'),
     ('!pbcommands', 'builtin', 'pb_commands', 'everyone', 'Drops a link to this very page in chat.'),
     ('!newpromo',   'builtin', 'new_promo',   'mod',      'Set a recurring message the bot re-posts while youre live (broadcaster/mods only). Create one with "!newpromo 30m <message>". Replace your most recent message with "!newpromo edit-last <interval> <new message>" (e.g. !newpromo edit-last 20m New text here), or remove it with "!newpromo delete-last". Full management is on the dashboard.'),
-    ('!stalk',      'builtin', 'stalk',       'everyone', 'Quotes the last chat message from the chatter this channel is stalking. Anyone can run it; mods/broadcaster pick the target with "!stalk set <username>" (or from the dashboard) and clear it with "!stalk clear".')
+    ('!stalk',      'builtin', 'stalk',       'everyone', 'Quotes the last chat message from the chatter this channel is stalking. Anyone can run it; mods/broadcaster pick the target with "!stalk set <username>" (or from the dashboard) and clear it with "!stalk clear".'),
+    ('!hangman',    'builtin', 'hangman',     'everyone', 'Starts a new game of Hangman. The game will be printed out in text line by line, and make a guess by typing the command followed by the letter you are guessing (ie: "!hangman H")')
 ON CONFLICT (trigger) WHERE scope = 'global' DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS nivek.channel_command_settings (
@@ -277,4 +278,11 @@ FROM (VALUES
 ) AS v(response)
 WHERE NOT EXISTS (
     SELECT 1 FROM dad_response d WHERE d.is_global AND d.response = v.response
+);
+
+CREATE TABLE IF NOT EXISTS hangman (
+    id SERIAL PRIMARY KEY,
+    channelname VARCHAR(50) NOT NULL UNIQUE,
+    word VARCHAR(50),
+    guesses VARCHAR(51) -- comma-delimited list of letters guessed
 );
