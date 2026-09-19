@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 )
 
@@ -12,8 +13,9 @@ type Hangman struct {
 }
 
 type Game struct {
-	Word    string
-	Guesses []string
+	Word     string
+	Guesses  []string
+	GameOver bool
 }
 
 const hangmanMaxWrong = 6
@@ -39,8 +41,7 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 
 	// if no args, either new game or checking game state
 	if len(fields) == 0 {
-		_, numWrongGuesses := calcMisses(game)
-		if game != nil && numWrongGuesses < hangmanMaxWrong {
+		if game != nil && !game.GameOver {
 
 			// resume existing game -- print current game state
 			fmt.Printf("[HANGMAN] game found! %+v\n", game)
@@ -62,11 +63,9 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 
 	// handle guess
 
-	// check how many guesses have already been made
-	// if 6 guesses - game has ended and this guess is invalid
-	if len(game.Guesses) >= hangmanMaxWrong {
+	// check if game exists or if game has already ended
+	if game == nil || game.GameOver {
 		b.say(channelId, printState(game))
-		b.say(channelId, "use command '!hangman' to start a new game")
 		return
 	}
 
@@ -107,6 +106,10 @@ func printState(game *Game) string {
 		} else {
 			slots = append(slots, "_")
 		}
+
+		if !slices.Contains(slots, "_") {
+			game.GameOver = true
+		}
 	}
 
 	misses, wrong := calcMisses(game)
@@ -117,8 +120,13 @@ func printState(game *Game) string {
 	}
 	line += fmt.Sprintf(" (%d/%d)", wrong, hangmanMaxWrong)
 
+	if game.GameOver {
+		line += " You win! Use '!hangman' to start a new game"
+	}
+
 	if wrong >= hangmanMaxWrong {
 		line += " Game over!"
+		game.GameOver = true
 	}
 
 	return line
