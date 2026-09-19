@@ -38,6 +38,7 @@ var builtinRegistry = map[string]commandHandler{
 	"pb_commands": (*Bot).handlePbCommandsCommand,
 	"new_promo":   (*Bot).handleNewPromoCommand,
 	"stalk":       (*Bot).handleStalkCommand,
+	"hangman":     (*Bot).handleHangmanCommand,
 
 	// Overlay commands. The bot is a courier here, not the executor: each of
 	// these forwards to the broadcaster's overlay over the relay. They are
