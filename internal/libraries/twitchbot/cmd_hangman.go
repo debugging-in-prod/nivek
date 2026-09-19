@@ -70,7 +70,12 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 	}
 
 	guess := fields[0]
-	game.Guesses = append(game.Guesses, guess)
+
+	// check if word was already guessed
+	if !slices.Contains(game.Guesses, guess) {
+		game.Guesses = append(game.Guesses, guess)
+	}
+
 	b.say(channelId, printState(game))
 	fmt.Printf("[HANGMAN] handling guess %s for word %s", guess, game.Word)
 }
@@ -134,8 +139,9 @@ func printState(game *Game) string {
 
 func startNewGame(httpClient *http.Client) *Game {
 	newgame := &Game{
-		Word:    "",
-		Guesses: []string{},
+		Word:     "",
+		Guesses:  []string{},
+		GameOver: false,
 	}
 
 	// get word
