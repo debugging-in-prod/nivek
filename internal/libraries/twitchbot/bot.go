@@ -464,6 +464,7 @@ func (b *Bot) runPromotionMessageLoop(ctx context.Context) {
 // own channel. These are joined at boot regardless of live state, never departed
 // on go-offline, and can never be banished.
 func (b *Bot) isPermanentChannel(channel string) bool {
+	fmt.Printf("is permanent channel check running for channel: %s", channel)
 	channel = strings.ToLower(channel)
 	return channel == botCreatorChannel || channel == strings.ToLower(b.config.BotUsername)
 }
