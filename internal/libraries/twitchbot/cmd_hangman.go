@@ -78,6 +78,10 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 
 // calcMisses figure out how many wrong guesses have been made and which letters are wrong
 func calcMisses(game *Game) ([]string, int) {
+	if game == nil {
+		return []string{}, 0
+	}
+
 	var misses []string
 	for _, g := range game.Guesses {
 		lg := strings.ToLower(g)
