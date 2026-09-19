@@ -13,6 +13,7 @@ import (
 	"github.com/gempir/go-twitch-irc/v4"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/api"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/commands"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/hangman"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/promo"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/twitcheventsub"
@@ -159,7 +160,7 @@ type Bot struct {
 	liveMu sync.Mutex
 	live   map[string]bool
 
-	hangmanGames map[string]*Game
+	hangmanGames map[string]*hangman.Game
 
 	// customMu guards customCommands, the per-channel custom ("channel"-scoped)
 	// command sets. Outer key is the lowercased channel login (what handleMessage
@@ -243,7 +244,7 @@ func NewBot(
 		commandRequires:  requires,
 
 		dadUsage:       make(map[string]*dadStreamUsage),
-		hangmanGames:   make(map[string]*Game),
+		hangmanGames:   make(map[string]*hangman.Game),
 		live:           make(map[string]bool),
 		customCommands: make(map[string]map[string]commands.Commands),
 		capabilities:   make(map[string]map[string]bool),

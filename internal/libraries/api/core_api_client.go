@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/commands"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/hangman"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/promo"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/user"
 )
@@ -78,6 +79,7 @@ type CoreAPIClient interface {
 	DadRemove(channel string, id int) error
 	GetDadUsage(broadcasterId int) (map[string]int, error)
 	IncrementDadRoll(broadcaster int, chattername string) error
+	PushHangmanGameState(game *hangman.Game, channel string) error
 }
 
 type coreAPIClientImpl struct {
@@ -494,6 +496,11 @@ func (c *coreAPIClientImpl) GetDadUsage(broadcasterId int) (map[string]int, erro
 func (c *coreAPIClientImpl) IncrementDadRoll(broadcasterId int, chattername string) error {
 	body, _ := json.Marshal(map[string]any{"twitch_id": broadcasterId, "chattername": chattername})
 	return c.do(http.MethodPost, PostBotDadIncrement, "", body, nil)
+}
+
+func (c *coreAPIClientImpl) PushHangmanGameState(game *hangman.Game, channel string) error {
+	body, _ := json.Marshal(map[string]any{"game": game, "channel": channel})
+	return c.do(http.MethodPost, PostBotUpdateHangmanGameState, "", body, nil)
 }
 
 // do executes a signed request and decodes the JSON response into `out`.
