@@ -39,7 +39,7 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 
 	// if no args, either new game or checking game state
 	if len(fields) == 0 {
-		if game != nil {
+		if game != nil && len(game.Guesses) < hangmanMaxWrong {
 
 			// resume existing game -- print current game state
 			fmt.Printf("[HANGMAN] game found! %+v\n", game)
