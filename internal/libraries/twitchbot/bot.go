@@ -243,6 +243,7 @@ func NewBot(
 		commandRequires:  requires,
 
 		dadUsage:       make(map[string]*dadStreamUsage),
+		hangmanGames:   make(map[string]*Game),
 		live:           make(map[string]bool),
 		customCommands: make(map[string]map[string]commands.Commands),
 		capabilities:   make(map[string]map[string]bool),
