@@ -39,7 +39,8 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 
 	// if no args, either new game or checking game state
 	if len(fields) == 0 {
-		if game != nil && len(game.Guesses) < hangmanMaxWrong {
+		_, numWrongGuesses := calcMisses(game)
+		if game != nil && numWrongGuesses < hangmanMaxWrong {
 
 			// resume existing game -- print current game state
 			fmt.Printf("[HANGMAN] game found! %+v\n", game)
@@ -75,6 +76,18 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 	fmt.Printf("[HANGMAN] handling guess %s for word %s", guess, game.Word)
 }
 
+// calcMisses figure out how many wrong guesses have been made and which letters are wrong
+func calcMisses(game *Game) ([]string, int) {
+	var misses []string
+	for _, g := range game.Guesses {
+		lg := strings.ToLower(g)
+		if len(lg) == 1 && !strings.ContainsAny(game.Word, lg) {
+			misses = append(misses, lg)
+		}
+	}
+	return misses, min(len(misses), hangmanMaxWrong)
+}
+
 func printState(game *Game) string {
 	guessed := make(map[rune]bool, len(game.Guesses))
 	for _, g := range game.Guesses {
@@ -92,14 +105,7 @@ func printState(game *Game) string {
 		}
 	}
 
-	var misses []string
-	for _, g := range game.Guesses {
-		lg := strings.ToLower(g)
-		if len(lg) == 1 && !strings.ContainsAny(game.Word, lg) {
-			misses = append(misses, lg)
-		}
-	}
-	wrong := min(len(misses), hangmanMaxWrong)
+	misses, wrong := calcMisses(game)
 
 	line := fmt.Sprintf("%s  %s", hangmanFaces[wrong], strings.Join(slots, " "))
 	if len(misses) > 0 {
