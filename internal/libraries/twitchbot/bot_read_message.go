@@ -96,6 +96,7 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 
 	// log everything from timallenfanclubofficial chat - need to see moobot message format for shoutouts
 	if b.isPermanentChannel(messageEvent.BroadcasterUserLogin) {
+		fmt.Printf("message recieved in permanent channel from %s", messageEvent.ChatterUserName)
 		// only want to see message from moobot
 		if messageEvent.ChatterUserName == "Moobot" {
 			fmt.Println(messageEvent)
