@@ -90,5 +90,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      # The checkout above git-cleans the workspace, wiping the gitignored .env
+      # that the bot's systemd unit reads (EnvironmentFile). deploy-web/deploy-api
+      # get it back via env-setup.sh's copy; this job doesn't run env-setup.sh, so
+      # re-instate the same copy here or the next bot restart fails to start.
+      - name: Restore workspace .env
+        run: cp /home/deploy/actions-runner/.env ./.env
       - name: Build twitch-bot binary
         run: /usr/local/go/bin/go build -o bin/twitch-bot ./cmd/twitch-bot
