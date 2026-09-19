@@ -122,7 +122,7 @@ func printState(game *Game) string {
 	line += fmt.Sprintf(" (%d/%d)", wrong, hangmanMaxWrong)
 
 	if wrong >= hangmanMaxWrong {
-		line += " Game over!"
+		line += fmt.Sprintf(" Game over! The word was %s", game.Word)
 		game.GameOver = true
 	} else if !slices.Contains(slots, "_") {
 		game.GameOver = true
