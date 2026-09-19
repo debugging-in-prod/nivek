@@ -60,6 +60,15 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 	}
 
 	// handle guess
+
+	// check how many guesses have already been made
+	// if 6 guesses - game has ended and this guess is invalid
+	if len(game.Guesses) >= hangmanMaxWrong {
+		b.say(channelId, printState(game))
+		b.say(channelId, "use command '!hangman' to start a new game")
+		return
+	}
+
 	guess := fields[0]
 	game.Guesses = append(game.Guesses, guess)
 	b.say(channelId, printState(game))
@@ -90,13 +99,17 @@ func printState(game *Game) string {
 			misses = append(misses, lg)
 		}
 	}
-	wrong := min(len(game.Guesses), hangmanMaxWrong)
+	wrong := min(len(misses), hangmanMaxWrong)
 
 	line := fmt.Sprintf("%s  %s", hangmanFaces[wrong], strings.Join(slots, " "))
 	if len(misses) > 0 {
 		line += "   ❌ " + strings.Join(misses, " ")
 	}
 	line += fmt.Sprintf(" (%d/%d)", wrong, hangmanMaxWrong)
+
+	if wrong >= hangmanMaxWrong {
+		line += " Game over!"
+	}
 
 	return line
 }
