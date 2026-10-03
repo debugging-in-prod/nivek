@@ -15,18 +15,13 @@ import (
 // can never wedge the goroutine that fires it.
 const discordWebhookTimeout = 10 * time.Second
 
-// discordEmbed is the minimal slice of Discord's webhook embed schema we use.
+// discordWebhookPayload is the minimal slice of Discord's Execute Webhook body
+// we use. We send plain content rather than an embed: the configured go-live
+// channel silently drops webhook embeds (accepts the POST with 204 but renders
+// nothing), while plain content renders fine.
 // https://discord.com/developers/docs/resources/webhook#execute-webhook
-type discordEmbed struct {
-	Title       string `json:"title"`
-	URL         string `json:"url"`
-	Description string `json:"description"`
-	Color       int    `json:"color"`
-}
-
 type discordWebhookPayload struct {
-	Content string         `json:"content,omitempty"`
-	Embeds  []discordEmbed `json:"embeds,omitempty"`
+	Content string `json:"content,omitempty"`
 }
 
 // notifyDiscordGoLive posts a "channel is live" message to the Discord webhook
@@ -47,12 +42,7 @@ func notifyDiscordGoLive(displayName, login string) {
 	streamURL := fmt.Sprintf("https://twitch.tv/%s", login)
 
 	payload := discordWebhookPayload{
-		Embeds: []discordEmbed{{
-			Title:       fmt.Sprintf("%s is now live! 🔴", name),
-			URL:         streamURL,
-			Description: fmt.Sprintf("Come hang out → %s", streamURL),
-			Color:       0x9146FF, // Twitch purple
-		}},
+		Content: fmt.Sprintf("🔴 **%s** is now live! Come hang out → %s", name, streamURL),
 	}
 
 	body, err := json.Marshal(payload)
