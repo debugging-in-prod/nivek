@@ -129,6 +129,9 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 
 	// Check for commands
 	for msgword := range strings.SplitSeq(msg, " ") {
+		if strings.Contains(msgword, "^") {
+			b.say(channel, "^")
+		}
 		// A capability-gated global (nivek.command.requires) only dispatches in
 		// channels holding that capability. When it does not, we deliberately do
 		// NOT skip the word: we fall through to the channel's own commands

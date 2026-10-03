@@ -15,7 +15,7 @@ const shoutoutNeedsTarget = "a shoutout needs a target — usage: !so <username>
 // auto-shout): the bot's user token holds moderator:manage:announcements and the
 // bot is a moderator in the channel.
 func (b *Bot) shoutout(channelId, target string) {
-	b.announce(channelId, fmt.Sprintf("Follow @%s over at twitch.tv/%s !", target, target))
+	b.announce(channelId, fmt.Sprintf("Follow @%s over at twitch.tv/%s!", target, target))
 }
 
 // handleShoutoutCommand implements !so <username>: fire the same announcement
