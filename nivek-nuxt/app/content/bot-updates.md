@@ -1,5 +1,64 @@
 _Latest first._
 
+### 2026-10-03 - Monetization and Analytics
+
+I think I have found a way to monetize the bot! This approach comes at no extra hosting
+cost and no extra ask from existing users. The system relies on pairing the bot's backend
+with a simple frontend twitch extension, and a client-side overlay. The overlay runs in a
+transparent click-throughable window that covers the streamer's main monitor. As users
+submit redeems through the extension (which lives on the stream, just under the stream
+window), those redeems flow through the peanutbudder API and are then sent to the
+broadcaster's overlay via websocket, and the overlay then processes the request. Currently
+I only have a jumpscare and a cover-my-screen-with-beans set up as redeems, but they both work.
+
+The monetization part - Twitch automatically manages an 80/20 split between the broadcaster
+and extension developer. I have no control over this to make the subdivision larger or smaller.
+So for every dollar spent, I get 20 cents of it. While twitch's volume of users seems promising,
+I'm not sure how many streamers employ these kinds of tools, how manyviewers actually engage with
+them, and how stable of an application this can be. At almost any given time, twitch has at least
+1 million people on the site. 0.01% of 1 million people is 100 people, and if all 100 people redeem
+20 cent redemptions once per hour, then I would be earning 100 * (.20 * 0.2) = $4 per hour passively.
+My hosting cost on the current VPS is just $12/month, so that would be net profit of an estimated
+$2,868/month.
+
+So the good parts - twitch's user volume is huge, I have a working end-to-end proof of concept, and
+the current hosting setup is unusually insulated from cloud hosting costs. The overlay is a client-
+side application that runs on the streamer's machine. In order to be a streamer, you already need
+a decently beefy computer, so the overlay should not be taxing on the machine. If the interactions
+live inside the overlay, and just the "trigger event" event is sent over the web, then the majority
+of hardware and processing costs are offloaded to the streamer's machine - which as previously established
+is likely more than equipped to handle simple interactions. This keeps the cloud cost down (currently just $12/hr)
+and in a way can keep development complexity down too.
+
+The bad parts - I don't know the measure of adoption of similar, more established tools. Even with the
+favorable estimate, it may just be the case that not even 100 people want to use this kind of thing on
+their stream. I also don't know the stability of this overlay and what is really possible in that regard.
+I develop on a linux machine, which handles mouse-click-through very differently from windows (which is
+where the majority of the userbase would likely be, and is where the overlay was originally developed).
+I also am very much out of my element working in a Godot application rather than some kind of cloud-based
+API. Some principles carry over, but in the cloud I've always stored data in a database - I'm not sure
+what the solutions are for a standalone application. There is also a question of firewalls - the event fires
+from the stream - to peanutbudderbot.com - to the streamer's PC. I'm able to bypass firewalls by way of a
+websocket connection, but how scalable is that solution? If this kind of design ends up failing, then
+the whole idea would need to be reimagined.
+
+Then there is the issue with copyright. If I wanted to use the chinese "Bill Nye the Science Guy" viral
+clip as a redeem - I would likely run a risk of copyright infringement as I would be monetizing someone
+else's copyrighted material (even if it is an obscure clip from the other side of the globe). Tangia
+sidesteps the copyright issue by allowing users to upload content - the users agree not to breach
+copyright which then allows Tangia to offload liability to the end users, which generally people do not
+sue a streamer who has 3 viewers for using copyrighted material. Good solution for copyright, but then
+this creates a hosting issue where hosting can become expensive very quickly.
+
+So, the idea is there, but is it a reasonable goal to try to build this? It seems like a huge amount of
+work for potentially a huge - but also potentially 0 - returns.
+
+Analytics - This would give me one side of the picture. This would better tell me how and where to spend
+my development time based on current usage statistics. I could measure both how active a given chat is,
+and how much the bot is being utilized. I could measure successful bot command usages as well as unsuccessful,
+and that would nudge me in whichever direction is needed to make the bot better. This might not inform
+the overlay's side of development, but is at least a starting point.
+
 ### 2026-08-16 - Scalability and Stretch Goals Established
 
 As the bot, the userbase, and the interactions between the users+bot grow, so does
