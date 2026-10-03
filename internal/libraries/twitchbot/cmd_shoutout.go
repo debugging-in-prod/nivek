@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-const shoutoutUsage = "usage: !so <username>"
+const shoutoutNeedsTarget = "a shoutout needs a target — usage: !so <username>"
 
 // shoutout fires the Twitch announcement (Helix Send Chat Announcement) for a
 // channel shout. It is the single source of the shoutout wording so the manual
@@ -18,17 +18,12 @@ func (b *Bot) shoutout(channelId, target string) {
 	b.announce(channelId, fmt.Sprintf("Follow @%s over at twitch.tv/%s !", target, target))
 }
 
-// isShoutoutCommand reports whether msg is the !so command, with or without a
-// target. Dispatched up front in handleWebhookMessage (like !stalk) so the
-// target username isn't also scanned as another command trigger -- e.g.
-// "!so bread" must not also fire the !bread builtin.
-func isShoutoutCommand(msg string) bool {
-	return msg == "!so" || strings.HasPrefix(msg, "!so ")
-}
-
 // handleShoutoutCommand implements !so <username>: fire the same announcement
-// the auto-shout system sends, for a manually named channel. Mod/broadcaster
-// only, matching the other channel-management builtins (!banish, !newpromo).
+// the auto-shout system sends, for a manually named channel. Dispatched through
+// the generic builtin loop (registered as "so" in builtinRegistry), like every
+// other builtin. Mod/broadcaster only, matching the other channel-management
+// builtins (!banish, !newpromo). A bare "!so" with no target is rejected -- a
+// shoutout requires a target.
 func (b *Bot) handleShoutoutCommand(message *chatMessageEvent) {
 	channelId := message.BroadcasterUserId
 	username := message.ChatterUserLogin
@@ -45,7 +40,7 @@ func (b *Bot) handleShoutoutCommand(message *chatMessageEvent) {
 	}
 	fields := strings.Fields(args)
 	if len(fields) == 0 {
-		b.say(channelId, fmt.Sprintf("@%s %s", username, shoutoutUsage))
+		b.say(channelId, fmt.Sprintf("@%s %s", username, shoutoutNeedsTarget))
 		return
 	}
 
