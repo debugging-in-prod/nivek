@@ -27,7 +27,7 @@ side application that runs on the streamer's machine. In order to be a streamer,
 a decently beefy computer, so the overlay should not be taxing on the machine. If the interactions
 live inside the overlay, and just the "trigger event" event is sent over the web, then the majority
 of hardware and processing costs are offloaded to the streamer's machine - which as previously established
-is likely more than equipped to handle simple interactions. This keeps the cloud cost down (currently just $12/hr)
+is likely more than equipped to handle simple interactions. This keeps the cloud cost down (currently just $12/month)
 and in a way can keep development complexity down too.
 
 The bad parts - I don't know the measure of adoption of similar, more established tools. Even with the
