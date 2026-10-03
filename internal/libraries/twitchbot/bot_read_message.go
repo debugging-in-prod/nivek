@@ -2,7 +2,6 @@ package twitchbot
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"slices"
 	"strings"
@@ -128,6 +127,15 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 		return
 	}
 
+	// !so takes a target username argument. Dispatch it up front and return so
+	// the target isn't also scanned as another command trigger below (e.g.
+	// "!so bread" must not also fire the !bread builtin).
+	if isShoutoutCommand(msg) {
+		log.Printf("[CMD-RECV] [%s] %s: %q", channel, chatter, msg)
+		b.handleShoutoutCommand(&messageEvent)
+		return
+	}
+
 	// Check for commands
 	for msgword := range strings.SplitSeq(msg, " ") {
 		// A capability-gated global (nivek.command.requires) only dispatches in
@@ -159,13 +167,11 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 			messageEvent.ChatterUserName,
 		) {
 			// Perform the shoutout ourselves instead of emitting "!so @user" for
-			// another bot to act on. Mirrors Moobot's two-line output: a normal
-			// chat message linking the chatter's channel, followed by a Twitch
-			// announcement (Helix Send Chat Announcement) prompting a follow --
-			// the announcement is what renders the highlighted "Announcement"
-			// header. Both go through sayQueue, so they stay in order.
-			b.say(channelId, fmt.Sprintf("📢 Shoutout! was given to https://twitch.tv/%s", chatter))
-			b.announce(channelId, fmt.Sprintf("Follow @%s over at twitch.tv/%s !", chatter, chatter))
+			// another bot to act on: a Twitch announcement (Helix Send Chat
+			// Announcement) prompting a follow, which renders with the highlighted
+			// "Announcement" header. Shared with the manual !so command via
+			// b.shoutout so both say exactly the same thing.
+			b.shoutout(channelId, chatter)
 			log.Printf("[Auto Shout] given to %s in %s", chatter, channel)
 			// Persist the shout: bump shout_count and stamp this stream's key so
 			// a restart mid-stream won't re-shout them. Off the message path.
