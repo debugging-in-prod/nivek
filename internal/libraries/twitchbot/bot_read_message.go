@@ -127,15 +127,6 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 		return
 	}
 
-	// !so takes a target username argument. Dispatch it up front and return so
-	// the target isn't also scanned as another command trigger below (e.g.
-	// "!so bread" must not also fire the !bread builtin).
-	if isShoutoutCommand(msg) {
-		log.Printf("[CMD-RECV] [%s] %s: %q", channel, chatter, msg)
-		b.handleShoutoutCommand(&messageEvent)
-		return
-	}
-
 	// Check for commands
 	for msgword := range strings.SplitSeq(msg, " ") {
 		// A capability-gated global (nivek.command.requires) only dispatches in
