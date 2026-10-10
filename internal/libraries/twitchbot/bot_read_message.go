@@ -127,6 +127,15 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 		return
 	}
 
+	// !translate takes a free-form message argument that may itself contain other
+	// command triggers. Dispatch it up front and return so that body is never
+	// scanned for more commands below.
+	if isTranslateCommand(msg) {
+		log.Printf("[CMD-RECV] [%s] %s: %q", channel, chatter, msg)
+		b.handleTranslateCommand(&messageEvent)
+		return
+	}
+
 	// Check for commands
 	for msgword := range strings.SplitSeq(msg, " ") {
 		if strings.Contains(msgword, "^") {

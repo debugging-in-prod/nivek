@@ -41,6 +41,7 @@ var builtinRegistry = map[string]commandHandler{
 	"stalk":       (*Bot).handleStalkCommand,
 	"hangman":     (*Bot).handleHangmanCommand,
 	"so":          (*Bot).handleShoutoutCommand,
+	"translate":   (*Bot).handleTranslateCommand,
 
 	// Overlay commands. The bot is a courier here, not the executor: each of
 	// these forwards to the broadcaster's overlay over the relay. They are
@@ -163,6 +164,11 @@ type Bot struct {
 
 	hangmanGames map[string]*hangman.Game
 
+	// translateMu guards translateCooldown, the per-chatter last-used timestamp
+	// for !translate (keyed by Twitch user id). Throttles the paid DeepL API.
+	translateMu       sync.Mutex
+	translateCooldown map[string]time.Time
+
 	// customMu guards customCommands, the per-channel custom ("channel"-scoped)
 	// command sets. Outer key is the lowercased channel login (what handleMessage
 	// dispatches on); inner key is the lowercased trigger. Loaded on stream.online
@@ -244,16 +250,17 @@ func NewBot(
 		commands:         cmds,
 		commandRequires:  requires,
 
-		dadUsage:       make(map[string]*dadStreamUsage),
-		hangmanGames:   make(map[string]*hangman.Game),
-		live:           make(map[string]bool),
-		customCommands: make(map[string]map[string]commands.Commands),
-		capabilities:   make(map[string]map[string]bool),
-		stalk:          make(map[string]*stalkWatch),
-		seenChatIDs:    newMessageIDCache(chatMessageIDCacheSize),
-		seenIRCIDs:     newMessageIDCache(chatMessageIDCacheSize),
-		grantAt:        make(map[string]time.Time),
-		grantInFlight:  make(map[string]bool),
+		dadUsage:          make(map[string]*dadStreamUsage),
+		hangmanGames:      make(map[string]*hangman.Game),
+		translateCooldown: make(map[string]time.Time),
+		live:              make(map[string]bool),
+		customCommands:    make(map[string]map[string]commands.Commands),
+		capabilities:      make(map[string]map[string]bool),
+		stalk:             make(map[string]*stalkWatch),
+		seenChatIDs:       newMessageIDCache(chatMessageIDCacheSize),
+		seenIRCIDs:        newMessageIDCache(chatMessageIDCacheSize),
+		grantAt:           make(map[string]time.Time),
+		grantInFlight:     make(map[string]bool),
 	}
 
 	bot.sayQueue = make(chan sayRequest, 64)
