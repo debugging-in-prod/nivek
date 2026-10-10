@@ -83,7 +83,8 @@ INSERT INTO nivek.command (trigger, kind, handler_key, min_role, description) VA
     ('!newpromo',   'builtin', 'new_promo',   'mod',      'Set a recurring message the bot re-posts while youre live (broadcaster/mods only). Create one with "!newpromo 30m <message>". Replace your most recent message with "!newpromo edit-last <interval> <new message>" (e.g. !newpromo edit-last 20m New text here), or remove it with "!newpromo delete-last". Full management is on the dashboard.'),
     ('!stalk',      'builtin', 'stalk',       'everyone', 'Quotes the last chat message from the chatter this channel is stalking. Anyone can run it; mods/broadcaster pick the target with "!stalk set <username>" (or from the dashboard) and clear it with "!stalk clear".'),
     ('!hangman',    'builtin', 'hangman',     'everyone', 'Starts a new game of Hangman. The game will be printed out in text line by line, and make a guess by typing the command followed by the letter you are guessing (ie: "!hangman H")'),
-    ('!so',         'builtin', 'so',          'mod',      'Shout out another channel (broadcaster/mods only). Usage: "!so <username>". Posts the same Twitch announcement the auto-shout system sends.')
+    ('!so',         'builtin', 'so',          'mod',      'Shout out another channel (broadcaster/mods only). Usage: "!so <username>". Posts the same Twitch announcement the auto-shout system sends.'),
+    ('!translate',  'builtin', 'translate',   'mod',      'Translate a message between English and Japanese (mods only). Usage: "!translate <message>". Auto-detects EN vs JA and translates to the other.')
 ON CONFLICT (trigger) WHERE scope = 'global' DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS nivek.channel_command_settings (
