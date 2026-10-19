@@ -141,13 +141,10 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 		if strings.Contains(msgword, "^") {
 			b.say(channelId, "^")
 		}
-		// A capability-gated global (nivek.command.requires) only dispatches in
-		// channels holding that capability. When it does not, we deliberately do
-		// NOT skip the word: we fall through to the channel's own commands
-		// below. Skipping would let a global row claim a trigger everywhere and
-		// then decline to answer it, which is worse than not registering it —
-		// see docs/OVERLAY_COMMANDS.md, "The fall-through".
-		if handler, ok := b.commands[msgword]; ok && b.commandAllowedIn(channel, msgword) {
+		// A global builtin wins the word; a channel's own custom command with the
+		// same trigger falls through to the handling below (a channel can't shadow
+		// a builtin in v1).
+		if handler, ok := b.commands[msgword]; ok {
 			log.Printf("[CMD-RECV] [%s] %s: %q", channel, chatter, msg)
 			messageEvent.matchedTrigger = msgword
 			handler(b, &messageEvent)

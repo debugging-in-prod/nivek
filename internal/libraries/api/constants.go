@@ -82,7 +82,6 @@ const (
 	PostBotStalkSet               = "/bot/stalk"
 	PostBotStalkClear             = "/bot/stalk/clear"
 	PostBotStalkLastMessage       = "/bot/stalk/last"
-	PostBotOverlayDispatch        = "/bot/overlay/dispatch"
 
 	PostBotJoinChannel = "/internal/join"
 )
