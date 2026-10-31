@@ -113,9 +113,16 @@ CREATE TABLE IF NOT EXISTS nivek.promo (
     interval_seconds INTEGER NOT NULL DEFAULT 1800
                        CHECK (interval_seconds >= 60 AND interval_seconds <= 86400),
     enabled          BOOLEAN NOT NULL DEFAULT TRUE,
+    -- Chat-activity gate: the promo only posts once this many non-bot chat
+    -- lines have been seen in the channel since its last post (0 = no
+    -- activity requirement; the channel must still be live).
+    min_chat_lines   INTEGER NOT NULL DEFAULT 5
+                       CHECK (min_chat_lines >= 0 AND min_chat_lines <= 1000),
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+ALTER TABLE nivek.promo ADD COLUMN IF NOT EXISTS min_chat_lines INTEGER NOT NULL DEFAULT 5
+    CHECK (min_chat_lines >= 0 AND min_chat_lines <= 1000);
 CREATE INDEX IF NOT EXISTS promo_channelname_idx ON nivek.promo (channelname);
 
 -- Per-channel !stalk target. One row per channel (the chatter currently being

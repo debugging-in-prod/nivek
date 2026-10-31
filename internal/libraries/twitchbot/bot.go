@@ -15,7 +15,6 @@ import (
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/commands"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/hangman"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overseer"
-	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/promo"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/twitcheventsub"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/user"
 )
@@ -143,10 +142,17 @@ type Bot struct {
 	// liveMu guards live, the set of channels currently broadcasting (keyed by
 	// lowercased login). Seeded from IsLive at boot and flipped by the
 	// stream.online/offline webhooks. The promo scheduler consults it so recurring
-	// messages only post to live chats — permanent home channels count as always
-	// live (see isChannelLive).
+	// messages only post to live chats (see promoChannelLive in promo_gate.go).
 	liveMu sync.Mutex
 	live   map[string]bool
+
+	// helixLive is the promo scheduler's fallback live check for channels with
+	// no EventSub state: a Helix streams lookup cached ~60s. Errors → offline.
+	helixLive *helixLiveCache
+
+	// chatLines counts non-bot chat lines per channel for the promo activity
+	// gate (see promo_gate.go). Thread-safe.
+	chatLines *chatLineCounter
 
 	hangmanGames map[string]*hangman.Game
 
@@ -246,6 +252,7 @@ func NewBot(
 		hangmanGames:      make(map[string]*hangman.Game),
 		translateCooldown: make(map[string]time.Time),
 		live:              make(map[string]bool),
+		chatLines:         newChatLineCounter(),
 		customCommands:    make(map[string]map[string]commands.Commands),
 		stalk:             make(map[string]*stalkWatch),
 		seenChatIDs:       newMessageIDCache(chatMessageIDCacheSize),
@@ -254,6 +261,12 @@ func NewBot(
 		grantInFlight:     make(map[string]bool),
 		noReply:           buildNoReplySet(config.NoReplyLogins, config.BotUsername),
 	}
+
+	var liveLookup func(context.Context, string) (bool, error)
+	if twitchClient != nil {
+		liveLookup = twitchClient.IsStreamLive
+	}
+	bot.helixLive = newHelixLiveCache(liveLookup)
 
 	bot.sayQueue = make(chan sayRequest, 64)
 	bot.ircSayQueue = make(chan ircSayRequest, 64)
@@ -338,6 +351,13 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 		return
 	}
 
+	// Count toward the promo activity gate. Channels that granted chat-read get
+	// the same message via EventSub (counted there), so only count IRC lines
+	// where EventSub won't deliver them — never double-count.
+	if !b.channelHasPrivs(message.Channel) {
+		b.recordChatLine(message.Channel, message.User.Name)
+	}
+
 	msg := strings.TrimSpace(strings.ToLower(message.Message))
 	if isBanishCommand(msg) {
 		// EventSub already handles !banish in channels that have granted chat-read.
@@ -395,19 +415,19 @@ const promoPollInterval = 30 * time.Second
 
 // runPromotionMessageLoop drives every recurring "promo" message. The DB (via
 // core-api) is the single source of truth: each tick we fetch all enabled promos
-// and post the ones whose interval has elapsed. Per-promo timing is held in
-// memory (lastPosted, keyed by promo id) rather than the DB — losing it on
-// restart only means each promo waits one fresh interval, never a burst.
+// and post the ones that are due. Per-promo timing and chat-line marks are held
+// in memory (promoSchedule) rather than the DB — losing them on restart only
+// means each promo waits one fresh interval, never a burst.
 //
-// A promo only posts while its channel is live (permanent home channels always
-// count as live). While a channel is offline its clock is continuously reset, so
-// promos start a fresh interval when the stream comes online instead of firing a
-// backlog all at once.
+// A promo posts only when its interval has elapsed, its channel is live, and
+// enough non-bot chat happened since its last post (see promo_gate.go). While a
+// channel is offline its clock is continuously reset, so promos start a fresh
+// interval when the stream comes online instead of firing a backlog.
 func (b *Bot) runPromotionMessageLoop(ctx context.Context) {
 	ticker := time.NewTicker(promoPollInterval)
 	defer ticker.Stop()
 
-	lastPosted := make(map[int]time.Time)
+	st := newPromoSchedule()
 
 	for {
 		select {
@@ -419,47 +439,7 @@ func (b *Bot) runPromotionMessageLoop(ctx context.Context) {
 				log.Printf("[PROMO] failed to fetch promos: %v", err)
 				continue
 			}
-
-			seen := make(map[int]bool, len(promos))
-			for _, p := range promos {
-				seen[p.Id] = true
-
-				if !b.isChannelLive(p.Channelname) {
-					// Clock only runs while live: reset each offline tick so the
-					// first post lands one full interval after going live, not a
-					// pile of overdue posts the instant the stream starts.
-					lastPosted[p.Id] = now
-					continue
-				}
-
-				last, known := lastPosted[p.Id]
-				if !known {
-					// First time we've seen this promo (e.g. just created, or the
-					// channel just went live): start its clock now, don't post yet.
-					lastPosted[p.Id] = now
-					continue
-				}
-
-				interval := p.IntervalSeconds
-				if interval < promo.MinIntervalSeconds {
-					interval = promo.MinIntervalSeconds
-				}
-				if now.Sub(last) < time.Duration(interval)*time.Second {
-					continue
-				}
-
-				b.say(p.BroadcasterId, p.Message)
-				lastPosted[p.Id] = now
-				log.Printf("[PROMO] posted #%d to %s", p.Id, p.Channelname)
-			}
-
-			// Forget promos that were deleted or disabled so their timing state
-			// can't linger and their ids can be reused cleanly.
-			for id := range lastPosted {
-				if !seen[id] {
-					delete(lastPosted, id)
-				}
-			}
+			b.evaluatePromos(ctx, now, promos, st)
 		}
 	}
 }
@@ -497,20 +477,6 @@ func (b *Bot) setLive(login string, live bool) {
 	b.liveMu.Lock()
 	b.live[login] = live
 	b.liveMu.Unlock()
-}
-
-// isChannelLive reports whether the bot should treat a channel as broadcasting
-// for promo purposes. Permanent home channels always count as live so their
-// promos (e.g. the bot's own self-promo) post regardless of stream state,
-// preserving the pre-DB behavior.
-func (b *Bot) isChannelLive(login string) bool {
-	login = strings.ToLower(login)
-	if b.isPermanentChannel(login) {
-		return true
-	}
-	b.liveMu.Lock()
-	defer b.liveMu.Unlock()
-	return b.live[login]
 }
 
 // mentionsBot reports whether the message text @-mentions the bot by username.
