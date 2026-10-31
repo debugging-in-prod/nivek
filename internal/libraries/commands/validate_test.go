@@ -51,11 +51,16 @@ func TestValidateResponse(t *testing.T) {
 		strings.Repeat("a", MaxResponseLen+1),
 		"line one\nline two",
 		"/ban someone", ".timeout x", "!so someone",
+		"  /ban someone", " .clear", "\t/me hi", // leading whitespace is trimmed first
 	}
 	for _, in := range bad {
 		if _, err := ValidateResponse(in); !errors.Is(err, ErrValidation) {
 			t.Errorf("ValidateResponse(%q) err = %v; want ErrValidation", in, err)
 		}
+	}
+	// "/" or "." later in the text is fine.
+	if _, err := ValidateResponse("see example.com/schedule"); err != nil {
+		t.Errorf("mid-text slash/dot should pass: %v", err)
 	}
 }
 
