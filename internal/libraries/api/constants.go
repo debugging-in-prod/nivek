@@ -35,6 +35,10 @@ const (
 	PostUpdatePromo = "/promo/:id"
 	DeletePromo     = "/promo/:id"
 
+	// Dashboard toggle: the logged-in broadcaster opts the bot in/out of their
+	// own chat. Current state is read from GetUserProfile (bot_opt_in).
+	PutBotOptIn = "/bot-optin"
+
 	GetStalk    = "/stalk"
 	PostStalk   = "/stalk"
 	DeleteStalk = "/stalk"
@@ -84,4 +88,5 @@ const (
 	PostBotStalkLastMessage       = "/bot/stalk/last"
 
 	PostBotJoinChannel = "/internal/join"
+	PostBotPartChannel = "/internal/part"
 )

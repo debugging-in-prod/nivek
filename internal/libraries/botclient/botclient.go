@@ -97,3 +97,13 @@ func (c *Client) JoinChannel(broadcasterUserLogin string) error {
 	}
 	return c.do(http.MethodPost, api.PostBotJoinChannel, body)
 }
+
+// PartChannel tells the bot to leave a broadcaster's chat and stop tracking it,
+// without posting anything (unlike !banish, which says goodbye first).
+func (c *Client) PartChannel(broadcasterUserLogin string) error {
+	body, err := json.Marshal(map[string]string{"twitch_login": broadcasterUserLogin})
+	if err != nil {
+		return fmt.Errorf("marshal part request: %w", err)
+	}
+	return c.do(http.MethodPost, api.PostBotPartChannel, body)
+}

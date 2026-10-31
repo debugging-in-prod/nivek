@@ -29,6 +29,7 @@ function getGreeting(date: Date = new Date()): string {
   <template v-else>
     <section class="panel panel-head">
       <h1 class="green">{{ getGreeting() }}, {{ displayName }}</h1>
+      <BotOptInToggle />
     </section>
 
     <section class="panel">

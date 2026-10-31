@@ -48,6 +48,7 @@ func RegisterRoutes(svc nivek.NivekService, e *echo.Group) {
 
 	authenticated := nivekmiddleware.NewJWTMiddleware(svc).Middleware()
 	e.GET(apilib.GetUserProfile, user.NewGetProfileEndpoint(svc), authenticated)
+	e.PUT(apilib.PutBotOptIn, user.NewPutBotOptInEndpoint(svc), authenticated)
 	e.GET(apilib.GetUserTasks, task.NewGetUserTasksEndpoint(svc), authenticated)
 	e.POST(apilib.PostCreateUserTask, task.NewPostCreateUserTaskEndpoint(svc), authenticated)
 	e.POST(apilib.PostWeather, weather.NewGetWeatherEndpoint(svc), authenticated)
