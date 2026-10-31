@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gempir/go-twitch-irc/v4"
@@ -26,8 +27,9 @@ type commandHandler func(b *Bot, message *chatMessageEvent)
 // builtinRegistry is the compiled set of behaviors the bot can perform, keyed
 // by the stable handler_key stored in nivek.command. This is the ONLY place a
 // handler_key becomes code. Keys MUST match the handler_key column values
-// seeded into the command table; a mismatch surfaces as an orphan error in
-// getCommands at boot rather than a silent no-op at dispatch.
+// seeded into the command table; a row whose handler_key is missing here is
+// logged as an error and skipped by buildCommandMaps (never crashes the bot).
+// Ship the handler before its seed row: a handler without a row stays inactive.
 var builtinRegistry = map[string]commandHandler{
 	"banish":      (*Bot).handleBanishCommand,
 	"bread":       (*Bot).handleBreadCommand,
@@ -129,14 +131,14 @@ type Bot struct {
 	healInFlight map[string]bool
 	joinInFlight map[string]bool
 
-	commands map[string]commandHandler
-
-	// commandCooldownSecs is each global builtin trigger's configured
-	// command.cooldown_secs (0 / missing = default windows). cooldowns is the
-	// central per-channel/per-user cooldown guard every command dispatch goes
-	// through (see cooldown.go).
-	commandCooldownSecs map[string]int
-	cooldowns           *commandCooldowns
+	// commands is the current global builtin set (trigger -> handler plus each
+	// trigger's configured command.cooldown_secs, 0 / missing = default
+	// windows). Read lock-free by the dispatch worker pool and swapped whole by
+	// the background loader (see command_loader.go); nil = not loaded yet.
+	// cooldowns is the central per-channel/per-user cooldown guard every
+	// command dispatch goes through (see cooldown.go).
+	commands  atomic.Pointer[commandSet]
+	cooldowns *commandCooldowns
 
 	// dadMu guards dadUsage, the per-stream/per-chatter !dad rate-limit counters.
 	// Populated on stream.online, evicted on stream.offline (see dad_limit.go).
@@ -240,11 +242,6 @@ func NewBot(
 	client.IrcAddress = "irc.chat.twitch.tv:6697"
 	client.TLS = true
 
-	cmds, cmdCooldowns, err := getGlobalEnabledCommands(coreAPI)
-	if err != nil {
-		panic(fmt.Sprintf("unable to load commands! %s", err.Error()))
-	}
-
 	bot := &Bot{
 		client:           client,
 		config:           config,
@@ -258,10 +255,7 @@ func NewBot(
 		appTokenProvider: config.AppTokenProvider,
 		healInFlight:     make(map[string]bool),
 		joinInFlight:     make(map[string]bool),
-		commands:         cmds,
-
-		commandCooldownSecs: cmdCooldowns,
-		cooldowns:           newCommandCooldowns(),
+		cooldowns:        newCommandCooldowns(),
 
 		dadUsage:          make(map[string]*dadStreamUsage),
 		hangmanGames:      make(map[string]*hangman.Game),
@@ -280,6 +274,12 @@ func NewBot(
 	}
 	if twitchClient != nil {
 		bot.info = twitchClient
+	}
+
+	// Global builtin commands: retry at boot, and if core-api is still down,
+	// start with none and keep retrying in the background (incident #172).
+	if !bot.loadCommandsAtBoot() {
+		go bot.retryCommandsInBackground()
 	}
 
 	var liveLookup func(context.Context, string) (bool, error)
@@ -396,7 +396,7 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	// Check for commands
 	commandSeen := false
 	for msgword := range strings.SplitSeq(msg, " ") {
-		if _, ok := b.commands[msgword]; ok {
+		if _, ok := b.lookupCommand(msgword); ok {
 			commandSeen = true
 			continue
 		}
@@ -561,69 +561,6 @@ func (b *Bot) Stop() {
 	if err := b.counters.Save(); err != nil {
 		log.Printf("Error saving counters on shutdown: %v", err)
 	}
-}
-
-// getCommands builds the dispatch map (trigger -> handler) by joining the
-// command rows from core-api against builtinRegistry: the DB supplies
-// trigger -> handler_key, the registry supplies handler_key -> func.
-// Custom commands (no compiled handler) and disabled commands are skipped.
-// An unknown handler_key is a boot-time error so a bad seed fails loud
-// instead of silently dropping a command at dispatch.
-//
-// It also returns each builtin trigger's cooldown_secs for the central
-// cooldown guard.
-func getGlobalEnabledCommands(coreAPI api.CoreAPIClient) (map[string]commandHandler, map[string]int, error) {
-	rows, err := coreAPI.GetGlobalEnabledCommands()
-	if err != nil {
-		return nil, nil, err
-	}
-	cmds, err := buildCommandMaps(rows)
-	if err != nil {
-		return nil, nil, err
-	}
-	return cmds, buildCommandCooldowns(rows), nil
-}
-
-// buildCommandCooldowns maps each enabled builtin trigger to its configured
-// cooldown_secs. Only positive values are kept; anything else falls back to the
-// guard's defaults.
-func buildCommandCooldowns(rows []commands.Commands) map[string]int {
-	out := make(map[string]int, len(rows))
-	for _, row := range rows {
-		if row.Kind != "builtin" || !row.Enabled || row.CooldownSecs <= 0 {
-			continue
-		}
-		out[strings.ToLower(row.Trigger)] = row.CooldownSecs
-	}
-	return out
-}
-
-// buildCommandMaps turns command rows into the trigger -> handler dispatch map.
-// Split out from getGlobalEnabledCommands so the boot-time validation below is
-// testable without standing up a core-api client.
-func buildCommandMaps(rows []commands.Commands) (map[string]commandHandler, error) {
-	cmds := make(map[string]commandHandler, len(rows))
-	for _, row := range rows {
-		if row.Kind != "builtin" || !row.Enabled {
-			continue
-		}
-		if row.HandlerKey == nil {
-			return nil, fmt.Errorf("builtin command %q has null handler_key", row.Trigger)
-		}
-		handler, ok := builtinRegistry[*row.HandlerKey]
-		if !ok {
-			return nil, fmt.Errorf("command %q: unknown handler_key %q", row.Trigger, *row.HandlerKey)
-		}
-		// A trigger stored with any upper case would never match: the incoming
-		// message is lowercased before the dispatch lookup, but this map is
-		// keyed on the column verbatim. Fail at boot rather than ship a command
-		// that silently never fires.
-		if row.Trigger != strings.ToLower(row.Trigger) {
-			return nil, fmt.Errorf("command %q: trigger must be lowercase or it can never match", row.Trigger)
-		}
-		cmds[row.Trigger] = handler
-	}
-	return cmds, nil
 }
 
 func pluralize(count int) string {

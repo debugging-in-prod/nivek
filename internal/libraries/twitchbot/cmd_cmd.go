@@ -31,7 +31,7 @@ func isCmdCommand(msg string) bool {
 // cmdActive reports whether !cmd is seeded and enabled. Until the seed row
 // exists the handler stays inactive and the message is treated like any other.
 func (b *Bot) cmdActive() bool {
-	_, ok := b.commands[cmdTrigger]
+	_, ok := b.lookupCommand(cmdTrigger)
 	return ok
 }
 

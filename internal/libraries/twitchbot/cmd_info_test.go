@@ -481,8 +481,7 @@ func TestInfoCommandsDispatchThroughCooldown(t *testing.T) {
 	h := &fakeInfoHelix{}
 	b.info = h
 	b.infoCache = nil // force a Helix call per allowed run
-	b.commands["!uptime"] = builtinRegistry["uptime"]
-	b.commandCooldownSecs["!uptime"] = 10
+	b.addTestCommand("!uptime", builtinRegistry["uptime"], 10)
 
 	b.handleWebhookMessage(chatEvent("m1", "42", "alice", "!uptime", false))
 	b.handleWebhookMessage(chatEvent("m2", "43", "bob", "!uptime !uptime", false))

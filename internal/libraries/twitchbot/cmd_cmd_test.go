@@ -52,8 +52,7 @@ func cmdBot(core *fakeCmdCoreAPI, seeded bool) (*Bot, *atomic.Int32, *fakeClock)
 	b, clk := dispatchBot(&fish)
 	b.coreAPI = core
 	if seeded {
-		b.commands[cmdTrigger] = (*Bot).handleCmdCommand
-		b.commandCooldownSecs[cmdTrigger] = 3
+		b.addTestCommand(cmdTrigger, (*Bot).handleCmdCommand, 3)
 	}
 	return b, &fish, clk
 }

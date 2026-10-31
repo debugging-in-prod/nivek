@@ -176,7 +176,11 @@ func (c *commandCooldowns) size() (global, user int) {
 // builtinCooldownSecs returns the configured cooldown_secs for a global
 // builtin trigger (0 = use defaults, also for unknown triggers).
 func (b *Bot) builtinCooldownSecs(trigger string) int {
-	return b.commandCooldownSecs[strings.ToLower(trigger)]
+	set := b.commands.Load()
+	if set == nil {
+		return 0
+	}
+	return set.cooldownSecs[strings.ToLower(trigger)]
 }
 
 // commandAllowed is the single cooldown gate for EventSub chat commands. Call it

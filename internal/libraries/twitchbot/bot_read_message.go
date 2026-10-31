@@ -149,7 +149,7 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 	// Dispatch it up front, but only once the global !quote seed row has loaded
 	// into b.commands: without the row the builtin stays inactive and the
 	// message falls through to the normal scan (e.g. a channel's custom !quote).
-	if _, enabled := b.commands[quoteTrigger]; enabled && isQuoteCommand(msg) {
+	if _, enabled := b.lookupCommand(quoteTrigger); enabled && isQuoteCommand(msg) {
 		if b.commandAllowed(&messageEvent, quoteTrigger, b.builtinCooldownSecs(quoteTrigger)) {
 			log.Printf("[CMD-RECV] [%s] %s: %q", channel, chatter, msg)
 			messageEvent.matchedTrigger = quoteTrigger
@@ -182,7 +182,7 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 		// A global builtin wins the word; a channel's own custom command with the
 		// same trigger falls through to the handling below (a channel can't shadow
 		// a builtin in v1).
-		if handler, ok := b.commands[msgword]; ok {
+		if handler, ok := b.lookupCommand(msgword); ok {
 			// Central cooldown gate: silently skip a command still cooling down.
 			if !b.commandAllowed(&messageEvent, msgword, b.builtinCooldownSecs(msgword)) {
 				continue

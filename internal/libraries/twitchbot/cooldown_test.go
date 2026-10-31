@@ -223,18 +223,17 @@ func TestBuildCommandCooldowns(t *testing.T) {
 func dispatchBot(calls *atomic.Int32) (*Bot, *fakeClock) {
 	cd, clk := newTestCooldowns()
 	b := &Bot{
-		config:  Config{BotUsername: "peanutbudderbot", BotId: "1"},
-		noReply: buildNoReplySet(nil, "peanutbudderbot"),
-		commands: map[string]commandHandler{
-			"!fish": func(*Bot, *chatMessageEvent) { calls.Add(1) },
-		},
-		commandCooldownSecs: map[string]int{},
-		cooldowns:           cd,
+		config:    Config{BotUsername: "peanutbudderbot", BotId: "1"},
+		noReply:   buildNoReplySet(nil, "peanutbudderbot"),
+		cooldowns: cd,
 		customCommands: map[string]map[string]commands.Commands{
 			"somechannel": {"!hi": {Trigger: "!hi", ResponseTmpl: ptr("hello"), MinRole: "everyone"}},
 		},
 		sayQueue: make(chan sayRequest, 16),
 	}
+	b.setCommands(map[string]commandHandler{
+		"!fish": func(*Bot, *chatMessageEvent) { calls.Add(1) },
+	}, nil)
 	return b, clk
 }
 
