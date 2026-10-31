@@ -47,6 +47,7 @@ const followageUnavailableMsg = "can't check follow age here (the bot needs to b
 // production value is the bot's twitchClient; tests substitute a fake.
 type infoHelix interface {
 	GetStream(ctx context.Context, broadcasterID string) (twitcheventsub.StreamInfo, error)
+	GetLastStreamEnd(ctx context.Context, broadcasterID string) (time.Time, bool, error)
 	GetChannelInfo(ctx context.Context, broadcasterID string) (twitcheventsub.ChannelInfo, error)
 	GetUserByLogin(ctx context.Context, login string) (twitcheventsub.UserInfo, bool, error)
 	GetChannelFollow(ctx context.Context, userToken, broadcasterID, userID string) (twitcheventsub.FollowInfo, error)
@@ -65,7 +66,18 @@ func (b *Bot) handleUptimeCommand(message *chatMessageEvent) {
 			b.sayInfo(channelId, fmt.Sprintf("couldn't check %s's uptime right now", channel))
 			return
 		}
-		b.sayInfo(channelId, uptimeReply(channel, s, time.Now()))
+		var lastEnd time.Time
+		if !s.Live {
+			// Best effort: any failure just drops the duration and falls
+			// back to "<channel> is offline".
+			end, found, err := b.cachedLastStreamEnd(ctx, channelId)
+			if err != nil {
+				log.Printf("[INFO] [%s] !uptime last-stream lookup failed: %v", message.BroadcasterUserLogin, err)
+			} else if found {
+				lastEnd = end
+			}
+		}
+		b.sayInfo(channelId, uptimeReply(channel, s, lastEnd, time.Now()))
 	})
 }
 
@@ -214,6 +226,24 @@ func (b *Bot) cachedStream(ctx context.Context, broadcasterId string) (twitcheve
 		}
 		return b.info.GetStream(ctx, broadcasterId)
 	})
+}
+
+type lastStreamEndLookup struct {
+	end   time.Time
+	found bool
+}
+
+// cachedLastStreamEnd returns when the channel's last stream ended (from its
+// newest archive VOD); found is false when that's unknown.
+func (b *Bot) cachedLastStreamEnd(ctx context.Context, broadcasterId string) (time.Time, bool, error) {
+	r, err := cachedLookup(b.infoCache, "lastend:"+broadcasterId, func() (lastStreamEndLookup, error) {
+		if b.info == nil {
+			return lastStreamEndLookup{}, errNoHelix
+		}
+		end, found, err := b.info.GetLastStreamEnd(ctx, broadcasterId)
+		return lastStreamEndLookup{end: end, found: found}, err
+	})
+	return r.end, r.found, err
 }
 
 func (b *Bot) cachedChannelInfo(ctx context.Context, broadcasterId string) (twitcheventsub.ChannelInfo, error) {
@@ -394,9 +424,15 @@ func commandArg(text, trigger string) string {
 	return ""
 }
 
-func uptimeReply(channel string, s twitcheventsub.StreamInfo, now time.Time) string {
+// uptimeReply answers !uptime. When offline, lastEnd (zero = unknown) is when
+// the previous stream ended; an unknown or implausible (future) end time
+// falls back to the plain "<channel> is offline".
+func uptimeReply(channel string, s twitcheventsub.StreamInfo, lastEnd, now time.Time) string {
 	if !s.Live || s.StartedAt.IsZero() {
-		return fmt.Sprintf("%s is offline", channel)
+		if lastEnd.IsZero() || lastEnd.After(now) {
+			return fmt.Sprintf("%s is offline", channel)
+		}
+		return fmt.Sprintf("%s has been offline for %s", channel, formatDayClockDuration(now.Sub(lastEnd)))
 	}
 	return fmt.Sprintf("%s has been live for %s", channel, formatClockDuration(now.Sub(s.StartedAt)))
 }
@@ -448,6 +484,22 @@ func formatClockDuration(d time.Duration) string {
 	}
 	if mins > 0 {
 		parts = append(parts, plural(mins, "min", "mins"))
+	}
+	return strings.Join(parts, " ")
+}
+
+// formatDayClockDuration is formatClockDuration with whole days split out:
+// "2 days 3 hours 5 mins", "1 day", "15 hours 33 mins". Used for offline time,
+// which (unlike a stream) routinely spans days.
+func formatDayClockDuration(d time.Duration) string {
+	const day = 24 * time.Hour
+	days := int(d / day)
+	if days == 0 {
+		return formatClockDuration(d)
+	}
+	parts := []string{plural(days, "day", "days")}
+	if rest := d % day; rest >= time.Minute {
+		parts = append(parts, formatClockDuration(rest))
 	}
 	return strings.Join(parts, " ")
 }

@@ -21,6 +21,9 @@ type fakeInfoHelix struct {
 
 	stream    twitcheventsub.StreamInfo
 	streamErr error
+	lastEnd   time.Time
+	endFound  bool
+	endErr    error
 	channel   twitcheventsub.ChannelInfo
 	chanErr   error
 	users     map[string]twitcheventsub.UserInfo
@@ -62,6 +65,14 @@ func (f *fakeInfoHelix) GetStream(ctx context.Context, _ string) (twitcheventsub
 		return twitcheventsub.StreamInfo{}, err
 	}
 	return f.stream, f.streamErr
+}
+
+func (f *fakeInfoHelix) GetLastStreamEnd(ctx context.Context, _ string) (time.Time, bool, error) {
+	f.record("lastend")
+	if err := f.wait(ctx); err != nil {
+		return time.Time{}, false, err
+	}
+	return f.lastEnd, f.endFound, f.endErr
 }
 
 func (f *fakeInfoHelix) GetChannelInfo(ctx context.Context, _ string) (twitcheventsub.ChannelInfo, error) {
@@ -269,6 +280,104 @@ func TestUptimeCommand(t *testing.T) {
 	off.handleUptimeCommand(infoMsg("!uptime", "!uptime"))
 	if got := onlySay(t, off); got != "SomeChannel is offline" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+func TestUptimeOfflineDuration(t *testing.T) {
+	t.Parallel()
+	h := &fakeInfoHelix{lastEnd: time.Now().Add(-(15*time.Hour + 33*time.Minute + 20*time.Second)), endFound: true}
+	b := newInfoBot(h)
+	b.handleUptimeCommand(infoMsg("!uptime", "!uptime"))
+	if got := onlySay(t, b); got != "SomeChannel has been offline for 15 hours 33 mins" {
+		t.Fatalf("got %q", got)
+	}
+	b.handleUptimeCommand(infoMsg("!uptime", "!uptime"))
+	drainSays(b)
+	if n := h.callCount("lastend"); n != 1 {
+		t.Fatalf("last-stream lookup called %d times, want 1 (cached)", n)
+	}
+
+	days := newInfoBot(&fakeInfoHelix{lastEnd: time.Now().Add(-(50*time.Hour + 5*time.Minute + 10*time.Second)), endFound: true})
+	days.handleUptimeCommand(infoMsg("!uptime", "!uptime"))
+	if got := onlySay(t, days); got != "SomeChannel has been offline for 2 days 2 hours 5 mins" {
+		t.Fatalf("got %q", got)
+	}
+
+	// Live channels never consult the VOD lookup.
+	live := &fakeInfoHelix{stream: twitcheventsub.StreamInfo{Live: true, StartedAt: time.Now().Add(-time.Hour)}, endFound: true, lastEnd: time.Now()}
+	lb := newInfoBot(live)
+	lb.handleUptimeCommand(infoMsg("!uptime", "!uptime"))
+	drainSays(lb)
+	if n := live.callCount("lastend"); n != 0 {
+		t.Fatalf("live channel did %d last-stream lookups, want 0", n)
+	}
+}
+
+func TestUptimeOfflineFallsBack(t *testing.T) {
+	t.Parallel()
+	cases := map[string]infoHelix{
+		"lookup error": &fakeInfoHelix{endErr: errors.New("boom")},
+		"no archive":   &fakeInfoHelix{},
+		"future end":   &fakeInfoHelix{lastEnd: time.Now().Add(time.Hour), endFound: true},
+	}
+	if !testing.Short() {
+		// Stream lookup succeeds (offline) but the VOD lookup hangs until
+		// infoLookupTimeout: still one plain "is offline" reply.
+		cases["lookup hangs"] = &blockOnlyLastEnd{&fakeInfoHelix{}}
+	}
+	for name, h := range cases {
+		b := newInfoBot(h)
+		b.handleUptimeCommand(infoMsg("!uptime", "!uptime"))
+		if got := onlySay(t, b); got != "SomeChannel is offline" {
+			t.Fatalf("%s: got %q", name, got)
+		}
+	}
+}
+
+// blockOnlyLastEnd answers GetStream normally but makes GetLastStreamEnd wait
+// for the lookup's context to expire.
+type blockOnlyLastEnd struct{ *fakeInfoHelix }
+
+func (f *blockOnlyLastEnd) GetLastStreamEnd(ctx context.Context, _ string) (time.Time, bool, error) {
+	<-ctx.Done()
+	return time.Time{}, false, ctx.Err()
+}
+
+func TestUptimeReply(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 10, 31, 12, 0, 0, 0, time.UTC)
+	off := twitcheventsub.StreamInfo{}
+	cases := []struct {
+		lastEnd time.Time
+		want    string
+	}{
+		{time.Time{}, "Chan is offline"},
+		{now.Add(time.Minute), "Chan is offline"},
+		{now.Add(-30 * time.Second), "Chan has been offline for less than a minute"},
+		{now.Add(-24 * time.Hour), "Chan has been offline for 1 day"},
+		{now.Add(-(24*time.Hour + 3*time.Minute)), "Chan has been offline for 1 day 3 mins"},
+	}
+	for _, c := range cases {
+		if got := uptimeReply("Chan", off, c.lastEnd, now); got != c.want {
+			t.Errorf("uptimeReply(%v) = %q, want %q", c.lastEnd, got, c.want)
+		}
+	}
+}
+
+func TestFormatDayClockDuration(t *testing.T) {
+	t.Parallel()
+	cases := map[time.Duration]string{
+		30 * time.Second:                           "less than a minute",
+		15*time.Hour + 33*time.Minute:              "15 hours 33 mins",
+		24 * time.Hour:                             "1 day",
+		24*time.Hour + 30*time.Second:              "1 day",
+		3*24*time.Hour + time.Hour:                 "3 days 1 hour",
+		2*24*time.Hour + 2*time.Hour + time.Minute: "2 days 2 hours 1 min",
+	}
+	for d, want := range cases {
+		if got := formatDayClockDuration(d); got != want {
+			t.Errorf("formatDayClockDuration(%v) = %q, want %q", d, got, want)
+		}
 	}
 }
 
