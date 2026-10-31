@@ -4,6 +4,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/gempir/go-twitch-irc/v4"
 )
 
 func TestCaretEchoOncePerMessageAndCooldown(t *testing.T) {
@@ -65,5 +67,69 @@ func TestCaretEchoPerChannel(t *testing.T) {
 	}
 	if b.caretEchoAllowed(&chatMessageEvent{BroadcasterUserId: "1"}) {
 		t.Fatal("channel 1 second echo allowed inside the window")
+	}
+}
+
+func TestCaretEchoOneReplyForManyCaretWords(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	b, _ := dispatchBot(&calls)
+
+	b.handleWebhookMessage(chatEvent("m1", "42", "alice", "a^b ^ hello ^^ x^ ^y world^", false))
+	if got := drainSay(b); len(got) != 1 || got[0] != "^" {
+		t.Fatalf("queued %q, want exactly one \"^\"", got)
+	}
+}
+
+func TestCaretEchoIgnoresNoReplyAndSelf(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct{ name, chatterID, login string }{
+		{"no-reply login", "77", "streamelements"},
+		{"no-reply login mixed case", "78", "MooBot"},
+		{"bot by id", "1", "someoneelse"},
+		{"bot by login", "99", "peanutbudderbot"},
+	} {
+		var calls atomic.Int32
+		b, _ := dispatchBot(&calls)
+
+		b.handleWebhookMessage(chatEvent("m1", c.chatterID, c.login, "^ ^^ wow^", false))
+		if got := drainSay(b); len(got) != 0 {
+			t.Fatalf("%s: queued %q, want nothing", c.name, got)
+		}
+
+		// The ignored message must not have consumed the cooldown: a regular
+		// chatter right after (same instant) still gets the echo.
+		b.handleWebhookMessage(chatEvent("m2", "42", "alice", "^", false))
+		if got := drainSay(b); len(got) != 1 || got[0] != "^" {
+			t.Fatalf("%s: follow-up queued %q, want one \"^\" (cooldown consumed?)", c.name, got)
+		}
+	}
+}
+
+// The IRC path (handleMessage) must not echo "^": only the EventSub path does,
+// behind caretEchoAllowed. A caret-only PRIVMSG queues nothing on either send
+// queue and leaves the echo cooldown untouched.
+func TestHandleMessageHasNoCaretEcho(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	b, _ := dispatchBot(&calls)
+	b.ircSayQueue = make(chan ircSayRequest, 16)
+
+	b.handleMessage(twitch.PrivateMessage{
+		Channel: "somechannel",
+		RoomID:  "9",
+		User:    twitch.User{ID: "42", Name: "alice"},
+		Message: "^ ^^ wow^",
+	})
+	if got := drainSay(b); len(got) != 0 {
+		t.Fatalf("EventSub say queue got %q from IRC, want nothing", got)
+	}
+	select {
+	case r := <-b.ircSayQueue:
+		t.Fatalf("IRC say queue got %q, want nothing", r.message)
+	default:
+	}
+	if !b.caretEchoAllowed(&chatMessageEvent{BroadcasterUserId: "9"}) {
+		t.Fatal("IRC message consumed the ^ echo cooldown")
 	}
 }
