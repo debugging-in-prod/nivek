@@ -47,6 +47,8 @@ CREATE TABLE IF NOT EXISTS nivek.command (
     min_role      TEXT    NOT NULL DEFAULT 'everyone'
                     CHECK (min_role IN ('everyone', 'sub', 'vip', 'mod', 'broadcaster')),
     cooldown_secs INTEGER NOT NULL DEFAULT 0 CHECK (cooldown_secs >= 0),
+    -- per-channel use counter for channel custom commands (the ${count} response variable)
+    use_count     INTEGER NOT NULL DEFAULT 0,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -67,6 +69,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS command_global_trigger_uk
   ON nivek.command (trigger) WHERE scope = 'global';
 CREATE UNIQUE INDEX IF NOT EXISTS command_channel_trigger_uk
   ON nivek.command (channel_twitch_id, trigger) WHERE scope = 'channel';
+-- Additive: older databases predate use_count.
+ALTER TABLE nivek.command ADD COLUMN IF NOT EXISTS use_count INTEGER NOT NULL DEFAULT 0;
 
 -- Seed the global built-ins. handler_key MUST match a key in the bot's
 -- builtinRegistry (internal/libraries/twitchbot/bot.go) — the bot links each

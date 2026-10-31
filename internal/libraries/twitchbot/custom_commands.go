@@ -1,8 +1,10 @@
 package twitchbot
 
 import (
+	"context"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/commands"
 )
@@ -73,6 +75,60 @@ func (b *Bot) customCommandFor(login, trigger string) (commands.Commands, bool) 
 	}
 	cmd, ok := set[strings.ToLower(trigger)]
 	return cmd, ok
+}
+
+// commandUseTimeout bounds the ${count} increment call so a slow core-api
+// can't hold a chat dispatch worker for the client's full timeout.
+const commandUseTimeout = 2 * time.Second
+
+// replyCustomCommand expands a custom command's response template for this
+// message and queues the reply. The caller has already passed the role check
+// and the central cooldown gate (commandAllowed), so this runs at most once
+// per allowed dispatch. A failed ${count} increment just leaves the variable
+// literal; the reply is still sent. A reply that sanitizes to nothing is
+// dropped.
+func (b *Bot) replyCustomCommand(message *chatMessageEvent, cmd commands.Commands, trigger string) {
+	if cmd.ResponseTmpl == nil {
+		return
+	}
+	vars := responseVars{
+		User:    displayOr(message.ChatterUserName, message.ChatterUserLogin),
+		Channel: displayOr(message.BroadcasterUserName, message.BroadcasterUserLogin),
+		Args:    commandArgs(message.Message.Text, trigger),
+		Count: func() (int, bool) {
+			return b.incrementCommandUse(cmd.Id, message.BroadcasterUserId)
+		},
+	}
+	reply := sanitizeChatReply(expandResponse(*cmd.ResponseTmpl, vars))
+	if reply == "" {
+		log.Printf("[CUSTOM-CMD] %s in %s expanded to an empty reply; not sending", trigger, message.BroadcasterUserLogin)
+		return
+	}
+	b.say(message.BroadcasterUserId, reply)
+}
+
+// incrementCommandUse bumps the command's persisted use counter via core-api.
+// ok=false on any failure (logged), which the expander treats as "leave
+// ${count} literal".
+func (b *Bot) incrementCommandUse(commandID int, channelTwitchID string) (int, bool) {
+	if b.coreAPI == nil || commandID <= 0 || channelTwitchID == "" {
+		return 0, false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), commandUseTimeout)
+	defer cancel()
+	n, err := b.coreAPI.IncrementCommandUse(ctx, commandID, channelTwitchID)
+	if err != nil {
+		log.Printf("[CUSTOM-CMD] failed to increment use count for command %d (%s): %s", commandID, channelTwitchID, err.Error())
+		return 0, false
+	}
+	return n, true
+}
+
+func displayOr(display, login string) string {
+	if display != "" {
+		return display
+	}
+	return login
 }
 
 // meetsMinRole reports whether the message's author clears a command's min_role.

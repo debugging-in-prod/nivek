@@ -186,7 +186,7 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 			if cmd.ResponseTmpl != nil && meetsMinRole(&messageEvent, cmd.MinRole) &&
 				b.commandAllowed(&messageEvent, msgword, cmd.CooldownSecs) {
 				log.Printf("[CMD-RECV] [%s] %s: %q (custom)", channel, chatter, msg)
-				b.say(channelId, *cmd.ResponseTmpl)
+				b.replyCustomCommand(&messageEvent, cmd, msgword)
 			}
 		}
 	}

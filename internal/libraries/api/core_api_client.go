@@ -47,6 +47,9 @@ type CoreAPIClient interface {
 	// GetChannelCommands returns a channel's enabled custom commands, loaded on
 	// go-live.
 	GetChannelCommands(channelTwitchID string) ([]commands.Commands, error)
+	// IncrementCommandUse bumps a channel custom command's use counter and
+	// returns the new value (backs the ${count} response variable).
+	IncrementCommandUse(ctx context.Context, commandID int, channelTwitchID string) (int, error)
 
 	CreatePromo(channel, broadcasterId, message string, intervalSeconds int) error
 	GetActivePromos() ([]promo.Promo, error)
@@ -246,6 +249,23 @@ func (c *coreAPIClientImpl) GetChannelCommands(channelTwitchID string) ([]comman
 		return nil, err
 	}
 	return resp.Commands, nil
+}
+
+// IncrementCommandUse bumps the use counter of one channel custom command
+// (scoped to channelTwitchID so the bot can only touch that channel's row) and
+// returns the new count.
+func (c *coreAPIClientImpl) IncrementCommandUse(ctx context.Context, commandID int, channelTwitchID string) (int, error) {
+	body, _ := json.Marshal(map[string]any{
+		"command_id":        commandID,
+		"channel_twitch_id": channelTwitchID,
+	})
+	var resp struct {
+		Count int `json:"count"`
+	}
+	if err := c.doCtx(ctx, http.MethodPost, PostBotCommandUse, "", body, &resp); err != nil {
+		return 0, err
+	}
+	return resp.Count, nil
 }
 
 // CreatePromo saves a new recurring message for the channel. Used by the
@@ -536,6 +556,12 @@ func (c *coreAPIClientImpl) PushHangmanGameState(game *hangman.Game, channel str
 // Path is the route under /api (e.g. "/bot/channels"); query is the raw
 // query string without leading "?". Body may be nil for GETs.
 func (c *coreAPIClientImpl) do(method, path, rawQuery string, body []byte, out any) error {
+	return c.doCtx(context.Background(), method, path, rawQuery, body, out)
+}
+
+// doCtx is do with a caller context, for calls on the chat-reply path that
+// need a tighter deadline than the client-wide timeout.
+func (c *coreAPIClientImpl) doCtx(ctx context.Context, method, path, rawQuery string, body []byte, out any) error {
 	full := c.baseURL + "/api" + path
 	if rawQuery != "" {
 		full += "?" + rawQuery
@@ -551,7 +577,7 @@ func (c *coreAPIClientImpl) do(method, path, rawQuery string, body []byte, out a
 	if body != nil {
 		bodyReader = bytes.NewReader(body)
 	}
-	req, err := http.NewRequest(method, full, bodyReader)
+	req, err := http.NewRequestWithContext(ctx, method, full, bodyReader)
 	if err != nil {
 		return fmt.Errorf("build request: %w", err)
 	}
