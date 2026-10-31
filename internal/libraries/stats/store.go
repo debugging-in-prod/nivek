@@ -3,7 +3,6 @@ package stats
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/upper/db/v4"
 )
@@ -12,7 +11,7 @@ import (
 // tests substitute a fake.
 type Store interface {
 	ActiveChats(ctx context.Context) (int, error)
-	TopChannels(ctx context.Context, since time.Time, limit int) ([]ChannelUses, error)
+	TopChannels(ctx context.Context, limit int) ([]ChannelUses, error)
 	TopFishers(ctx context.Context, limit int) ([]Fisher, error)
 	UpsertUsage(ctx context.Context, rows []UsageCount) error
 }
@@ -39,8 +38,8 @@ func (s *dbStore) ActiveChats(ctx context.Context) (int, error) {
 	return n, nil
 }
 
-func (s *dbStore) TopChannels(ctx context.Context, since time.Time, limit int) ([]ChannelUses, error) {
-	q, args := TopChannelsQuery(since, HomeChannelLogins, limit)
+func (s *dbStore) TopChannels(ctx context.Context, limit int) ([]ChannelUses, error) {
+	q, args := TopChannelsQuery(HomeChannelLogins, limit)
 	rows, err := s.sess.SQL().QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("top channels: %w", err)

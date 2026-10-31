@@ -12,6 +12,7 @@ const sample = {
   active_chats: 12,
   active_chats_definition: 'Channels the bot is serving.',
   top_channels: [{ display_name: 'TimAllenFanClubOfficial', uses: 1234 }],
+  top_channels_window: null,
   top_channels_window_days: 30,
   top_fishers: [{ display_name: 'somechatter', score: 5230, catches: 87 }],
   generated_at: '2026-10-31T21:18:26Z',
@@ -105,4 +106,14 @@ test('zero active chats with no lists is empty', () => {
 test('formatCount groups thousands', () => {
   assert.equal(formatCount(1234567), '1,234,567')
   assert.equal(formatCount(0), '0')
+})
+
+test('all-time window (issue #184)', () => {
+  const s = normalizePublicStats({ ...sample, top_channels_window: 'all_time', top_channels_window_days: 0 })
+  assert.ok(s)
+  assert.equal(s.top_channels_window, 'all_time')
+  assert.equal(s.top_channels_window_days, null)
+  const bogus = normalizePublicStats({ ...sample, top_channels_window: '<script>' })
+  assert.ok(bogus)
+  assert.equal(bogus.top_channels_window, null)
 })

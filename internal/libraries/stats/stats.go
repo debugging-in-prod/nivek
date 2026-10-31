@@ -7,7 +7,7 @@
 //     upserts them into nivek.command_usage, one row per
 //     (channel, trigger, UTC day).
 //   - Public read: GET /api/stats/public returns a small aggregate (active
-//     chats, top channels by command use, top fishers). It is cached in
+//     chats, all-time top channels by command use, top fishers). It is cached in
 //     core-api memory for 60s, so the database sees at most one round of these
 //     queries per minute no matter how much traffic the endpoint gets.
 //
@@ -43,9 +43,13 @@ const (
 	TopChannelsLimit = 5
 	TopFishersLimit  = 10
 
-	// TopChannelsWindowDays is the top_channels window: the last 30 UTC days,
-	// including today.
-	TopChannelsWindowDays = 30
+	// TopChannelsWindow names the top_channels window: every command use ever
+	// recorded (issue #184; it was the last 30 UTC days before that).
+	TopChannelsWindow = "all_time"
+	// TopChannelsWindowDays is the legacy day-count field, kept so clients
+	// built against the 30-day window keep parsing the payload. 0 means "no
+	// day filter"; read TopChannelsWindow instead.
+	TopChannelsWindowDays = 0
 
 	// ActiveChatsDefinition is returned verbatim in the public payload.
 	ActiveChatsDefinition = "Channels the bot is serving: every channel that has opted in to the bot (bot_opt_in = true), plus the bot's permanent home channels. Each channel is counted once."
@@ -78,7 +82,8 @@ type ChannelUses struct {
 	Uses        int64  `json:"uses"`
 }
 
-// Fisher is one top_fishers entry. Score is the sum of the fisher's !fish
+// Fisher is one top_fishers entry. DisplayName is the fisher's Twitch display
+// name when it could be resolved, else their login. Score is the sum of the fisher's !fish
 // score across every channel; Catches is the number of fish (not trash) they
 // have caught across every channel.
 type Fisher struct {
@@ -92,7 +97,8 @@ type PublicStats struct {
 	ActiveChats           int           `json:"active_chats"`
 	ActiveChatsDefinition string        `json:"active_chats_definition"`
 	TopChannels           []ChannelUses `json:"top_channels"`
-	TopChannelsWindowDays int           `json:"top_channels_window_days"`
+	TopChannelsWindow     string        `json:"top_channels_window"`
+	TopChannelsWindowDays int           `json:"top_channels_window_days"` // deprecated: always 0 (all time); see TopChannelsWindow
 	TopFishers            []Fisher      `json:"top_fishers"`
 	GeneratedAt           time.Time     `json:"generated_at"`
 }

@@ -3,7 +3,6 @@ package stats
 import (
 	"fmt"
 	"strings"
-	"time"
 )
 
 // SQL builders. Kept as pure functions (query string + args) so the exact SQL
@@ -53,16 +52,20 @@ func valuesRows(start, n int) string {
 	return strings.Join(p, ", ")
 }
 
-// TopChannelsQuery returns the channels with the most command uses since
-// `since` (inclusive UTC date). Opted-out channels are excluded: a channel
-// counts only while its users row has bot_opt_in = TRUE, or it is a home
-// channel. The day filter is served by command_usage_day_idx; aggregation runs
-// over at most (channels x triggers x 30 days) rows, then LIMIT.
-func TopChannelsQuery(since time.Time, home []string, limit int) (string, []any) {
-	args := []any{since.UTC().Format(DayLayout)}
+// TopChannelsQuery returns the channels with the most command uses of all
+// time. Opted-out channels are excluded: a channel counts only while its users
+// row has bot_opt_in = TRUE, or it is a home channel.
+//
+// Cost: one pass over nivek.command_usage, which holds one row per (channel,
+// trigger, UTC day) actually used, so it grows by at most channels x triggers
+// rows a day. The GROUP BY channel_twitch_id can be served in order by the
+// primary key, whose leading column it is; the join is by users' twitch_id
+// and LIMIT caps the output. PublicService runs it at most once per CacheTTL.
+func TopChannelsQuery(home []string, limit int) (string, []any) {
+	args := []any{}
 	homeCond := "FALSE"
 	if len(home) > 0 {
-		homeCond = "t.channel_login IN (" + placeholders(2, len(home)) + ")"
+		homeCond = "t.channel_login IN (" + placeholders(1, len(home)) + ")"
 		args = append(args, homeArgs(home)...)
 	}
 	args = append(args, limit)
@@ -71,7 +74,6 @@ func TopChannelsQuery(since time.Time, home []string, limit int) (string, []any)
 	       MAX(channel_login) AS channel_login,
 	       SUM(uses)::bigint  AS uses
 	  FROM nivek.command_usage
-	 WHERE day >= $1::date
 	 GROUP BY channel_twitch_id
 )
 SELECT COALESCE(NULLIF(u.twitch_display_name, ''), NULLIF(u.twitch_login, ''), t.channel_login) AS display_name,
@@ -87,7 +89,9 @@ SELECT COALESCE(NULLIF(u.twitch_display_name, ''), NULLIF(u.twitch_login, ''), t
 
 // TopFishersQuery returns the chatters with the highest !fish score summed
 // across every channel. fish_score stores the chatter's lowercased Twitch
-// login (public), which is used as the display name.
+// login (public); PublicService swaps it for the Twitch display name. There
+// is deliberately no opt-out filter: a fisher's score counts no matter which
+// channel they fished in, including channels that later opted out.
 func TopFishersQuery(limit int) (string, []any) {
 	q := `SELECT chattername AS display_name,
        SUM(score)::bigint AS score,

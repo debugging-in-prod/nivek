@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -182,6 +183,58 @@ func (c *clientImpl) GetUserByLogin(ctx context.Context, login string) (UserInfo
 		return UserInfo{}, false, nil
 	}
 	return parsed.Data[0], true, nil
+}
+
+// MaxUsersPerLookup is Helix Get Users' limit on login query parameters per
+// request.
+const MaxUsersPerLookup = 100
+
+// DisplayNames maps lowercase logins to Twitch display names, batching logins
+// into Get Users calls of at most MaxUsersPerLookup. Logins Twitch doesn't
+// know are absent from the map. A failed batch stops the lookup; names from
+// earlier batches are returned alongside the error. Satisfies
+// stats.DisplayNameResolver.
+func (c *clientImpl) DisplayNames(ctx context.Context, logins []string) (map[string]string, error) {
+	out := make(map[string]string, len(logins))
+	for start := 0; start < len(logins); start += MaxUsersPerLookup {
+		end := min(start+MaxUsersPerLookup, len(logins))
+		users, err := c.getUsersByLogins(ctx, logins[start:end])
+		if err != nil {
+			return out, err
+		}
+		for _, u := range users {
+			if u.Login != "" && u.DisplayName != "" {
+				out[strings.ToLower(u.Login)] = u.DisplayName
+			}
+		}
+	}
+	return out, nil
+}
+
+// getUsersByLogins looks up to MaxUsersPerLookup users up by login in one Get
+// Users call. Logins Twitch doesn't know are simply absent from the result.
+func (c *clientImpl) getUsersByLogins(ctx context.Context, logins []string) ([]UserInfo, error) {
+	if len(logins) == 0 {
+		return nil, nil
+	}
+	if len(logins) > MaxUsersPerLookup {
+		return nil, fmt.Errorf("get users: %d logins exceeds the limit of %d", len(logins), MaxUsersPerLookup)
+	}
+	q := url.Values{"login": logins}
+	body, status, err := c.doAppGet(ctx, helixBaseURL+"/users?"+q.Encode())
+	if err != nil {
+		return nil, err
+	}
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("get users returned %d: %s", status, truncateBody(body))
+	}
+	var parsed struct {
+		Data []UserInfo `json:"data"`
+	}
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return nil, fmt.Errorf("decode users response: %w", err)
+	}
+	return parsed.Data, nil
 }
 
 // GetChannelFollow reports whether userID follows broadcasterID. Get Channel

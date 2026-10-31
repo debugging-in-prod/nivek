@@ -6,8 +6,10 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/coreconfig"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 	statsLib "github.com/tim-the-toolman-taylor/nivek/internal/libraries/stats"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/twitcheventsub"
 )
 
 // publicStatsGetter is the slice of *statsLib.PublicService the handler uses.
@@ -20,7 +22,13 @@ type publicStatsGetter interface {
 // Results are cached in memory for statsLib.CacheTTL (one PublicService per
 // process), so request volume never reaches the database.
 func NewGetPublicStatsEndpoint(nivekSvc nivek.NivekService) echo.HandlerFunc {
-	svc := statsLib.NewPublicService(statsLib.NewStore(nivekSvc.Postgres().GetDefaultConnection()))
+	logger := nivekSvc.Logger()
+	cfg, _ := nivekSvc.CustomConfig().(coreconfig.CoreAPIConfig)
+	svc := statsLib.NewPublicService(
+		statsLib.NewStore(nivekSvc.Postgres().GetDefaultConnection()),
+		newDisplayNameResolver(cfg, logger.Infof),
+		func(err error) { logger.Warnf("[Stats] top_fishers display names (showing logins): %v", err) },
+	)
 	return getPublicStatsHandler(svc, func(err error) {
 		nivekSvc.Logger().Errorf("public stats: %s", err.Error())
 	})
@@ -39,4 +47,22 @@ func getPublicStatsHandler(svc publicStatsGetter, logErr func(error)) echo.Handl
 		c.Response().Header().Set("Cache-Control", "public, max-age=60")
 		return c.JSON(http.StatusOK, out)
 	}
+}
+
+// newDisplayNameResolver reuses core-api's existing Twitch app credentials for
+// Helix Get Users. With no usable credentials it returns nil, which turns
+// display-name resolution off (top_fishers shows logins); it never blocks
+// startup and adds no env vars.
+func newDisplayNameResolver(cfg coreconfig.CoreAPIConfig, logf func(string, ...any)) statsLib.DisplayNameResolver {
+	client, err := twitcheventsub.NewClient(twitcheventsub.Config{
+		ClientID:       cfg.TwitchClientID,
+		ClientSecret:   cfg.TwitchClientSecret,
+		EventSubSecret: cfg.TwitchEventSubSecret,
+		CallbackURL:    cfg.TwitchEventSubCallbackURL,
+	})
+	if err != nil {
+		logf("[Stats] top_fishers display names disabled, showing logins (%v)", err)
+		return nil
+	}
+	return client
 }

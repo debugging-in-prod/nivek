@@ -3,8 +3,10 @@ package twitcheventsub
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -174,5 +176,80 @@ func TestGetLastStreamEnd(t *testing.T) {
 	}
 	if _, _, err := parseLastStreamEnd([]byte(`not json`)); err == nil {
 		t.Fatal("want decode error")
+	}
+}
+
+func TestDisplayNamesBatches(t *testing.T) {
+	var batches [][]string
+	c := newTestHelix(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/users" {
+			t.Errorf("unexpected request %s", r.URL)
+		}
+		logins := r.URL.Query()["login"]
+		batches = append(batches, logins)
+		// Echo back every login except "ghost" (unknown to Twitch).
+		var data []string
+		for _, l := range logins {
+			if l != "ghost" {
+				data = append(data, fmt.Sprintf(`{"id":"1","login":%q,"display_name":%q}`, l, strings.ToUpper(l)))
+			}
+		}
+		fmt.Fprintf(w, `{"data":[%s]}`, strings.Join(data, ","))
+	})
+
+	logins := []string{"ghost"}
+	for i := range 2*MaxUsersPerLookup + 4 {
+		logins = append(logins, fmt.Sprintf("user%d", i))
+	}
+	got, err := c.DisplayNames(context.Background(), logins)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(batches) != 3 || len(batches[0]) != MaxUsersPerLookup || len(batches[1]) != MaxUsersPerLookup || len(batches[2]) != 5 {
+		t.Fatalf("batch sizes = %d/%v", len(batches), func() []int {
+			n := []int{}
+			for _, b := range batches {
+				n = append(n, len(b))
+			}
+			return n
+		}())
+	}
+	if len(got) != len(logins)-1 || got["user0"] != "USER0" || got["user203"] != "USER203" {
+		t.Fatalf("names = %d entries, user0=%q", len(got), got["user0"])
+	}
+	if _, ok := got["ghost"]; ok {
+		t.Error("unknown login must be absent")
+	}
+
+	// Empty input makes no request.
+	batches = nil
+	if got, err := c.DisplayNames(context.Background(), nil); err != nil || len(got) != 0 || batches != nil {
+		t.Fatalf("empty = %v, %v, %d calls", got, err, len(batches))
+	}
+	if _, err := c.getUsersByLogins(context.Background(), make([]string, MaxUsersPerLookup+1)); err == nil {
+		t.Fatal("want error for > MaxUsersPerLookup logins")
+	}
+}
+
+func TestDisplayNamesPartialOnError(t *testing.T) {
+	calls := 0
+	c := newTestHelix(t, func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls > 1 {
+			http.Error(w, `{"error":"Too Many Requests"}`, http.StatusTooManyRequests)
+			return
+		}
+		w.Write([]byte(`{"data":[{"id":"1","login":"user0","display_name":"User0"}]}`))
+	})
+	logins := make([]string, MaxUsersPerLookup+1)
+	for i := range logins {
+		logins[i] = fmt.Sprintf("user%d", i)
+	}
+	got, err := c.DisplayNames(context.Background(), logins)
+	if err == nil {
+		t.Fatal("want error from the failed second batch")
+	}
+	if got["user0"] != "User0" {
+		t.Fatalf("first batch's names must survive: %v", got)
 	}
 }

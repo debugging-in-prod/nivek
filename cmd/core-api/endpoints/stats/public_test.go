@@ -35,7 +35,8 @@ func TestGetPublicStatsContract(t *testing.T) {
 		ActiveChats:           3,
 		ActiveChatsDefinition: statsLib.ActiveChatsDefinition,
 		TopChannels:           []statsLib.ChannelUses{{DisplayName: "Foo", Uses: 12}},
-		TopChannelsWindowDays: 30,
+		TopChannelsWindow:     statsLib.TopChannelsWindow,
+		TopChannelsWindowDays: statsLib.TopChannelsWindowDays,
 		TopFishers:            []statsLib.Fisher{{DisplayName: "bar", Score: 100, Catches: 4}},
 		GeneratedAt:           gen,
 	}}, nil))
@@ -50,7 +51,7 @@ func TestGetPublicStatsContract(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	wantKeys := []string{"active_chats", "active_chats_definition", "top_channels", "top_channels_window_days", "top_fishers", "generated_at"}
+	wantKeys := []string{"active_chats", "active_chats_definition", "top_channels", "top_channels_window", "top_channels_window_days", "top_fishers", "generated_at"}
 	if len(got) != len(wantKeys) {
 		t.Errorf("keys = %v", got)
 	}
@@ -58,6 +59,10 @@ func TestGetPublicStatsContract(t *testing.T) {
 		if _, ok := got[k]; !ok {
 			t.Errorf("missing key %q", k)
 		}
+	}
+	// All-time window (issue #184); the legacy day count stays, as 0.
+	if got["top_channels_window"] != "all_time" || got["top_channels_window_days"] != float64(0) {
+		t.Errorf("window = %v / %v", got["top_channels_window"], got["top_channels_window_days"])
 	}
 	if got["generated_at"] != "2026-10-31T12:00:00Z" {
 		t.Errorf("generated_at = %v", got["generated_at"])

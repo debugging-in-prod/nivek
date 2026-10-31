@@ -113,19 +113,22 @@ func TestActiveChatsQuery(t *testing.T) {
 
 func TestTopChannelsQuery(t *testing.T) {
 	t.Parallel()
-	since := time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC)
-	q, args := TopChannelsQuery(since, []string{"a", "b"}, 5)
-	if maxPlaceholder(t, q) != len(args) || len(args) != 4 {
+	q, args := TopChannelsQuery([]string{"a", "b"}, 5)
+	if maxPlaceholder(t, q) != len(args) || len(args) != 3 {
 		t.Fatalf("placeholders/args mismatch: %v\n%s", args, q)
 	}
-	if args[0] != "2026-10-02" || args[1] != "a" || args[3] != 5 {
+	if args[0] != "a" || args[1] != "b" || args[2] != 5 {
 		t.Errorf("args = %v", args)
 	}
+	// All time (issue #184): no day filter at all.
+	if strings.Contains(q, "day") {
+		t.Errorf("all-time query must not filter by day:\n%s", q)
+	}
 	for _, want := range []string{
-		"day >= $1::date",
-		"u.bot_opt_in IS TRUE OR t.channel_login IN ($2, $3)",
+		"GROUP BY channel_twitch_id",
+		"u.bot_opt_in IS TRUE OR t.channel_login IN ($1, $2)",
 		"ORDER BY t.uses DESC",
-		"LIMIT $4",
+		"LIMIT $3",
 	} {
 		if !strings.Contains(q, want) {
 			t.Errorf("query missing %q:\n%s", want, q)
@@ -137,8 +140,8 @@ func TestTopChannelsQuery(t *testing.T) {
 		t.Errorf("select list leaks identifiers: %s", sel)
 	}
 
-	q, args = TopChannelsQuery(since, nil, 5)
-	if !strings.Contains(q, "OR FALSE") || len(args) != 2 || !strings.Contains(q, "LIMIT $2") {
+	q, args = TopChannelsQuery(nil, 5)
+	if !strings.Contains(q, "OR FALSE") || len(args) != 1 || !strings.Contains(q, "LIMIT $1") {
 		t.Errorf("no-home query: %v\n%s", args, q)
 	}
 }
@@ -152,6 +155,12 @@ func TestTopFishersQuery(t *testing.T) {
 	for _, want := range []string{"nivek.fish_score", "GROUP BY chattername", "SUM(score)", "jsonb_array_length(fish)", "LIMIT $1"} {
 		if !strings.Contains(q, want) {
 			t.Errorf("query missing %q:\n%s", want, q)
+		}
+	}
+	// Fishers from opted-out channels still count: no users/opt-in filter.
+	for _, bad := range []string{"bot_opt_in", "nivek.users", "JOIN"} {
+		if strings.Contains(q, bad) {
+			t.Errorf("top fishers must not filter by opt-in (%q):\n%s", bad, q)
 		}
 	}
 }
@@ -181,15 +190,6 @@ func TestUpsertUsageQuery(t *testing.T) {
 	}
 }
 
-func TestTopChannelsSince(t *testing.T) {
-	t.Parallel()
-	got := TopChannelsSince(fixedNow)
-	want := time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC) // 30 days incl. today
-	if !got.Equal(want) {
-		t.Errorf("since = %s, want %s", got, want)
-	}
-}
-
 type fakeStore struct {
 	mu       sync.Mutex
 	calls    atomic.Int32
@@ -197,7 +197,6 @@ type fakeStore struct {
 	channels []ChannelUses
 	fishers  []Fisher
 	upserted []UsageCount
-	since    time.Time
 }
 
 func (f *fakeStore) ActiveChats(context.Context) (int, error) {
@@ -207,10 +206,9 @@ func (f *fakeStore) ActiveChats(context.Context) (int, error) {
 	return 7, f.err
 }
 
-func (f *fakeStore) TopChannels(_ context.Context, since time.Time, _ int) ([]ChannelUses, error) {
+func (f *fakeStore) TopChannels(context.Context, int) ([]ChannelUses, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.since = since
 	return f.channels, f.err
 }
 
@@ -239,7 +237,7 @@ func TestPublicServiceCaches(t *testing.T) {
 		channels: []ChannelUses{{DisplayName: "Foo", Uses: 9}},
 		fishers:  []Fisher{{DisplayName: "bar", Score: 50, Catches: 2}},
 	}
-	svc := NewPublicService(store)
+	svc := NewPublicService(store, nil, nil)
 	now := fixedNow
 	svc.now = func() time.Time { return now }
 
@@ -248,12 +246,10 @@ func TestPublicServiceCaches(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got.ActiveChats != 7 || got.ActiveChatsDefinition != ActiveChatsDefinition ||
-		got.TopChannelsWindowDays != 30 || len(got.TopChannels) != 1 || len(got.TopFishers) != 1 ||
-		!got.GeneratedAt.Equal(fixedNow) {
+		got.TopChannelsWindow != "all_time" || got.TopChannelsWindowDays != 0 ||
+		len(got.TopChannels) != 1 || len(got.TopFishers) != 1 ||
+		got.TopFishers[0].DisplayName != "bar" || !got.GeneratedAt.Equal(fixedNow) {
 		t.Fatalf("payload = %+v", got)
-	}
-	if !store.since.Equal(TopChannelsSince(fixedNow)) {
-		t.Errorf("since = %s", store.since)
 	}
 
 	// Concurrent requests inside the TTL share the cached value.
@@ -284,7 +280,7 @@ func TestPublicServiceCaches(t *testing.T) {
 func TestPublicServiceStaleOnErrorAndBackoff(t *testing.T) {
 	t.Parallel()
 	store := &fakeStore{}
-	svc := NewPublicService(store)
+	svc := NewPublicService(store, nil, nil)
 	now := fixedNow
 	svc.now = func() time.Time { return now }
 

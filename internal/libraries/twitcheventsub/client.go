@@ -45,6 +45,7 @@ type TwitchEventSubClient interface {
 	GetLastStreamEnd(ctx context.Context, broadcasterID string) (time.Time, bool, error)
 	GetChannelInfo(ctx context.Context, broadcasterID string) (ChannelInfo, error)
 	GetUserByLogin(ctx context.Context, login string) (UserInfo, bool, error)
+	DisplayNames(ctx context.Context, logins []string) (map[string]string, error)
 	GetChannelFollow(ctx context.Context, userToken, broadcasterID, userID string) (FollowInfo, error)
 }
 
