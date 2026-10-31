@@ -13,6 +13,7 @@ import (
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/overlay"
 	promoEp "github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/promo"
 	stalkEp "github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/stalk"
+	statsEp "github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/stats"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/task"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/user"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/user/auth"
@@ -46,6 +47,10 @@ func RegisterRoutes(svc nivek.NivekService, e *echo.Group) {
 	// one run without any auth. Either both need auth or neither, and I think neither is
 	// the proper handling for this
 	e.GET(apilib.GetGlobalEnabledCommands, commands.NewGetCommandsEndpoint(svc))
+
+	// Public usage analytics (issue #177). No auth: aggregate counts and public
+	// Twitch names only; cached in memory for 60s.
+	e.GET(apilib.GetPublicStats, statsEp.NewGetPublicStatsEndpoint(svc))
 
 	authenticated := nivekmiddleware.NewJWTMiddleware(svc).Middleware()
 	e.GET(apilib.GetUserProfile, user.NewGetProfileEndpoint(svc), authenticated)
@@ -136,4 +141,5 @@ func RegisterRoutes(svc nivek.NivekService, e *echo.Group) {
 	e.GET(apilib.GetBotQuote, bot.NewGetQuoteEndpoint(svc), botAuth)
 	e.POST(apilib.PostBotQuoteAdd, bot.NewPostQuoteAddEndpoint(svc), botAuth)
 	e.POST(apilib.PostBotQuoteDelete, bot.NewPostQuoteDeleteEndpoint(svc), botAuth)
+	e.POST(apilib.PostBotCommandUsage, bot.NewPostCommandUsageEndpoint(svc), botAuth)
 }

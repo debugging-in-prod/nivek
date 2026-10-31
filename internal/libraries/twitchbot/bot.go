@@ -210,6 +210,10 @@ type Bot struct {
 	info      infoHelix
 	infoCache *infoCache
 	infoSlots chan struct{}
+
+	// usage counts dispatched commands per (channel, trigger, day) for the
+	// usage analytics; flushed to core-api in the background (usage_tracker.go).
+	usage *usageTracker
 }
 
 func NewBot(
@@ -271,6 +275,7 @@ func NewBot(
 		noReply:           buildNoReplySet(config.NoReplyLogins, config.BotUsername),
 		infoCache:         newInfoCache(infoCacheTTL, infoCacheMax),
 		infoSlots:         make(chan struct{}, infoMaxInFlight),
+		usage:             newUsageTracker(),
 	}
 	if twitchClient != nil {
 		bot.info = twitchClient
@@ -354,6 +359,10 @@ func (b *Bot) Start(ctx context.Context) error {
 	// go b.runDFWelcomeLoop(ctx) // temporarily disabled while bot is migrated from Pi -> VPS
 
 	go b.runPromotionMessageLoop(ctx)
+
+	// Ship per-channel command-usage counters to core-api every ~60s. Off the
+	// message path; failures are logged and dropped (usage_tracker.go).
+	go b.usage.run(ctx, usageFlushInterval, b.usageSinkFn())
 
 	// Start IRC client with panic recovery and auto-reconnect
 	go b.connectWithPanicRecovery(ctx)

@@ -23,6 +23,7 @@ import (
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/hangman"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/promo"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/quote"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/stats"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/user"
 )
 
@@ -88,6 +89,10 @@ type CoreAPIClient interface {
 	GetDadUsage(broadcasterId int) (map[string]int, error)
 	IncrementDadRoll(broadcaster int, chattername string) error
 	PushHangmanGameState(game *hangman.Game, channel string) error
+
+	// RecordCommandUsage ships a batch of per-channel command-usage counters
+	// (issue #177). Analytics only: callers log and drop on error.
+	RecordCommandUsage(ctx context.Context, counts []stats.UsageCount) error
 }
 
 type coreAPIClientImpl struct {
@@ -566,6 +571,14 @@ func (c *coreAPIClientImpl) IncrementDadRoll(broadcasterId int, chattername stri
 func (c *coreAPIClientImpl) PushHangmanGameState(game *hangman.Game, channel string) error {
 	body, _ := json.Marshal(map[string]any{"game": game, "channel": channel})
 	return c.do(http.MethodPost, PostBotUpdateHangmanGameState, "", body, nil)
+}
+
+func (c *coreAPIClientImpl) RecordCommandUsage(ctx context.Context, counts []stats.UsageCount) error {
+	body, err := json.Marshal(stats.UsageBatch{Counts: counts})
+	if err != nil {
+		return fmt.Errorf("marshal command usage: %w", err)
+	}
+	return c.doCtx(ctx, http.MethodPost, PostBotCommandUsage, "", body, nil)
 }
 
 // do executes a signed request and decodes the JSON response into `out`.

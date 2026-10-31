@@ -53,6 +53,10 @@ const (
 	PostStalk   = "/stalk"
 	DeleteStalk = "/stalk"
 
+	// Public usage analytics (issue #177): aggregate counts + public Twitch
+	// names only, cached 60s in core-api.
+	GetPublicStats = "/stats/public"
+
 	GetDFSnapshot  = "/df/snapshot"
 	PostDFSnapshot = "/df/snapshot"
 
@@ -101,6 +105,7 @@ const (
 	GetBotQuote                   = "/bot/quote"
 	PostBotQuoteAdd               = "/bot/quote/add"
 	PostBotQuoteDelete            = "/bot/quote/delete"
+	PostBotCommandUsage           = "/bot/stats/usage"
 
 	PostBotJoinChannel = "/internal/join"
 	PostBotPartChannel = "/internal/part"
