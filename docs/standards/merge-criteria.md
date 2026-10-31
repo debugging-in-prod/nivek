@@ -54,8 +54,9 @@ looping messages to any channel.
   before its handler runs. Put role checks *before* the gate so unauthorised
   users can't burn the cooldown.
 - **Never reply to itself or to other bots.** Messages from the bot's own
-  user ID/login, and from logins on the no-reply list (`no_reply.go`,
-  `TWITCH_BOT_NO_REPLY_LOGINS`, defaults `streamelements,moobot,sery_bot`), are
+  user ID/login, and from logins on the no-reply list (`no_reply.go`: the
+  built-in `defaultNoReplyLogins` in `const.go` plus
+  `TWITCH_BOT_NO_REPLY_LOGINS`), are
   dropped before any dispatch or reply. New inbound paths must apply the same
   filter.
 - **No loops.** Bot output must never trigger more bot output, whether

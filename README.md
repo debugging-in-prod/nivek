@@ -43,7 +43,7 @@ openssl rand -hex 32      # HMAC keys
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `TWITCH_BOT_NO_REPLY_LOGINS` | `streamelements,moobot,sery_bot` | Comma-delimited Twitch logins the bot never replies to or runs commands for (case-insensitive, spaces trimmed). Setting it replaces the defaults. The bot's own login is always ignored. |
+| `TWITCH_BOT_NO_REPLY_LOGINS` | _(empty)_ | Extra comma-delimited Twitch logins the bot never replies to or runs commands for (case-insensitive, spaces trimmed). Added to the built-in list of well-known chat-bot accounts (`defaultNoReplyLogins` in `internal/libraries/twitchbot/const.go`), not a replacement for it. The bot's own login is always ignored. |
 
 ## Validation
 

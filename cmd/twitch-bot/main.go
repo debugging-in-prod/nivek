@@ -50,7 +50,8 @@ func main() {
 		OverseerHmacKey: getEnv("OVERSEER_HMAC_KEY", ""),
 		NoReplyLogins:   twitchbot.ParseNoReplyLogins(os.Getenv("TWITCH_BOT_NO_REPLY_LOGINS")),
 	}
-	log.Printf("Ignoring chat from no-reply logins: %v (plus the bot's own login)", config.NoReplyLogins)
+	log.Printf("Ignoring chat from %d no-reply logins (built-in bot accounts + TWITCH_BOT_NO_REPLY_LOGINS %v + the bot's own login)",
+		twitchbot.NoReplyLoginCount(config.NoReplyLogins, config.BotUsername), config.NoReplyLogins)
 
 	// Auto-refresh the IRC token when client creds + a refresh token are present
 	// (all three must belong to the same Twitch app). Falls back to the static
