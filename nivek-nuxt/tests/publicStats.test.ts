@@ -4,6 +4,7 @@ import {
   normalizePublicStats,
   isPublicStatsEmpty,
   formatCount,
+  topChannelsWindowLabel,
   MAX_TOP_CHANNELS,
   MAX_TOP_FISHERS,
 } from '../app/utils/publicStats.ts'
@@ -116,4 +117,32 @@ test('all-time window (issue #184)', () => {
   const bogus = normalizePublicStats({ ...sample, top_channels_window: '<script>' })
   assert.ok(bogus)
   assert.equal(bogus.top_channels_window, null)
+})
+
+test('window label: all_time wins over any days value', () => {
+  for (const days of [0, 30]) {
+    const s = normalizePublicStats({ ...sample, top_channels_window: 'all_time', top_channels_window_days: days })
+    assert.ok(s)
+    assert.equal(topChannelsWindowLabel(s), 'all time')
+  }
+})
+
+test('window label: missing or zero days without a window is all time', () => {
+  for (const days of [undefined, null, 0, -5, 'x']) {
+    const s = normalizePublicStats({ ...sample, top_channels_window: undefined, top_channels_window_days: days })
+    assert.ok(s)
+    assert.equal(topChannelsWindowLabel(s), 'all time')
+  }
+  const err = normalizePublicStats({ error: 'x' })
+  assert.ok(err)
+  assert.equal(topChannelsWindowLabel(err), 'all time')
+})
+
+test('window label: positive days (legacy payload) keeps "last N days"', () => {
+  const s = normalizePublicStats({ ...sample, top_channels_window_days: 30 })
+  assert.ok(s)
+  assert.equal(topChannelsWindowLabel(s), 'last 30 days')
+  const one = normalizePublicStats({ ...sample, top_channels_window_days: 1 })
+  assert.ok(one)
+  assert.equal(topChannelsWindowLabel(one), 'last 1 day')
 })

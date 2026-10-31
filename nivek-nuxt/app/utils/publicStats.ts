@@ -107,6 +107,15 @@ export function isPublicStatsEmpty(s: PublicStats): boolean {
   )
 }
 
+// Parenthetical label for the "Top channels" heading. A missing or zero day
+// window means the API counts all time, so it never falls back to a vague
+// "recently".
+export function topChannelsWindowLabel(s: PublicStats): string {
+  const days = s.top_channels_window_days
+  if (s.top_channels_window === 'all_time' || !days) return 'all time'
+  return days === 1 ? 'last 1 day' : `last ${days} days`
+}
+
 const countFormatter = new Intl.NumberFormat('en-US')
 
 export function formatCount(n: number): string {
