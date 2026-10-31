@@ -11,14 +11,14 @@ func ptr(s string) *string { return &s }
 func TestBuildCommandMaps(t *testing.T) {
 	t.Parallel()
 
-	cmds, err := buildCommandMaps([]commands.Commands{
+	cmds, rowErrs := buildCommandMaps([]commands.Commands{
 		{Trigger: "!fish", Kind: "builtin", HandlerKey: ptr("fish"), Enabled: true},
 		{Trigger: "!bread", Kind: "builtin", HandlerKey: ptr("bread"), Enabled: true},
 		{Trigger: "!off", Kind: "builtin", HandlerKey: ptr("fish"), Enabled: false},
 		{Trigger: "!custom", Kind: "custom", ResponseTmpl: ptr("hi"), Enabled: true},
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
+	if len(rowErrs) != 0 {
+		t.Fatalf("unexpected row errors: %v", rowErrs)
 	}
 
 	if len(cmds) != 2 {
@@ -32,27 +32,26 @@ func TestBuildCommandMaps(t *testing.T) {
 	}
 }
 
-func TestBuildCommandMapsRejectsBadRows(t *testing.T) {
+func TestBuildCommandMapsSkipsBadRows(t *testing.T) {
 	t.Parallel()
 
-	// A trigger stored with upper case can never match: the message is
-	// lowercased before lookup but the map is keyed on the column verbatim, so
-	// it must fail loud at boot rather than ship a silently-dead command.
-	if _, err := buildCommandMaps([]commands.Commands{
+	// Each invalid row is reported loudly and left out, but never takes the
+	// valid rows (or a running bot) down with it. A mixed-case trigger can
+	// never match (messages are lowercased before lookup); an unknown or null
+	// handler_key has no compiled code to run.
+	cmds, rowErrs := buildCommandMaps([]commands.Commands{
 		{Trigger: "!Fish", Kind: "builtin", HandlerKey: ptr("fish"), Enabled: true},
-	}); err == nil {
-		t.Fatal("a mixed-case trigger should fail at boot")
-	}
-
-	if _, err := buildCommandMaps([]commands.Commands{
 		{Trigger: "!nope", Kind: "builtin", HandlerKey: ptr("no_such_handler"), Enabled: true},
-	}); err == nil {
-		t.Fatal("an unknown handler_key should fail at boot")
+		{Trigger: "!null", Kind: "builtin", Enabled: true},
+		{Trigger: "!bread", Kind: "builtin", HandlerKey: ptr("bread"), Enabled: true},
+	})
+	if len(rowErrs) != 3 {
+		t.Fatalf("expected 3 row errors, got %d: %v", len(rowErrs), rowErrs)
 	}
-
-	if _, err := buildCommandMaps([]commands.Commands{
-		{Trigger: "!nope", Kind: "builtin", Enabled: true},
-	}); err == nil {
-		t.Fatal("a null handler_key on a builtin should fail at boot")
+	if len(cmds) != 1 {
+		t.Fatalf("expected only the valid row to load, got %d", len(cmds))
+	}
+	if _, ok := cmds["!bread"]; !ok {
+		t.Fatal("the valid row must still load")
 	}
 }

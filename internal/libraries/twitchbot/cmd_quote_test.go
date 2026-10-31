@@ -76,8 +76,7 @@ func quoteBot(t *testing.T) (*Bot, *fakeQuoteAPI, *fakeClock) {
 	fake := newFakeQuoteAPI()
 	b.coreAPI = fake
 	b.location = time.UTC
-	b.commands[quoteTrigger] = builtinRegistry["quote"]
-	b.commandCooldownSecs[quoteTrigger] = 5
+	b.addTestCommand(quoteTrigger, builtinRegistry["quote"], 5)
 	return b, fake, clk
 }
 
