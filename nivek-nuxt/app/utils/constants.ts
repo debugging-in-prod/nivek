@@ -3,6 +3,7 @@ export const API_ROUTES = {
   AuthLanding: '/auth/landing',
   Secure: {
     Profile: '/profile',
+    PutBotOptIn: '/bot-optin',
     Weather: '/weather',
     GetFishScore: '/fishing',
     GetAutoShoutChatters: '/auto-shout',

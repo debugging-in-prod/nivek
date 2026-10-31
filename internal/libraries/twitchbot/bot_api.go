@@ -92,6 +92,11 @@ func NewWebhookListener(bot *Bot) {
 		newJoinChannelEndpoint(bot),
 		nivekmiddleware.NewHMACMiddleware("BOT_API_HMAC_KEY"),
 	)
+	e.POST(
+		api.PostBotPartChannel,
+		newPartChannelEndpoint(bot),
+		nivekmiddleware.NewHMACMiddleware("BOT_API_HMAC_KEY"),
+	)
 
 	ln, err := listenWebhook(addr, fallbackWebhookListenAddress, !explicit)
 	if err != nil {
@@ -144,6 +149,40 @@ func newJoinChannelEndpoint(bot *Bot) echo.HandlerFunc {
 		login := strings.ToLower(req.BroadcasterUserLogin)
 		log.Printf("join endpoint: joining channel %s", login)
 		bot.client.Join(login)
+
+		return c.NoContent(http.StatusNoContent)
+	}
+}
+
+// newPartChannelEndpoint lets core-api make the bot leave a channel in realtime
+// when the broadcaster opts out from the website. Unlike !banish it posts
+// nothing: core-api has already flipped bot_opt_in and removed the EventSub
+// subscriptions, so this only clears the bot's in-memory/IRC presence.
+// Permanent home channels are never left.
+func newPartChannelEndpoint(bot *Bot) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		var req struct {
+			BroadcasterUserLogin string `json:"twitch_login"`
+		}
+		if err := c.Bind(&req); err != nil {
+			log.Printf("part endpoint: failed to bind body: %s", err.Error())
+			return c.NoContent(http.StatusBadRequest)
+		}
+		if req.BroadcasterUserLogin == "" {
+			log.Printf("part endpoint: missing twitch_login")
+			return c.NoContent(http.StatusBadRequest)
+		}
+
+		login := strings.ToLower(req.BroadcasterUserLogin)
+		if bot.isPermanentChannel(login) {
+			log.Printf("part endpoint: refusing to leave permanent channel %s", login)
+			return c.NoContent(http.StatusConflict)
+		}
+
+		log.Printf("part endpoint: leaving channel %s", login)
+		bot.client.Depart(login)
+		bot.setLive(login, false)
+		bot.untrackChannel(login)
 
 		return c.NoContent(http.StatusNoContent)
 	}

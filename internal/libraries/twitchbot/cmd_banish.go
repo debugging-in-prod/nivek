@@ -57,6 +57,14 @@ func (b *Bot) banishChannel(channel, channelId string, viaHelix bool) {
 		log.Printf("[BANISH] [%s] opt-out failed: %v", channel, err)
 	}
 
+	b.untrackChannel(channel)
+
+	log.Printf("[BANISH] [%s] departed, unsubscribed, and opted out", channel)
+}
+
+// untrackChannel drops channel (lowercase login) from config.Channels so a
+// later go-live re-checks the DB opt-in flag instead of rejoining blindly.
+func (b *Bot) untrackChannel(channel string) {
 	b.channelsMu.Lock()
 	filtered := b.config.Channels[:0]
 	for _, u := range b.config.Channels {
@@ -66,8 +74,6 @@ func (b *Bot) banishChannel(channel, channelId string, viaHelix bool) {
 	}
 	b.config.Channels = filtered
 	b.channelsMu.Unlock()
-
-	log.Printf("[BANISH] [%s] departed, unsubscribed, and opted out", channel)
 }
 
 func (b *Bot) unsubscribeChannelWebhooks(channelId string) {

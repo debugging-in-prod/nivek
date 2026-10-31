@@ -21,6 +21,7 @@ type NivekUserService interface {
 	PutChannelState(broadcasterUserLogin string, isLive bool) error
 	SetBotOptIn(twitchLogin string, optIn bool) error
 	IsBotOptIn(twitchLogin string) (bool, error)
+	SetBotOptInByID(id int, optIn bool) error
 
 	FindOrCreateByTwitchIDAndTwitchLogin(profile TwitchProfile) (*User, bool, error)
 }
@@ -136,6 +137,16 @@ func (s *nivekUserServiceImpl) SetBotOptIn(twitchLogin string, optIn bool) error
 		return fmt.Errorf("failed to update bot_opt_in for user %s to %v - %w", twitchLogin, optIn, err)
 	}
 
+	return nil
+}
+
+// SetBotOptInByID writes only the bot_opt_in column for the user with the given
+// primary key, so it can't clobber concurrent is_live/stream_key updates from
+// the go-live webhook. Backs the dashboard opt-in toggle.
+func (s *nivekUserServiceImpl) SetBotOptInByID(id int, optIn bool) error {
+	if err := s.userTable.Find(db.Cond{"id": id}).Update(map[string]any{"bot_opt_in": optIn}); err != nil {
+		return fmt.Errorf("failed to update bot_opt_in for user id %d to %v - %w", id, optIn, err)
+	}
 	return nil
 }
 
