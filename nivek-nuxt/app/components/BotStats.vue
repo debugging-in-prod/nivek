@@ -10,6 +10,7 @@ import {
   normalizePublicStats,
   isPublicStatsEmpty,
   formatCount,
+  topChannelsWindowLabel,
   type PublicStats,
 } from '~/utils/publicStats'
 
@@ -27,11 +28,7 @@ const loading = computed(() => status.value === 'idle' || status.value === 'pend
 const unavailable = computed(() => !loading.value && (status.value === 'error' || stats.value === null))
 const empty = computed(() => !!stats.value && isPublicStatsEmpty(stats.value))
 
-const windowLabel = computed(() => {
-  if (stats.value?.top_channels_window === 'all_time') return 'all time'
-  const days = stats.value?.top_channels_window_days
-  return days ? `last ${days} days` : 'recently'
-})
+const windowLabel = computed(() => (stats.value ? topChannelsWindowLabel(stats.value) : 'all time'))
 
 const updatedLabel = computed(() => {
   const ts = stats.value?.generated_at
