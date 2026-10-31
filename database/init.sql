@@ -200,7 +200,16 @@ WHERE u.twitch_login = 'timallenfanclubofficial'
 -- Idempotent upgrades for any existing database that pre-dates the Twitch
 -- OAuth migration. `IF NOT EXISTS` keeps re-runs safe and lets older rows stay
 -- valid with NULL twitch_* values until the user signs in via Twitch again.
-ALTER TABLE nivek.users ALTER COLUMN username DROP NOT NULL;
+-- Guarded: fresh databases never had the legacy username column, and an
+-- unconditional ALTER aborts init under ON_ERROR_STOP (the postgres image
+-- entrypoint runs this file that way).
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_schema = 'nivek' AND table_name = 'users' AND column_name = 'username') THEN
+        ALTER TABLE nivek.users ALTER COLUMN username DROP NOT NULL;
+    END IF;
+END $$;
 ALTER TABLE nivek.users ADD COLUMN IF NOT EXISTS twitch_id VARCHAR(64) UNIQUE;
 ALTER TABLE nivek.users ADD COLUMN IF NOT EXISTS twitch_login VARCHAR(50);
 ALTER TABLE nivek.users ADD COLUMN IF NOT EXISTS stream_key TEXT;
@@ -234,7 +243,7 @@ create TABLE IF NOT EXISTS nivek.bread (
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
     -- Composite unique constraint
-    CONSTRAINT unique_user_chatter UNIQUE (user_id, chattername)
+    CONSTRAINT unique_bread_user_chatter UNIQUE (user_id, chattername)
 );
 
 -- Auto shoutout whitelist system
