@@ -80,9 +80,9 @@ type Config struct {
 	// the user token. Nil keeps the user-token-only send path.
 	AppTokenProvider func(context.Context) (string, error)
 
-	// NoReplyLogins lists Twitch logins (lowercased) the bot never replies to
-	// or runs commands for. Nil means DefaultNoReplyLogins. The bot's own login
-	// is always ignored regardless.
+	// NoReplyLogins lists extra Twitch logins the bot never replies to or runs
+	// commands for. They are added to the built-in defaultNoReplyLogins (see
+	// const.go); the bot's own login is always ignored too.
 	NoReplyLogins []string
 }
 

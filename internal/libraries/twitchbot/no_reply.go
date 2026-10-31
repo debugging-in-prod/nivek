@@ -2,14 +2,10 @@ package twitchbot
 
 import "strings"
 
-// DefaultNoReplyLogins are the chatters the bot ignores when
-// TWITCH_BOT_NO_REPLY_LOGINS is unset: other chat bots whose automated
-// messages could otherwise trigger reply loops.
-var DefaultNoReplyLogins = []string{"streamelements", "moobot", "sery_bot"}
-
 // ParseNoReplyLogins parses a comma-delimited list of Twitch logins
-// (case-insensitive, surrounding spaces trimmed, empty entries dropped).
-// A blank value yields DefaultNoReplyLogins.
+// (case-insensitive, surrounding spaces trimmed, empty entries dropped). A
+// blank value yields nil. The result is added to defaultNoReplyLogins, never
+// a replacement for it.
 func ParseNoReplyLogins(raw string) []string {
 	var logins []string
 	for part := range strings.SplitSeq(raw, ",") {
@@ -17,28 +13,33 @@ func ParseNoReplyLogins(raw string) []string {
 			logins = append(logins, login)
 		}
 	}
-	if len(logins) == 0 {
-		return append([]string(nil), DefaultNoReplyLogins...)
-	}
 	return logins
 }
 
+// NoReplyLoginCount returns how many distinct logins the bot ignores for the
+// given configured logins and bot username: defaultNoReplyLogins, logins and
+// the bot's own login, deduped case-insensitively. Used for the startup log.
+func NoReplyLoginCount(logins []string, botUsername string) int {
+	return len(buildNoReplySet(logins, botUsername))
+}
+
 // buildNoReplySet returns the set of lowercased logins the bot never replies
-// to. A nil logins slice means DefaultNoReplyLogins. The bot's own login is
-// always included.
+// to: the union of defaultNoReplyLogins, logins (e.g. from
+// TWITCH_BOT_NO_REPLY_LOGINS) and the bot's own login.
 func buildNoReplySet(logins []string, botUsername string) map[string]struct{} {
-	if logins == nil {
-		logins = DefaultNoReplyLogins
-	}
-	set := make(map[string]struct{}, len(logins)+1)
-	for _, l := range logins {
+	set := make(map[string]struct{}, len(defaultNoReplyLogins)+len(logins)+1)
+	add := func(l string) {
 		if l = strings.ToLower(strings.TrimSpace(l)); l != "" {
 			set[l] = struct{}{}
 		}
 	}
-	if bot := strings.ToLower(strings.TrimSpace(botUsername)); bot != "" {
-		set[bot] = struct{}{}
+	for _, l := range defaultNoReplyLogins {
+		add(l)
 	}
+	for _, l := range logins {
+		add(l)
+	}
+	add(botUsername)
 	return set
 }
 
