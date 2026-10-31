@@ -87,6 +87,15 @@ INSERT INTO nivek.command (trigger, kind, handler_key, min_role, description) VA
     ('!translate',  'builtin', 'translate',   'mod',      'Translate a message between English and Japanese (mods only). Usage: "!translate <message>". Auto-detects EN vs JA and translates to the other.')
 ON CONFLICT (trigger) WHERE scope = 'global' DO NOTHING;
 
+-- Info commands (Helix reads, ~60s cached). Seeded with a 10s cooldown each.
+INSERT INTO nivek.command (trigger, kind, handler_key, min_role, cooldown_secs, description) VALUES
+    ('!uptime',     'builtin', 'uptime',     'everyone', 10, 'Shows how long the stream has been live, or that the channel is offline.'),
+    ('!followage',  'builtin', 'followage',  'everyone', 10, 'Shows how long you (or "!followage <user>") have followed this channel. Needs the bot to be a mod here.'),
+    ('!accountage', 'builtin', 'accountage', 'everyone', 10, 'Shows how old your Twitch account (or "!accountage <user>") is.'),
+    ('!game',       'builtin', 'game',       'everyone', 10, 'Shows the category the channel is currently streaming.'),
+    ('!title',      'builtin', 'title',      'everyone', 10, 'Shows the channel''s current stream title.')
+ON CONFLICT (trigger) WHERE scope = 'global' DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS nivek.channel_command_settings (
     channel_twitch_id VARCHAR(64) NOT NULL,
     command_id        INTEGER NOT NULL REFERENCES nivek.command(id) ON DELETE CASCADE,
