@@ -5,14 +5,17 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/api"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivekmiddleware"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/overlayrelay"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/twitchsig"
 )
 
@@ -28,11 +31,21 @@ const (
 const MESSAGE_TYPE = "Twitch-Eventsub-Message-Type"
 
 // defaultWebhookListenAddress is where the EventSub HTTP listener binds. It must
-// be reachable from the Traefik gateway container over the docker bridge, so it
-// binds all interfaces rather than loopback: Traefik routes
-// peanutbudderbot.com/eventsub -> http://172.19.0.1:8090. Override with
-// WEBHOOK_LISTEN_ADDRESS if the port or bridge subnet ever changes.
-const defaultWebhookListenAddress = "0.0.0.0:8090"
+// be reachable from the Traefik gateway container over the docker bridge:
+// Traefik routes peanutbudderbot.com/eventsub -> http://172.19.0.1:8090, so
+// binding only the bridge gateway keeps the port off public interfaces. Override
+// with WEBHOOK_LISTEN_ADDRESS if the port or bridge subnet ever changes.
+const defaultWebhookListenAddress = "172.19.0.1:8090"
+
+// fallbackWebhookListenAddress is used only when the default bridge address is
+// not present on this host (e.g. the gateway network is down or recreated), so
+// the bot keeps receiving webhooks instead of silently losing them.
+const fallbackWebhookListenAddress = "0.0.0.0:8090"
+
+// eventSubMessageIDCacheSize bounds the EventSub delivery-id dedupe. Twitch
+// retries reuse the same Twitch-Eventsub-Message-Id; deliveries older than
+// overlayrelay.MaxMessageAge are rejected by timestamp anyway.
+const eventSubMessageIDCacheSize = 4096
 
 type EventSubSubscriptionResponse struct {
 	Challenge    string               `json:"challenge,omitempty"`
@@ -57,7 +70,8 @@ type SubscriptionResponse struct {
 // blocked; the server runs for the lifetime of the process.
 func NewWebhookListener(bot *Bot) {
 	addr := os.Getenv("WEBHOOK_LISTEN_ADDRESS")
-	if addr == "" {
+	explicit := addr != ""
+	if !explicit {
 		addr = defaultWebhookListenAddress
 	}
 
@@ -79,13 +93,34 @@ func NewWebhookListener(bot *Bot) {
 		nivekmiddleware.NewHMACMiddleware("BOT_API_HMAC_KEY"),
 	)
 
+	ln, err := listenWebhook(addr, fallbackWebhookListenAddress, !explicit)
+	if err != nil {
+		// Same outcome as before for an explicitly configured address: log and
+		// keep the bot running without the listener.
+		log.Printf("eventsub webhook listener stopped: %v", err)
+		return
+	}
+	e.Listener = ln
+
 	go func() {
-		if err := e.Start(addr); err != nil && err != http.ErrServerClosed {
+		if err := e.Start(""); err != nil && err != http.ErrServerClosed {
 			log.Printf("eventsub webhook listener stopped: %v", err)
 		}
 	}()
 
-	log.Printf("eventsub webhook listener started on %s%s", addr, api.TwitchWebhookSubscriptionRequest)
+	log.Printf("eventsub webhook listener started on %s%s", ln.Addr(), api.TwitchWebhookSubscriptionRequest)
+}
+
+// listenWebhook binds addr. When allowFallback is set and addr cannot be bound
+// (typically because the bridge IP is not assigned on this host), it logs a
+// warning and binds fallback instead of failing.
+func listenWebhook(addr, fallback string, allowFallback bool) (net.Listener, error) {
+	ln, err := net.Listen("tcp", addr)
+	if err == nil || !allowFallback {
+		return ln, err
+	}
+	log.Printf("warning: eventsub webhook listener could not bind default %s (%v); falling back to %s", addr, err, fallback)
+	return net.Listen("tcp", fallback)
 }
 
 // newJoinChannelEndpoint lets core-api tell the bot to join a channel in
@@ -115,6 +150,8 @@ func newJoinChannelEndpoint(bot *Bot) echo.HandlerFunc {
 }
 
 func newTwitchEventSubEndpoint(bot *Bot) echo.HandlerFunc {
+	seenIDs := newMessageIDCache(eventSubMessageIDCacheSize)
+
 	return func(c echo.Context) error {
 		secret := os.Getenv("TWITCH_EVENTSUB_SECRET")
 
@@ -129,11 +166,24 @@ func newTwitchEventSubEndpoint(bot *Bot) echo.HandlerFunc {
 		if !twitchsig.Verify(c.Request().Header, body, secret) {
 			return c.NoContent(http.StatusForbidden)
 		}
+		// A valid signature proves authenticity, not freshness: reject captured
+		// deliveries replayed outside Twitch's 10-minute window.
+		if overlayrelay.IsStale(c.Request().Header, time.Now().UTC(), overlayrelay.MaxMessageAge) {
+			return c.NoContent(http.StatusForbidden)
+		}
 
 		var notification EventSubSubscriptionResponse
 		if err := c.Bind(&notification); err != nil {
 			log.Printf("failed to parse webhook subscription response: %s", err.Error())
 			return c.NoContent(http.StatusBadRequest)
+		}
+
+		// Drop redelivered notifications/revocations (same message id) with a
+		// 2xx so Twitch stops retrying. The verification challenge is idempotent
+		// and always answered so a retried handshake still succeeds.
+		if c.Request().Header.Get(MESSAGE_TYPE) != MESSAGE_TYPE_VERIFICATION &&
+			seenIDs.seen(c.Request().Header.Get(twitchsig.HeaderMessageID)) {
+			return c.NoContent(http.StatusNoContent)
 		}
 
 		if MESSAGE_TYPE_NOTIFICATION == c.Request().Header.Get(MESSAGE_TYPE) {
