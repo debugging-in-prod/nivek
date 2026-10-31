@@ -46,6 +46,7 @@ var builtinRegistry = map[string]commandHandler{
 	"accountage":  (*Bot).handleAccountAgeCommand,
 	"game":        (*Bot).handleGameCommand,
 	"title":       (*Bot).handleTitleCommand,
+	"quote":       (*Bot).handleQuoteCommand,
 }
 
 type BotUser struct {

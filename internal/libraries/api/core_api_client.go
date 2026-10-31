@@ -22,6 +22,7 @@ import (
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/commands"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/hangman"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/promo"
+	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/quote"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/user"
 )
 
@@ -56,6 +57,14 @@ type CoreAPIClient interface {
 	SetStalkTarget(channel, target, setBy string) error
 	ClearStalkTarget(channel string) (found bool, err error)
 	SetStalkLastMessage(channel, target, message string) error
+
+	// GetQuote returns the channel's quote #number, or a random one when
+	// number <= 0. found is false when there is no such quote.
+	GetQuote(channelTwitchID string, number int) (q quote.Quote, found bool, err error)
+	// AddQuote stores a quote and returns it with its per-channel number.
+	AddQuote(channelTwitchID, text, addedBy string) (quote.Quote, error)
+	// DeleteQuote removes quote #number. found is false when it didn't exist.
+	DeleteQuote(channelTwitchID string, number int) (found bool, err error)
 
 	IncrementBread(channel, chatter string) (int, error)
 	GetBreadTotal(channel string) (int, error)
@@ -342,6 +351,60 @@ func (c *coreAPIClientImpl) SetStalkLastMessage(channel, target, message string)
 		"message": message,
 	})
 	return c.do(http.MethodPost, PostBotStalkLastMessage, "", body, nil)
+}
+
+// GetQuote fetches the channel's quote #number (random when number <= 0).
+func (c *coreAPIClientImpl) GetQuote(channelTwitchID string, number int) (quote.Quote, bool, error) {
+	q := url.Values{}
+	q.Set("channel_twitch_id", channelTwitchID)
+	if number > 0 {
+		q.Set("number", strconv.Itoa(number))
+	}
+	var resp struct {
+		Found bool         `json:"found"`
+		Quote *quote.Quote `json:"quote"`
+	}
+	if err := c.do(http.MethodGet, GetBotQuote, q.Encode(), nil, &resp); err != nil {
+		return quote.Quote{}, false, err
+	}
+	if !resp.Found || resp.Quote == nil {
+		return quote.Quote{}, false, nil
+	}
+	return *resp.Quote, true, nil
+}
+
+// AddQuote stores a new quote for the channel. Used by `!quote add`.
+func (c *coreAPIClientImpl) AddQuote(channelTwitchID, text, addedBy string) (quote.Quote, error) {
+	body, _ := json.Marshal(map[string]string{
+		"channel_twitch_id": channelTwitchID,
+		"text":              text,
+		"added_by":          addedBy,
+	})
+	var resp struct {
+		Quote *quote.Quote `json:"quote"`
+	}
+	if err := c.do(http.MethodPost, PostBotQuoteAdd, "", body, &resp); err != nil {
+		return quote.Quote{}, err
+	}
+	if resp.Quote == nil {
+		return quote.Quote{}, fmt.Errorf("core-api returned no quote")
+	}
+	return *resp.Quote, nil
+}
+
+// DeleteQuote removes the channel's quote #number. Used by `!quote del`.
+func (c *coreAPIClientImpl) DeleteQuote(channelTwitchID string, number int) (bool, error) {
+	body, _ := json.Marshal(map[string]any{
+		"channel_twitch_id": channelTwitchID,
+		"number":            number,
+	})
+	var resp struct {
+		Found bool `json:"found"`
+	}
+	if err := c.do(http.MethodPost, PostBotQuoteDelete, "", body, &resp); err != nil {
+		return false, err
+	}
+	return resp.Found, nil
 }
 
 func (c *coreAPIClientImpl) IncrementBread(channel, chatter string) (int, error) {

@@ -96,6 +96,11 @@ INSERT INTO nivek.command (trigger, kind, handler_key, min_role, cooldown_secs, 
     ('!title',      'builtin', 'title',      'everyone', 10, 'Shows the channel''s current stream title.')
 ON CONFLICT (trigger) WHERE scope = 'global' DO NOTHING;
 
+-- !quote ships with an explicit 5s cooldown (global and per-user windows).
+INSERT INTO nivek.command (trigger, kind, handler_key, min_role, cooldown_secs, description) VALUES
+    ('!quote',      'builtin', 'quote',       'everyone', 5, 'Channel quotes. "!quote" for a random one, "!quote <n>" for a specific one. Mods/broadcaster add with "!quote add <text>" (max 300 chars) and remove with "!quote del <n>".')
+ON CONFLICT (trigger) WHERE scope = 'global' DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS nivek.channel_command_settings (
     channel_twitch_id VARCHAR(64) NOT NULL,
     command_id        INTEGER NOT NULL REFERENCES nivek.command(id) ON DELETE CASCADE,
@@ -150,6 +155,19 @@ CREATE TABLE IF NOT EXISTS nivek.stalk (
     CONSTRAINT stalk_channel_uk UNIQUE (channelname)
 );
 ALTER TABLE nivek.stalk ADD COLUMN IF NOT EXISTS last_message TEXT NOT NULL DEFAULT '';
+
+-- Per-channel !quote collection. quote_number is the per-channel number chatters
+-- see and type (#1, #2, ...); the bot assigns max+1 on add. game is optional.
+CREATE TABLE IF NOT EXISTS nivek.quote (
+    id SERIAL PRIMARY KEY,
+    channel_twitch_id VARCHAR(64) NOT NULL,
+    quote_number      INTEGER NOT NULL CHECK (quote_number > 0),
+    text              TEXT NOT NULL,
+    added_by          VARCHAR(50) NOT NULL DEFAULT '',
+    game              TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT quote_channel_number_uk UNIQUE (channel_twitch_id, quote_number)
+);
 
 -- Migrate the bot's original hardcoded self-promo (previously a Go ticker in
 -- twitchbot.runPromotionMessageLoop) into a normal promo row so every recurring

@@ -145,6 +145,19 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 		return
 	}
 
+	// !quote add takes free-form text that may contain other command triggers.
+	// Dispatch it up front, but only once the global !quote seed row has loaded
+	// into b.commands: without the row the builtin stays inactive and the
+	// message falls through to the normal scan (e.g. a channel's custom !quote).
+	if _, enabled := b.commands[quoteTrigger]; enabled && isQuoteCommand(msg) {
+		if b.commandAllowed(&messageEvent, quoteTrigger, b.builtinCooldownSecs(quoteTrigger)) {
+			log.Printf("[CMD-RECV] [%s] %s: %q", channel, chatter, msg)
+			messageEvent.matchedTrigger = quoteTrigger
+			b.handleQuoteCommand(&messageEvent)
+		}
+		return
+	}
+
 	// Check for commands. Every builtin and custom dispatch below goes through
 	// commandAllowed (cooldown.go) -- keep it that way for new dispatch paths.
 	for msgword := range strings.SplitSeq(msg, " ") {

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/twitcheventsub"
 )
@@ -335,17 +337,19 @@ func (b *Bot) sayInfo(channelId, msg string) {
 	}
 }
 
-// sanitizeChatReply makes text safe to post: newlines flattened, leading '/'
-// or '.' stripped so user/broadcaster-controlled text can never be read as a
-// Twitch chat command, and capped at maxChatReplyLen characters.
+// sanitizeChatReply makes text safe to post: control characters (newlines,
+// tabs, NUL, ...) and invalid UTF-8 are flattened to spaces and whitespace
+// runs collapsed so the reply is a single chat line; leading '/' or '.' are
+// stripped so user/broadcaster-controlled text can never be read as a Twitch
+// chat command; and it is capped at maxChatReplyLen characters.
 func sanitizeChatReply(s string) string {
 	s = strings.Map(func(r rune) rune {
-		if r == '\n' || r == '\r' || r == '\t' {
+		if r == utf8.RuneError || unicode.IsControl(r) {
 			return ' '
 		}
 		return r
 	}, s)
-	s = strings.TrimLeft(strings.TrimSpace(s), "/. ")
+	s = strings.TrimLeft(strings.Join(strings.Fields(s), " "), "/. ")
 	if r := []rune(s); len(r) > maxChatReplyLen {
 		s = strings.TrimSpace(string(r[:maxChatReplyLen-1])) + "…"
 	}
