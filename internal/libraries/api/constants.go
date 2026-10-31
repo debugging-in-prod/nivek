@@ -87,6 +87,7 @@ const (
 	PostBotUpdateHangmanGameState = "/bot/hangman/upsert"
 	GetBotChannelCommands         = "/bot/commands/:bid"
 	PostBotCommandUse             = "/bot/commands/use"
+	PostBotManageChannelCommand   = "/bot/commands/manage"
 	GetBotAutoShouters            = "/bot/autoshout/:bid"
 	PostBotAutoShoutIncrement     = "/bot/autoshout/increment"
 	PostBotPromoCreate            = "/bot/promo"

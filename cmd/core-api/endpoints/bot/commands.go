@@ -66,3 +66,33 @@ func NewPostCommandUse(nivekSvc nivek.NivekService) echo.HandlerFunc {
 		return c.JSON(http.StatusOK, map[string]int{"count": count})
 	}
 }
+
+// NewPostManageChannelCommand applies a chat "!cmd add|edit|del" for one
+// channel through the same editor (and validation) as the dashboard. botAuth
+// gated; the mod/broadcaster check lives in the bot handler. User-facing
+// refusals (bad trigger, built-in name, limit, not found, ...) are a 200 with
+// ok=false and a short error so the bot can echo it; only internal failures
+// are a 5xx.
+func NewPostManageChannelCommand(nivekSvc nivek.NivekService) echo.HandlerFunc {
+	return postManageChannelCommand(nivekSvc, commandSvc.NewChannelEditorService(nivekSvc))
+}
+
+func postManageChannelCommand(nivekSvc nivek.NivekService, editor commandSvc.ChannelEditorService) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		var req commandSvc.ChatManageRequest
+		if err := c.Bind(&req); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		}
+		if req.ChannelTwitchID == "" {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "missing channel_twitch_id"})
+		}
+		res, err := commandSvc.ManageFromChat(editor, req)
+		if err != nil {
+			if nivekSvc != nil {
+				nivekSvc.Logger().Errorf("bot commands: %s %s for %s failed: %s", req.Action, req.Trigger, req.ChannelTwitchID, err.Error())
+			}
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "internal server error"})
+		}
+		return c.JSON(http.StatusOK, res)
+	}
+}
