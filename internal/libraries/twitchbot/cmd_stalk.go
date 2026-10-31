@@ -83,8 +83,7 @@ func (b *Bot) setStalkTarget(channelId, channel, setBy, rawTarget string) {
 	}
 
 	// Apply immediately so this stream starts recording the new target without
-	// waiting for the next go-live. Custom commands can't be edited from chat,
-	// so they wait; !stalk set is the chat-side edit.
+	// waiting for the next go-live (like !cmd does for custom commands).
 	b.setStalkWatch(channel, target)
 	b.say(channelId, fmt.Sprintf("now stalking %s", target))
 	log.Printf("[STALK] [%s] %s set target to %s", channel, setBy, target)

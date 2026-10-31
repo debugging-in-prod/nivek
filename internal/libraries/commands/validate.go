@@ -60,6 +60,7 @@ var reservedTriggers = map[string]bool{
 	"!so":         true,
 	"!translate":  true,
 	"!df":         true,
+	"!cmd":        true,
 }
 
 // ErrValidation wraps every input-validation failure so handlers can map it to

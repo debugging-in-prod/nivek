@@ -156,7 +156,7 @@ func TestReservedTriggersCoverSeededBuiltins(t *testing.T) {
 	// Keep in sync with the global seed in database/init.sql.
 	for _, trig := range []string{
 		"!dad", "!fish", "!bread", "!lurk", "!joinme", "!banish", "!pbcommands",
-		"!newpromo", "!stalk", "!hangman", "!so", "!translate",
+		"!newpromo", "!stalk", "!hangman", "!so", "!translate", "!cmd",
 	} {
 		if !IsReservedTrigger(trig) {
 			t.Errorf("%s should be reserved", trig)

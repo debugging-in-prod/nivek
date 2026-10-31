@@ -13,17 +13,24 @@ import (
 // than once at boot: the set is pulled when a channel goes live (stream.online
 // webhook, or at boot for channels already live) and dropped when it goes
 // offline. This keeps the dispatch map small and the in-memory data fresh for
-// the current stream — a broadcaster who edits a command mid-stream picks it up
-// on their next go-live, matching how the bot already treats a live session as
-// the unit of state (auto-shout, !dad counters).
+// the current stream — a dashboard edit mid-stream is picked up on the next
+// go-live, matching how the bot already treats a live session as the unit of
+// state (auto-shout, !dad counters). Edits made from chat with !cmd are applied
+// to this map immediately (see cmd_cmd.go).
 
 // loadCustomCommands fetches the channel's enabled custom commands from core-api
 // (keyed by Twitch id) and stores them for dispatch under the lowercased login,
 // which is what handleMessage matches on. Safe to call repeatedly — it replaces
 // the channel's set wholesale, so a re-fire (e.g. a duplicate stream.online)
 // just refreshes it. Intended to run in its own goroutine off the webhook/boot
-// path since it makes a network call.
+// path since it makes a network call. Fails soft: errors are logged and a
+// panic is recovered, so a bad refresh never takes the bot down.
 func (b *Bot) loadCustomCommands(twitchID, login string) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[CUSTOM-CMD] panic loading custom commands for %s (%s): %v", login, twitchID, r)
+		}
+	}()
 	rows, err := b.coreAPI.GetChannelCommands(twitchID)
 	if err != nil {
 		log.Printf("[CUSTOM-CMD] failed to load custom commands for %s (%s): %s", login, twitchID, err.Error())

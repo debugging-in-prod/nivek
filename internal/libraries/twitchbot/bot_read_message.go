@@ -158,6 +158,21 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 		return
 	}
 
+	// !cmd add|edit|del takes a free-form response that may itself contain
+	// other command words. Dispatch it up front and return so the response is
+	// never scanned for more commands. Only active once the !cmd seed row is
+	// loaded; non-mods are ignored silently (checked before the cooldown gate
+	// so they can't burn it).
+	if b.cmdActive() && isCmdCommand(msg) {
+		if isModOrBroadcaster(&messageEvent) &&
+			b.commandAllowed(&messageEvent, cmdTrigger, b.builtinCooldownSecs(cmdTrigger)) {
+			log.Printf("[CMD-RECV] [%s] %s: %q", channel, chatter, msg)
+			messageEvent.matchedTrigger = cmdTrigger
+			b.handleCmdCommand(&messageEvent)
+		}
+		return
+	}
+
 	// Check for commands. Every builtin and custom dispatch below goes through
 	// commandAllowed (cooldown.go) -- keep it that way for new dispatch paths.
 	for msgword := range strings.SplitSeq(msg, " ") {

@@ -105,6 +105,12 @@ INSERT INTO nivek.command (trigger, kind, handler_key, min_role, cooldown_secs, 
     ('!quote',      'builtin', 'quote',       'everyone', 5, 'Channel quotes. "!quote" for a random one, "!quote <n>" for a specific one. Mods/broadcaster add with "!quote add <text>" (max 300 chars) and remove with "!quote del <n>".')
 ON CONFLICT (trigger) WHERE scope = 'global' DO NOTHING;
 
+-- !cmd: mods/broadcaster manage the channel's custom commands from chat
+-- ("!cmd add|edit|del"). Separate INSERT so it can carry its own cooldown_secs.
+INSERT INTO nivek.command (trigger, kind, handler_key, min_role, cooldown_secs, description) VALUES
+    ('!cmd', 'builtin', 'cmd', 'mod', 3, 'Manage this channel''s custom commands from chat (broadcaster/mods only). "!cmd add !trigger <response>", "!cmd edit !trigger <response>", "!cmd del !trigger".')
+ON CONFLICT (trigger) WHERE scope = 'global' DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS nivek.channel_command_settings (
     channel_twitch_id VARCHAR(64) NOT NULL,
     command_id        INTEGER NOT NULL REFERENCES nivek.command(id) ON DELETE CASCADE,

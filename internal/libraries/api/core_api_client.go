@@ -50,6 +50,9 @@ type CoreAPIClient interface {
 	// IncrementCommandUse bumps a channel custom command's use counter and
 	// returns the new value (backs the ${count} response variable).
 	IncrementCommandUse(ctx context.Context, commandID int, channelTwitchID string) (int, error)
+	// ManageChannelCommand applies a chat "!cmd add|edit|del" to a channel's
+	// custom commands. A refused request comes back with OK=false, not an error.
+	ManageChannelCommand(req commands.ChatManageRequest) (commands.ChatManageResult, error)
 
 	CreatePromo(channel, broadcasterId, message string, intervalSeconds int) error
 	GetActivePromos() ([]promo.Promo, error)
@@ -320,6 +323,19 @@ func (c *coreAPIClientImpl) DeleteLastPromo(channel string) (bool, error) {
 		return false, err
 	}
 	return resp.Found, nil
+}
+
+// ManageChannelCommand posts a chat !cmd request to core-api.
+func (c *coreAPIClientImpl) ManageChannelCommand(req commands.ChatManageRequest) (commands.ChatManageResult, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return commands.ChatManageResult{}, fmt.Errorf("marshal manage command request: %w", err)
+	}
+	var resp commands.ChatManageResult
+	if err := c.do(http.MethodPost, PostBotManageChannelCommand, "", body, &resp); err != nil {
+		return commands.ChatManageResult{}, err
+	}
+	return resp, nil
 }
 
 // GetStalkTarget returns the chatter this channel is configured to !stalk and
