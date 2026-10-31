@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"regexp"
 	"syscall"
 
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/api"
@@ -38,12 +37,18 @@ func main() {
 	clientSecret := getEnv("TWITCH_CLIENT_SECRET", "")
 	refreshToken := getEnv("TWITCH_BOT_REFRESH", "")
 
+	// Fail soft if core-api is down at boot: retry with bounded backoff, then
+	// start with only the permanent home channels and let the bot keep
+	// retrying in the background (twitchbot/channel_loader.go, #191).
+	channels, channelsLoaded := twitchbot.LoadChannelsAtBoot(coreAPI)
+
 	config := twitchbot.Config{
 		BotUsername:     getEnv("TWITCH_BOT_USERNAME", ""),
 		BotId:           "1322716097",
 		BotOAuth:        getEnv("TWITCH_BOT_OAUTH", ""),
 		ClientID:        clientID,
-		Channels:        getLiveChannels(coreAPI),
+		Channels:        channels,
+		ChannelsPending: !channelsLoaded,
 		StoragePath:     getEnv("TWITCH_STORAGE_PATH", "./data/twitch-counters.json"),
 		Timezone:        getEnv("TWITCH_TIMEZONE", "America/New_York"),
 		ExecutorWSURL:   getEnv("EXECUTOR_WS_URL", ""),
@@ -72,8 +77,8 @@ func main() {
 		log.Println("Chat Bot Badge send path disabled (set TWITCH_CLIENT_ID + TWITCH_CLIENT_SECRET to enable); sending with user token")
 	}
 
-	if config.BotUsername == "" || len(config.Channels) == 0 {
-		log.Fatal("Missing required environment variables: TWITCH_BOT_USERNAME (and core-api must return at least one channel)")
+	if config.BotUsername == "" {
+		log.Fatal("Missing required environment variable: TWITCH_BOT_USERNAME")
 	}
 	if config.BotOAuth == "" && config.TokenProvider == nil {
 		log.Fatal("Need TWITCH_BOT_OAUTH, or TWITCH_CLIENT_ID + TWITCH_CLIENT_SECRET + TWITCH_BOT_REFRESH for auto-refresh")
@@ -120,33 +125,4 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
-}
-
-var validTwitchLogin = regexp.MustCompile(`^[a-z0-9_]{4,25}$`)
-
-// getChannelNames fetches the active-user list from core-api and filters to
-// valid Twitch logins. The filter stays bot-side because it's an IRC-protocol
-// concern (4-25 chars, lowercase, [a-z0-9_]), not something the API should
-// gatekeep.
-func getLiveChannels(coreAPI api.CoreAPIClient) []twitchbot.BotUser {
-	users, err := coreAPI.GetActiveChannels()
-	if err != nil {
-		log.Fatalf("Failed to fetch active channels from core-api: %v", err)
-	}
-	if len(users) == 0 {
-		log.Fatal("No active users returned by core-api")
-	}
-
-	channels := make([]twitchbot.BotUser, 0, len(users))
-	for _, u := range users {
-		if u.TwitchLogin == nil || !validTwitchLogin.MatchString(*u.TwitchLogin) {
-			continue
-		}
-		// hasPrivs is seeded later from Twitch's EventSub state (hydrateChatReadPrivs).
-		channels = append(channels, twitchbot.BotUser{User: u})
-	}
-	if len(channels) == 0 {
-		log.Fatal("No active users with valid Twitch logins returned by core-api")
-	}
-	return channels
 }

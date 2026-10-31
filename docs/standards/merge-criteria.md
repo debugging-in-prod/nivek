@@ -24,9 +24,8 @@ In practice:
 - **Startup tolerates core-api being down.** New boot-time calls to core-api
   must retry or degrade, like `loadCommandsAtBoot` followed by
   `retryCommandsInBackground` in `twitchbot/command_loader.go`. They must not
-  exit. (Existing exception, scheduled for removal: `getLiveChannels` in
-  `cmd/twitch-bot/main.go` still exits if core-api is unreachable at boot. See
-  [inconsistencies.md](inconsistencies.md). Don't add more of these.)
+  exit. `LoadChannelsAtBoot` / `retryChannelsInBackground` in
+  `twitchbot/channel_loader.go` follow the same pattern for the channel list.
 - **New bot-side tracking is non-blocking, bounded, and panic-recovered.** It
   runs off the message path (goroutine or buffered channel), has a cap on
   memory (map size, queue length) with pruning, drops data instead of

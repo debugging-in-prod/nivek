@@ -84,6 +84,13 @@ type Config struct {
 	// or runs commands for. Nil means DefaultNoReplyLogins. The bot's own login
 	// is always ignored regardless.
 	NoReplyLogins []string
+
+	// ChannelsPending, when true, means the active channel list could not be
+	// loaded from core-api at boot (Channels is empty or partial). Start then
+	// joins only the permanent home channels and keeps retrying the list in the
+	// background, joining the rest once it loads (see channel_loader.go). The
+	// zero value keeps the normal boot.
+	ChannelsPending bool
 }
 
 type sayRequest struct {
@@ -316,34 +323,20 @@ func NewBot(
 func (b *Bot) Start(ctx context.Context) error {
 	b.autoShout = make(map[string][]string, len(b.config.Channels))
 	for _, channel := range b.config.Channels {
-		if channel.TwitchLogin != nil {
-			// Seed live-state so the promo scheduler knows which channels are
-			// broadcasting from the moment it starts, before any webhook fires.
-			b.setLive(*channel.TwitchLogin, channel.IsLive)
-		}
-		if channel.TwitchLogin != nil && channel.IsLive {
-			b.client.Join(*channel.TwitchLogin)
-			log.Printf("Joining channel: %s", *channel.TwitchLogin)
-
-			if channel.TwitchID != nil {
-				go b.fetchAutoShoutChatters(channel.TwitchID, channel.TwitchLogin)
-				// Restore per-stream !dad counters so a restart mid-stream doesn't
-				// hand every chatter a fresh allotment.
-				go b.rehydrateDadUsage(*channel.TwitchLogin, *channel.TwitchID)
-				// This channel is already live at boot, so load its custom commands
-				// now — a mid-stream restart won't get a fresh stream.online webhook.
-				go b.loadCustomCommands(*channel.TwitchID, *channel.TwitchLogin)
-			}
-			// Same live-session load as custom commands: pull this channel's
-			// !stalk target if one is configured.
-			go b.loadStalkTarget(*channel.TwitchLogin)
-		}
+		b.startTrackedChannel(channel)
 	}
 
 	// The creator's channel and the bot's own channel are permanent: always
 	// present, online or offline, and never departed/banished. Join is idempotent.
 	b.client.Join(botCreatorChannel)
 	b.client.Join(strings.ToLower(b.config.BotUsername))
+
+	// core-api was unreachable at boot: keep retrying the channel list and join
+	// the rest once it loads. Started after the loop above so it never races
+	// the boot-time read of config.Channels.
+	if b.config.ChannelsPending {
+		go b.retryChannelsInBackground(ctx)
+	}
 
 	// Start reset timer
 	go b.counters.StartResetTimer(ctx)
@@ -370,6 +363,35 @@ func (b *Bot) Start(ctx context.Context) error {
 	// Wait for context cancellation
 	<-ctx.Done()
 	return nil
+}
+
+// startTrackedChannel seeds one tracked channel's live state and, if it is
+// live, joins it over IRC and loads its per-stream state. Used for every
+// channel at boot (Start) and for channels that arrive late because core-api
+// was down at boot (addRecoveredChannels). It never sends a chat message.
+func (b *Bot) startTrackedChannel(channel BotUser) {
+	if channel.TwitchLogin != nil {
+		// Seed live-state so the promo scheduler knows which channels are
+		// broadcasting from the moment it starts, before any webhook fires.
+		b.setLive(*channel.TwitchLogin, channel.IsLive)
+	}
+	if channel.TwitchLogin != nil && channel.IsLive {
+		b.client.Join(*channel.TwitchLogin)
+		log.Printf("Joining channel: %s", *channel.TwitchLogin)
+
+		if channel.TwitchID != nil {
+			go b.fetchAutoShoutChatters(channel.TwitchID, channel.TwitchLogin)
+			// Restore per-stream !dad counters so a restart mid-stream doesn't
+			// hand every chatter a fresh allotment.
+			go b.rehydrateDadUsage(*channel.TwitchLogin, *channel.TwitchID)
+			// This channel is already live at boot, so load its custom commands
+			// now — a mid-stream restart won't get a fresh stream.online webhook.
+			go b.loadCustomCommands(*channel.TwitchID, *channel.TwitchLogin)
+		}
+		// Same live-session load as custom commands: pull this channel's
+		// !stalk target if one is configured.
+		go b.loadStalkTarget(*channel.TwitchLogin)
+	}
 }
 
 func (b *Bot) handleMessage(message twitch.PrivateMessage) {
