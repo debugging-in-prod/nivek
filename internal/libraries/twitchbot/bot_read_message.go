@@ -175,9 +175,15 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 
 	// Check for commands. Every builtin and custom dispatch below goes through
 	// commandAllowed (cooldown.go) -- keep it that way for new dispatch paths.
+	caretChecked := false
 	for msgword := range strings.SplitSeq(msg, " ") {
-		if strings.Contains(msgword, "^") {
-			b.say(channelId, "^")
+		// Intentional "^" echo: at most one reply per message (only the first
+		// word containing "^" is considered), gated by caretEchoAllowed.
+		if !caretChecked && strings.Contains(msgword, "^") {
+			caretChecked = true
+			if b.caretEchoAllowed(&messageEvent) {
+				b.say(channelId, "^")
+			}
 		}
 		// A global builtin wins the word; a channel's own custom command with the
 		// same trigger falls through to the handling below (a channel can't shadow

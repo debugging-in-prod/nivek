@@ -47,6 +47,17 @@ const (
 	banishTrigger    = "!banish"
 )
 
+// The intentional "^" echo (any chat word containing "^" makes the bot reply
+// "^") is not a command, but it is a reply path, so it shares the central
+// cooldown state under a dedicated key that no "!" trigger can collide with.
+const (
+	caretEchoKey = "^echo"
+	// caretEchoCooldownSecs is one global window per channel. There is no
+	// per-user window and no privileged bypass: mods and the broadcaster are
+	// held to the same 10s as everyone else (stricter than cooldownFloor).
+	caretEchoCooldownSecs = 10
+)
+
 // cooldownWindows resolves the effective (global, per-user) windows for a
 // command's configured cooldown_secs.
 func cooldownWindows(cooldownSecs int) (global, perUser time.Duration) {
@@ -199,6 +210,13 @@ func (b *Bot) commandAllowed(message *chatMessageEvent, trigger string, cooldown
 	}
 	b.recordCommandUse(message.BroadcasterUserId, message.BroadcasterUserLogin, trigger)
 	return true
+}
+
+// caretEchoAllowed is the cooldown gate for the "^" echo. It goes through the
+// same commandCooldowns as commands but deliberately skips recordCommandUse:
+// the echo is not a command, so it is not counted in usage stats.
+func (b *Bot) caretEchoAllowed(message *chatMessageEvent) bool {
+	return b.cooldowns.allow(message.BroadcasterUserId, caretEchoKey, "", caretEchoCooldownSecs, false)
 }
 
 // ircCommandAllowed is the IRC-path counterpart of commandAllowed, for the few

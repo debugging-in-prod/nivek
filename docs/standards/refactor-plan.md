@@ -13,8 +13,8 @@ This is a list of small PRs that each remove items from
 - Every PR also needs CI green (`go`, `nuxt`, `db-migrations`).
 
 Phase 6 PRs are listed last because they're bot-critical, not because they
-matter least. B1 and B3 should be scheduled soon after the low-risk phases
-land.
+matter least. B3 should be scheduled soon after the low-risk phases land
+(B1 is done, see R6.1).
 
 ---
 
@@ -222,13 +222,17 @@ Every PR here:
   of `journalctl -u twitch-bot` for a clean boot and channel joins;
 - is smoke-tested in the home channel.
 
-### R6.1 Gate the `^` echo (B1)
-- **Scope:** `bot_read_message.go`. Fire at most once per message, and only
-  through `commandAllowed(&messageEvent, "^", <cooldown>)`, or remove it if
-  the maintainer prefers.
+### R6.1 Gate the `^` echo (B1) — done by #188
+- **Decision:** the `^` reply is intentional and stays. It only needed the
+  cooldown.
+- **Scope:** `bot_read_message.go`, `cooldown.go`. Fires at most once per
+  message, through `caretEchoAllowed` (the shared `commandCooldowns`, key
+  `^echo`, 10 s global window per channel, no per-user window, no
+  mod/broadcaster bypass). Silent on cooldown; not counted as command usage.
 - **Risk:** low code risk. It only reduces output.
-- **Verify:** a test where `"^ ^ ^"` queues at most one reply, and a second
-  message within the cooldown queues none.
+- **Verify:** `caret_echo_test.go`: `"^ ^ ^"` queues one reply, a second
+  message within the cooldown queues none, and it replies again after the
+  window.
 
 ### R6.2 Sanitise at the sink (B3, B4)
 - **Scope:** move `sanitizeChatReply`/`maxChatReplyLen` from `cmd_info.go`
