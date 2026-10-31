@@ -6,7 +6,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
-	"unicode/utf8"
 
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/api"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/commands"
@@ -166,37 +165,6 @@ func TestCommandArgs(t *testing.T) {
 		if strings.Join(got, ",") != strings.Join(tc.want, ",") || len(got) != len(tc.want) {
 			t.Errorf("commandArgs(%q, %q) = %q, want %q", tc.text, tc.trigger, got, tc.want)
 		}
-	}
-}
-
-func TestSanitizeChatReply(t *testing.T) {
-	t.Parallel()
-	cases := []struct{ in, want string }{
-		{"hello", "hello"},
-		{"/ban someone", "ban someone"},
-		{".timeout someone 600", "timeout someone 600"},
-		{"  /./ /me waves", "me waves"},
-		{"line1\nline2\r\n/ban x", "line1 line2  /ban x"},
-		{"\n/ban x", "ban x"},
-		{"//", ""},
-		{"   ", ""},
-		{"ok trailing   ", "ok trailing"},
-		{"a/b.c", "a/b.c"},
-		{"bad\xffbyte", "bad byte"},
-	}
-	for _, tc := range cases {
-		if got := sanitizeChatReply(tc.in); got != tc.want {
-			t.Errorf("sanitizeChatReply(%q) = %q, want %q", tc.in, got, tc.want)
-		}
-	}
-
-	long := strings.Repeat("é", 1000)
-	got := sanitizeChatReply(long)
-	if n := utf8.RuneCountInString(got); n != maxChatReplyRunes {
-		t.Fatalf("capped reply has %d runes, want %d", n, maxChatReplyRunes)
-	}
-	if !utf8.ValidString(got) {
-		t.Fatal("capped reply is not valid UTF-8")
 	}
 }
 

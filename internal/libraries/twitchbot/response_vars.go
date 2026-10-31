@@ -4,8 +4,6 @@ import (
 	"math/rand/v2"
 	"strconv"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 )
 
 // Response variables for custom command templates (issue #158).
@@ -26,11 +24,9 @@ import (
 // passing "${count}" as an argument can't trigger another expansion.
 
 const (
-	// maxChatReplyRunes caps every expanded custom-command reply.
-	maxChatReplyRunes = 450
 	// maxExpandedBytes stops building the output early so a template that
 	// repeats a large argument many times can't allocate unbounded memory. It's
-	// comfortably above maxChatReplyRunes*4 (the most bytes 450 runes can take).
+	// comfortably above maxChatReplyLen*4 (the most bytes 450 runes can take).
 	maxExpandedBytes = 4096
 	// maxVarTokenBytes bounds how far ahead we look for a closing '}'.
 	maxVarTokenBytes = 512
@@ -279,28 +275,4 @@ func commandArgs(text, trigger string) []string {
 		}
 	}
 	return nil
-}
-
-// sanitizeChatReply makes text safe to post as a chat reply: control
-// characters (including newlines) become spaces, leading whitespace and any
-// leading '/' or '.' are stripped (so the reply can never be read as a Twitch
-// chat command such as "/ban" or ".timeout"), and the result is capped at
-// maxChatReplyRunes. An empty result means "send nothing".
-func sanitizeChatReply(text string) string {
-	cleaned := strings.Map(func(r rune) rune {
-		if r == utf8.RuneError || unicode.IsControl(r) {
-			return ' '
-		}
-		return r
-	}, text)
-
-	cleaned = strings.TrimLeftFunc(cleaned, func(r rune) bool {
-		return r == '/' || r == '.' || unicode.IsSpace(r)
-	})
-
-	if utf8.RuneCountInString(cleaned) > maxChatReplyRunes {
-		runes := []rune(cleaned)
-		cleaned = string(runes[:maxChatReplyRunes])
-	}
-	return strings.TrimRightFunc(cleaned, unicode.IsSpace)
 }
