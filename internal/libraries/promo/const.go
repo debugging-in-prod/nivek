@@ -60,3 +60,7 @@ type Promo struct {
 	UpdatedAt    time.Time `db:"updated_at,omitempty" json:"updated_at"`
 	CreatedAt    time.Time `db:"created_at,omitempty" json:"created_at"`
 }
+
+// MaxMessageLen matches Twitch's 500-character chat message limit; a longer
+// promo could never be posted.
+const MaxMessageLen = 500

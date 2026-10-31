@@ -5,6 +5,7 @@ import (
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/autoshout"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/bot"
+	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/channelcmd"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/commands"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/dad"
 	"github.com/tim-the-toolman-taylor/nivek/cmd/core-api/endpoints/df"
@@ -72,6 +73,14 @@ func RegisterRoutes(svc nivek.NivekService, e *echo.Group) {
 	e.POST(apilib.PostCreateOverlayDevice, overlay.NewCreateDeviceEndpoint(svc, overlayRelay, overlayRegistry), authenticated)
 	e.DELETE(apilib.DeleteOverlayDevice, overlay.NewRevokeDeviceEndpoint(svc, overlayRelay, overlayRegistry), authenticated)
 	e.GET(apilib.GetOverlayDownload, overlay.NewDownloadEndpoint(svc), authenticated)
+
+	e.GET(apilib.GetChannelCustomCommands, channelcmd.NewListCustomEndpoint(svc), authenticated)
+	e.POST(apilib.PostCreateChannelCustomCommand, channelcmd.NewCreateCustomEndpoint(svc), authenticated)
+	e.PUT(apilib.PutUpdateChannelCustomCommand, channelcmd.NewUpdateCustomEndpoint(svc), authenticated)
+	e.DELETE(apilib.DeleteChannelCustomCommand, channelcmd.NewDeleteCustomEndpoint(svc), authenticated)
+	e.GET(apilib.GetChannelCommandSettings, channelcmd.NewListSettingsEndpoint(svc), authenticated)
+	e.PUT(apilib.PutChannelCommandSetting, channelcmd.NewPutSettingEndpoint(svc), authenticated)
+	e.DELETE(apilib.DeleteChannelCommandSetting, channelcmd.NewDeleteSettingEndpoint(svc), authenticated)
 
 	e.GET(apilib.GetStalk, stalkEp.NewGetStalkEndpoint(svc), authenticated)
 	e.POST(apilib.PostStalk, stalkEp.NewSetStalkEndpoint(svc), authenticated)

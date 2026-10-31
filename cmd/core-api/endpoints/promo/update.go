@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
@@ -44,10 +43,11 @@ func NewUpdatePromoEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 		if errBind := c.Bind(&payload); errBind != nil {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		}
-		payload.Message = strings.TrimSpace(payload.Message)
-		if payload.Message == "" {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "message required"})
+		msg, errMsg := promoSvc.ValidateMessage(payload.Message)
+		if errMsg != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": errMsg.Error()})
 		}
+		payload.Message = msg
 		if payload.IntervalSeconds <= 0 {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "interval_seconds required"})
 		}

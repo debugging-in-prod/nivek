@@ -39,6 +39,16 @@ const (
 	// own chat. Current state is read from GetUserProfile (bot_opt_in).
 	PutBotOptIn = "/bot-optin"
 
+	// Dashboard editors for the logged-in channel's own custom commands and
+	// its per-channel overrides of the global built-ins (:id = command id).
+	GetChannelCustomCommands       = "/channel/commands"
+	PostCreateChannelCustomCommand = "/channel/commands"
+	PutUpdateChannelCustomCommand  = "/channel/commands/:id"
+	DeleteChannelCustomCommand     = "/channel/commands/:id"
+	GetChannelCommandSettings      = "/channel/command-settings"
+	PutChannelCommandSetting       = "/channel/command-settings/:id"
+	DeleteChannelCommandSetting    = "/channel/command-settings/:id"
+
 	GetStalk    = "/stalk"
 	PostStalk   = "/stalk"
 	DeleteStalk = "/stalk"
