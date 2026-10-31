@@ -14,7 +14,8 @@ const (
 	// errorBackoff stops a failing database from being hit on every request:
 	// after a failed refresh, no new attempt is made for this long.
 	errorBackoff = 10 * time.Second
-	// queryTimeout bounds one refresh (all three queries).
+	// queryTimeout bounds one refresh's queries (all three). Display-name
+	// resolution has its own, separate nameLookupTimeout.
 	queryTimeout = 5 * time.Second
 )
 
@@ -24,8 +25,10 @@ var ErrUnavailable = errors.New("stats unavailable")
 
 // PublicService serves the cached public stats payload. Safe for concurrent use.
 type PublicService struct {
-	store Store
-	now   func() time.Time
+	store   Store
+	now     func() time.Time
+	names   *nameCache
+	nameErr func(error)
 
 	mu        sync.Mutex
 	cached    *PublicStats
@@ -34,8 +37,17 @@ type PublicService struct {
 }
 
 // NewPublicService builds the cached public-stats reader over store.
-func NewPublicService(store Store) *PublicService {
-	return &PublicService{store: store, now: time.Now}
+//
+// names resolves top_fishers logins to Twitch display names; nil disables
+// resolution and logins are shown. Resolution never fails the payload: on any
+// error the affected fishers keep their login and nameErr (optional) is
+// called so the transport layer can log it.
+func NewPublicService(store Store, names DisplayNameResolver, nameErr func(error)) *PublicService {
+	s := &PublicService{store: store, now: time.Now, nameErr: nameErr}
+	if names != nil {
+		s.names = newNameCache(names, func() time.Time { return s.now() })
+	}
+	return s
 }
 
 // Get returns the public stats, recomputing them at most once per CacheTTL.
@@ -75,22 +87,23 @@ func (s *PublicService) Get(ctx context.Context) (PublicStats, error) {
 func (s *PublicService) compute(ctx context.Context, now time.Time) (PublicStats, error) {
 	// Detached from the caller: one client hanging up must not fail the
 	// refresh that every waiting request shares.
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), queryTimeout)
+	base := context.WithoutCancel(ctx)
+	qctx, cancel := context.WithTimeout(base, queryTimeout)
 	defer cancel()
 
-	active, err := s.store.ActiveChats(ctx)
+	active, err := s.store.ActiveChats(qctx)
 	if err != nil {
 		return PublicStats{}, err
 	}
-	since := TopChannelsSince(now)
-	channels, err := s.store.TopChannels(ctx, since, TopChannelsLimit)
+	channels, err := s.store.TopChannels(qctx, TopChannelsLimit)
 	if err != nil {
 		return PublicStats{}, err
 	}
-	fishers, err := s.store.TopFishers(ctx, TopFishersLimit)
+	fishers, err := s.store.TopFishers(qctx, TopFishersLimit)
 	if err != nil {
 		return PublicStats{}, err
 	}
+	fishers = s.resolveFisherNames(base, fishers)
 	if channels == nil {
 		channels = []ChannelUses{}
 	}
@@ -104,16 +117,35 @@ func (s *PublicService) compute(ctx context.Context, now time.Time) (PublicStats
 		ActiveChats:           active,
 		ActiveChatsDefinition: ActiveChatsDefinition,
 		TopChannels:           channels,
+		TopChannelsWindow:     TopChannelsWindow,
 		TopChannelsWindowDays: TopChannelsWindowDays,
 		TopFishers:            fishers,
 		GeneratedAt:           now.UTC().Truncate(time.Second),
 	}, nil
 }
 
-// TopChannelsSince is the first UTC day of the top_channels window.
-func TopChannelsSince(now time.Time) time.Time {
-	today := now.UTC().Truncate(24 * time.Hour)
-	return today.AddDate(0, 0, -(TopChannelsWindowDays - 1))
+// resolveFisherNames returns a copy of fishers with each login replaced by
+// the Twitch display name. Bounded by nameLookupTimeout; failures keep the
+// login.
+func (s *PublicService) resolveFisherNames(ctx context.Context, in []Fisher) []Fisher {
+	if s.names == nil || len(in) == 0 {
+		return in
+	}
+	fishers := append([]Fisher(nil), in...)
+	logins := make([]string, len(fishers))
+	for i, f := range fishers {
+		logins[i] = f.DisplayName
+	}
+	names, err := s.names.resolve(ctx, logins)
+	if err != nil && s.nameErr != nil {
+		s.nameErr(err)
+	}
+	for i := range fishers {
+		if n := names[fishers[i].DisplayName]; n != "" {
+			fishers[i].DisplayName = n
+		}
+	}
+	return fishers
 }
 
 // IngestUsage validates, normalizes, and merges a bot usage batch, then

@@ -19,6 +19,9 @@ export interface PublicStats {
   active_chats: number | null
   active_chats_definition: string
   top_channels: PublicStatsChannel[]
+  // 'all_time' since issue #184 (then top_channels_window_days is 0, kept
+  // for compatibility). null for older payloads, which only carry the days.
+  top_channels_window: 'all_time' | null
   top_channels_window_days: number | null
   top_fishers: PublicStatsFisher[]
   generated_at: string | null
@@ -88,6 +91,7 @@ export function normalizePublicStats(raw: unknown): PublicStats | null {
     active_chats: toCount(raw.active_chats),
     active_chats_definition: definition,
     top_channels: channels,
+    top_channels_window: raw.top_channels_window === 'all_time' ? 'all_time' : null,
     top_channels_window_days: windowDays && windowDays > 0 ? windowDays : null,
     top_fishers: fishers,
     generated_at: generatedAt,

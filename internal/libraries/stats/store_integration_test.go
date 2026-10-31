@@ -52,7 +52,7 @@ func TestIntegrationStatsQueries(t *testing.T) {
 	store := NewStore(sess)
 	now := time.Now().UTC()
 	today := now.Format(DayLayout)
-	old := now.AddDate(0, 0, -TopChannelsWindowDays).Format(DayLayout)
+	old := now.AddDate(-1, 0, -3).Format(DayLayout)
 
 	// Upsert accumulates, incl. two flushes and a repeated key in a batch
 	// (IngestUsage merges it).
@@ -66,8 +66,8 @@ func TestIntegrationStatsQueries(t *testing.T) {
 			t.Fatalf("ingest n=%d err=%v", n, err)
 		}
 	}
-	// Outside the 30-day window: stored but not counted. Inserted directly,
-	// since Normalize rejects days that old.
+	// Over a year old: still counted, top_channels is all time (issue #184).
+	// Inserted directly, since Normalize rejects days that old.
 	exec(`INSERT INTO nivek.command_usage (channel_twitch_id, channel_login, trigger, day, uses) VALUES ($1, $2, '!old', $3::date, 999999999)`, in, inLogin, old)
 	// A home channel with no users row is still eligible (uses its stored login).
 	exec(`INSERT INTO nivek.command_usage (channel_twitch_id, channel_login, trigger, day, uses) VALUES ($1, 'timallenfanclubofficial', '!it', $2::date, 1)`, legacy, today)
@@ -87,7 +87,7 @@ func TestIntegrationStatsQueries(t *testing.T) {
 		t.Fatalf("overflow upsert: %v", err)
 	}
 
-	channels, err := store.TopChannels(ctx, TopChannelsSince(now), 1000)
+	channels, err := store.TopChannels(ctx, 1000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,8 +96,8 @@ func TestIntegrationStatsQueries(t *testing.T) {
 		switch c.DisplayName {
 		case "It_In_" + tag:
 			sawIn = true
-			if c.Uses != 2147483647 {
-				t.Errorf("opted-in uses = %d (old row must be excluded)", c.Uses)
+			if c.Uses != 2147483647+999999999 {
+				t.Errorf("opted-in uses = %d (all-time sum must include the old row)", c.Uses)
 			}
 		case "It_Out_" + tag, outLogin:
 			t.Errorf("opted-out channel listed: %+v", c)
@@ -108,7 +108,7 @@ func TestIntegrationStatsQueries(t *testing.T) {
 	if !sawIn || !sawHome {
 		t.Errorf("top channels missing rows (in=%v home=%v): %+v", sawIn, sawHome, channels)
 	}
-	if lim, err := store.TopChannels(ctx, TopChannelsSince(now), 1); err != nil || len(lim) > 1 {
+	if lim, err := store.TopChannels(ctx, 1); err != nil || len(lim) > 1 {
 		t.Errorf("limit not applied: %v %v", lim, err)
 	}
 
@@ -147,7 +147,7 @@ func TestIntegrationStatsQueries(t *testing.T) {
 	}
 
 	// Full cached path.
-	got, err := NewPublicService(store).Get(ctx)
+	got, err := NewPublicService(store, nil, nil).Get(ctx)
 	if err != nil || got.ActiveChats != after || len(got.TopChannels) > TopChannelsLimit {
 		t.Fatalf("public stats = %+v err=%v", got, err)
 	}
