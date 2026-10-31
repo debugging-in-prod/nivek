@@ -28,7 +28,7 @@ func newPromoTestBot(lookup func(context.Context, string) (bool, error)) *Bot {
 	return b
 }
 
-func drainSays(b *Bot) []sayRequest {
+func drainSayRequests(b *Bot) []sayRequest {
 	var out []sayRequest
 	for {
 		select {
@@ -100,7 +100,7 @@ func TestPromoPostsOnlyWhenLiveAndChatActive(t *testing.T) {
 	if n := b.evaluatePromos(ctx, t0.Add(91*time.Second), promos, st); n != 1 {
 		t.Fatalf("expected a post once 5 lines seen")
 	}
-	says := drainSays(b)
+	says := drainSayRequests(b)
 	if len(says) != 1 || says[0].broadcasterId != "42" || says[0].message != "follow me" {
 		t.Fatalf("unexpected says: %+v", says)
 	}

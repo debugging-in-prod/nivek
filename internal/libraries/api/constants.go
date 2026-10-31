@@ -96,6 +96,9 @@ const (
 	PostBotStalkSet               = "/bot/stalk"
 	PostBotStalkClear             = "/bot/stalk/clear"
 	PostBotStalkLastMessage       = "/bot/stalk/last"
+	GetBotQuote                   = "/bot/quote"
+	PostBotQuoteAdd               = "/bot/quote/add"
+	PostBotQuoteDelete            = "/bot/quote/delete"
 
 	PostBotJoinChannel = "/internal/join"
 	PostBotPartChannel = "/internal/part"

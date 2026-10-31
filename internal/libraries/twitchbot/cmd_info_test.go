@@ -190,8 +190,14 @@ func TestSanitizeChatReply(t *testing.T) {
 		"/ban someone":        "ban someone",
 		"./ /.me hi":          "me hi",
 		"  .timeout x":        "timeout x",
-		"line1\nline2\r\tend": "line1 line2  end",
+		"line1\nline2\r\tend": "line1 line2 end",
 		"SomeChannel is live": "SomeChannel is live",
+		".timeout x 1":        "timeout x 1",
+		"ok\n/ban x":          "ok /ban x",
+		"#1: \"/ban x\"":      "#1: \"/ban x\"",
+		"a\x00b\x1bc\u0085d":  "a b c d",
+		"bad\xffutf8":         "bad utf8",
+		"\n\t/ban x":          "ban x",
 	}
 	for in, want := range cases {
 		if got := sanitizeChatReply(in); got != want {
@@ -199,8 +205,8 @@ func TestSanitizeChatReply(t *testing.T) {
 		}
 	}
 	long := sanitizeChatReply(strings.Repeat("é", 1000))
-	if n := utf8.RuneCountInString(long); n > maxChatReplyLen {
-		t.Fatalf("reply not capped: %d runes", n)
+	if n := utf8.RuneCountInString(long); n != maxChatReplyLen {
+		t.Fatalf("long reply has %d runes, want %d", n, maxChatReplyLen)
 	}
 }
 

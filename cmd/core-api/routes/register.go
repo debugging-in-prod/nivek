@@ -131,4 +131,7 @@ func RegisterRoutes(svc nivek.NivekService, e *echo.Group) {
 	e.POST(apilib.PostBotStalkSet, bot.NewPostStalkSetEndpoint(svc), botAuth)
 	e.POST(apilib.PostBotStalkClear, bot.NewPostStalkClearEndpoint(svc), botAuth)
 	e.POST(apilib.PostBotStalkLastMessage, bot.NewPostStalkLastMessageEndpoint(svc), botAuth)
+	e.GET(apilib.GetBotQuote, bot.NewGetQuoteEndpoint(svc), botAuth)
+	e.POST(apilib.PostBotQuoteAdd, bot.NewPostQuoteAddEndpoint(svc), botAuth)
+	e.POST(apilib.PostBotQuoteDelete, bot.NewPostQuoteDeleteEndpoint(svc), botAuth)
 }
