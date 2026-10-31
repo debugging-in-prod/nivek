@@ -48,7 +48,9 @@ func main() {
 		Timezone:        getEnv("TWITCH_TIMEZONE", "America/New_York"),
 		ExecutorWSURL:   getEnv("EXECUTOR_WS_URL", ""),
 		OverseerHmacKey: getEnv("OVERSEER_HMAC_KEY", ""),
+		NoReplyLogins:   twitchbot.ParseNoReplyLogins(os.Getenv("TWITCH_BOT_NO_REPLY_LOGINS")),
 	}
+	log.Printf("Ignoring chat from no-reply logins: %v (plus the bot's own login)", config.NoReplyLogins)
 
 	// Auto-refresh the IRC token when client creds + a refresh token are present
 	// (all three must belong to the same Twitch app). Falls back to the static

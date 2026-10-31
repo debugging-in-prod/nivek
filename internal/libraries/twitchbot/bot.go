@@ -71,6 +71,11 @@ type Config struct {
 	// (channel hasn't granted channel:bot and the bot isn't a mod) fall back to
 	// the user token. Nil keeps the user-token-only send path.
 	AppTokenProvider func(context.Context) (string, error)
+
+	// NoReplyLogins lists Twitch logins (lowercased) the bot never replies to
+	// or runs commands for. Nil means DefaultNoReplyLogins. The bot's own login
+	// is always ignored regardless.
+	NoReplyLogins []string
 }
 
 type sayRequest struct {
@@ -171,6 +176,10 @@ type Bot struct {
 	grantMu       sync.Mutex
 	grantAt       map[string]time.Time
 	grantInFlight map[string]bool
+
+	// noReply is the set of lowercased logins whose messages are ignored
+	// entirely (other chat bots + the bot itself). See no_reply.go.
+	noReply map[string]struct{}
 }
 
 func NewBot(
@@ -233,6 +242,7 @@ func NewBot(
 		seenIRCIDs:        newMessageIDCache(chatMessageIDCacheSize),
 		grantAt:           make(map[string]time.Time),
 		grantInFlight:     make(map[string]bool),
+		noReply:           buildNoReplySet(config.NoReplyLogins, config.BotUsername),
 	}
 
 	bot.sayQueue = make(chan sayRequest, 64)
@@ -311,7 +321,7 @@ func (b *Bot) Start(ctx context.Context) error {
 }
 
 func (b *Bot) handleMessage(message twitch.PrivateMessage) {
-	if b.isBotIRCUser(message) || b.isChatReadNudge(message.Message) {
+	if b.isBotIRCUser(message) || b.isNoReplyLogin(message.User.Name) || b.isChatReadNudge(message.Message) {
 		return
 	}
 	if message.ID != "" && b.seenIRCIDs != nil && b.seenIRCIDs.seen(message.ID) {
