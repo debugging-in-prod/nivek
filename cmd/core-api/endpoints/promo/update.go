@@ -13,7 +13,8 @@ import (
 )
 
 // NewUpdatePromoEndpoint rewrites one of the logged-in channel's own promos:
-// its message, interval, and enabled flag. Scoped to the channel in the service.
+// its message, interval, enabled flag, and (optionally) its min_chat_lines
+// chat-activity threshold. Scoped to the channel in the service.
 func NewUpdatePromoEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		user, err := utilities.GetUserFromContext(c, nivek.Logger())
@@ -37,6 +38,8 @@ func NewUpdatePromoEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 			Message         string `json:"message"`
 			IntervalSeconds int    `json:"interval_seconds"`
 			Enabled         bool   `json:"enabled"`
+			// Optional: omitted leaves the promo's chat-line threshold unchanged.
+			MinChatLines *int `json:"min_chat_lines"`
 		}
 		if errBind := c.Bind(&payload); errBind != nil {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
@@ -50,7 +53,7 @@ func NewUpdatePromoEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 		}
 
 		svc := promoSvc.NewService(nivek)
-		if errUpd := svc.Update(channel, id, payload.Message, payload.IntervalSeconds, payload.Enabled); errUpd != nil {
+		if errUpd := svc.Update(channel, id, payload.Message, payload.IntervalSeconds, payload.Enabled, payload.MinChatLines); errUpd != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{
 				"error": fmt.Sprintf("error updating promo for channel [%s]: %s", channel, errUpd.Error()),
 			})

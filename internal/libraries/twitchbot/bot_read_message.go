@@ -97,6 +97,9 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 		return
 	}
 
+	// Count toward the promo activity gate (bot + no-reply already excluded).
+	b.recordChatLine(messageEvent.BroadcasterUserLogin, messageEvent.ChatterUserLogin)
+
 	b.rememberStalkMessage(
 		messageEvent.BroadcasterUserLogin,
 		messageEvent.ChatterUserLogin,

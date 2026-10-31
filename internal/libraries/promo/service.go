@@ -21,7 +21,9 @@ type NivekPromoService interface {
 	Create(channel, broadcasterId, message string, intervalSeconds int) (Promo, error)
 	// Update rewrites the message/interval/enabled of one of the channel's own
 	// promos. Scoped to the channel, so it can't touch another channel's rows.
-	Update(channel string, id int, message string, intervalSeconds int, enabled bool) error
+	// minChatLines, when non-nil, also sets the chat-activity threshold (clamped
+	// to [0, MaxMinChatLines]); nil leaves it unchanged.
+	Update(channel string, id int, message string, intervalSeconds int, enabled bool, minChatLines *int) error
 	// Remove deletes one of the channel's own promos.
 	Remove(channel string, id int) error
 	// UpdateLast rewrites the message + interval of the channel's most recently
@@ -98,7 +100,7 @@ func (s *nivekPromoServiceImpl) Create(channel, broadcasterId, message string, i
 	return rec, nil
 }
 
-func (s *nivekPromoServiceImpl) Update(channel string, id int, message string, intervalSeconds int, enabled bool) error {
+func (s *nivekPromoServiceImpl) Update(channel string, id int, message string, intervalSeconds int, enabled bool, minChatLines *int) error {
 	// Fetch scoped to (id, channelname): a promo owned by another channel simply
 	// isn't found, so the update can never cross channel boundaries.
 	var rec Promo
@@ -109,6 +111,10 @@ func (s *nivekPromoServiceImpl) Update(channel string, id int, message string, i
 	rec.Message = message
 	rec.IntervalSeconds = clampInterval(intervalSeconds)
 	rec.Enabled = enabled
+	if minChatLines != nil {
+		n := ClampMinChatLines(*minChatLines)
+		rec.MinChatLines = &n
+	}
 	rec.UpdatedAt = time.Now()
 
 	if err := s.promoTable.UpdateReturning(&rec); err != nil {
