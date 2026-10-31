@@ -337,11 +337,13 @@ func (b *Bot) sayInfo(channelId, msg string) {
 	}
 }
 
-// sanitizeChatReply makes text safe to post: control characters (newlines,
-// tabs, NUL, ...) and invalid UTF-8 are flattened to spaces and whitespace
-// runs collapsed so the reply is a single chat line; leading '/' or '.' are
-// stripped so user/broadcaster-controlled text can never be read as a Twitch
-// chat command; and it is capped at maxChatReplyLen characters.
+// sanitizeChatReply makes text safe to post as a single chat line: control
+// characters (newlines, tabs, NUL, ...) and invalid UTF-8 become spaces and
+// all whitespace runs (including unicode spaces) collapse to one space;
+// leading '/' or '.' are stripped so user/broadcaster-controlled text can never
+// be read as a Twitch chat command such as "/ban" or ".timeout"; and the result
+// is capped at maxChatReplyLen runes (ending in "…" when cut). An empty result
+// means "send nothing".
 func sanitizeChatReply(s string) string {
 	s = strings.Map(func(r rune) rune {
 		if r == utf8.RuneError || unicode.IsControl(r) {
@@ -349,9 +351,12 @@ func sanitizeChatReply(s string) string {
 		}
 		return r
 	}, s)
-	s = strings.TrimLeft(strings.Join(strings.Fields(s), " "), "/. ")
+	s = strings.Join(strings.Fields(s), " ")
+	s = strings.TrimLeftFunc(s, func(r rune) bool {
+		return r == '/' || r == '.' || unicode.IsSpace(r)
+	})
 	if r := []rune(s); len(r) > maxChatReplyLen {
-		s = strings.TrimSpace(string(r[:maxChatReplyLen-1])) + "…"
+		s = strings.TrimRightFunc(string(r[:maxChatReplyLen-1]), unicode.IsSpace) + "…"
 	}
 	return s
 }

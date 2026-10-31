@@ -187,26 +187,46 @@ func TestFormatCalendarAge(t *testing.T) {
 func TestSanitizeChatReply(t *testing.T) {
 	t.Parallel()
 	cases := map[string]string{
-		"/ban someone":        "ban someone",
-		"./ /.me hi":          "me hi",
-		"  .timeout x":        "timeout x",
-		"line1\nline2\r\tend": "line1 line2 end",
-		"SomeChannel is live": "SomeChannel is live",
-		".timeout x 1":        "timeout x 1",
-		"ok\n/ban x":          "ok /ban x",
-		"#1: \"/ban x\"":      "#1: \"/ban x\"",
-		"a\x00b\x1bc\u0085d":  "a b c d",
-		"bad\xffutf8":         "bad utf8",
-		"\n\t/ban x":          "ban x",
+		"hello":                  "hello",
+		"/ban someone":           "ban someone",
+		".timeout someone 600":   "timeout someone 600",
+		".timeout x 1":           "timeout x 1",
+		"./ /.me hi":             "me hi",
+		"  /./ /me waves":        "me waves",
+		"  .timeout x":           "timeout x",
+		"line1\nline2\r\tend":    "line1 line2 end",
+		"line1\nline2\r\n/ban x": "line1 line2 /ban x",
+		"ok\n/ban x":             "ok /ban x",
+		"#1: \"/ban x\"":         "#1: \"/ban x\"",
+		"\n/ban x":               "ban x",
+		"\n\t/ban x":             "ban x",
+		"\u00a0/ban x":           "ban x",
+		"/\u00a0/ban x":          "ban x",
+		"nul\x00byte":            "nul byte",
+		"a\x00b\x1bc\u0085d":     "a b c d",
+		"bad\xffbyte":            "bad byte",
+		"bad\xffutf8":            "bad utf8",
+		"//":                     "",
+		"   ":                    "",
+		"ok trailing   ":         "ok trailing",
+		"a/b.c":                  "a/b.c",
+		"SomeChannel is live":    "SomeChannel is live",
 	}
 	for in, want := range cases {
 		if got := sanitizeChatReply(in); got != want {
 			t.Errorf("sanitizeChatReply(%q) = %q, want %q", in, got, want)
 		}
 	}
+
 	long := sanitizeChatReply(strings.Repeat("é", 1000))
 	if n := utf8.RuneCountInString(long); n != maxChatReplyLen {
-		t.Fatalf("long reply has %d runes, want %d", n, maxChatReplyLen)
+		t.Fatalf("capped reply has %d runes, want %d", n, maxChatReplyLen)
+	}
+	if !strings.HasSuffix(long, "…") {
+		t.Fatalf("capped reply should end with an ellipsis: %q", long[len(long)-8:])
+	}
+	if !utf8.ValidString(long) {
+		t.Fatal("capped reply is not valid UTF-8")
 	}
 }
 

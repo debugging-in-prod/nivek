@@ -36,3 +36,33 @@ func NewGetChannelCommands(nivekSvc nivek.NivekService) echo.HandlerFunc {
 		})
 	}
 }
+
+type commandUseRequest struct {
+	CommandID       int    `json:"command_id"`
+	ChannelTwitchID string `json:"channel_twitch_id"`
+}
+
+// NewPostCommandUse bumps a channel custom command's use counter and returns
+// the new value. The bot calls it when a custom command whose template uses
+// ${count} fires; the bot treats any failure as "no count" and still replies.
+func NewPostCommandUse(nivekSvc nivek.NivekService) echo.HandlerFunc {
+	commandsService := commandSvc.NewService(nivekSvc)
+	return func(c echo.Context) error {
+		var req commandUseRequest
+		if err := c.Bind(&req); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "decode body"})
+		}
+		if req.CommandID <= 0 || req.ChannelTwitchID == "" {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "command_id and channel_twitch_id required"})
+		}
+
+		count, found, err := commandsService.IncrementChannelCommandUse(req.CommandID, req.ChannelTwitchID)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "increment failed"})
+		}
+		if !found {
+			return c.JSON(http.StatusNotFound, map[string]string{"error": "command not found"})
+		}
+		return c.JSON(http.StatusOK, map[string]int{"count": count})
+	}
+}
