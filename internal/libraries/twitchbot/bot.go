@@ -125,6 +125,13 @@ type Bot struct {
 
 	commands map[string]commandHandler
 
+	// commandCooldownSecs is each global builtin trigger's configured
+	// command.cooldown_secs (0 / missing = default windows). cooldowns is the
+	// central per-channel/per-user cooldown guard every command dispatch goes
+	// through (see cooldown.go).
+	commandCooldownSecs map[string]int
+	cooldowns           *commandCooldowns
+
 	// dadMu guards dadUsage, the per-stream/per-chatter !dad rate-limit counters.
 	// Populated on stream.online, evicted on stream.offline (see dad_limit.go).
 	// Keyed by lowercased channel login.
@@ -212,7 +219,7 @@ func NewBot(
 	client.IrcAddress = "irc.chat.twitch.tv:6697"
 	client.TLS = true
 
-	cmds, err := getGlobalEnabledCommands(coreAPI)
+	cmds, cmdCooldowns, err := getGlobalEnabledCommands(coreAPI)
 	if err != nil {
 		panic(fmt.Sprintf("unable to load commands! %s", err.Error()))
 	}
@@ -231,6 +238,9 @@ func NewBot(
 		healInFlight:     make(map[string]bool),
 		joinInFlight:     make(map[string]bool),
 		commands:         cmds,
+
+		commandCooldownSecs: cmdCooldowns,
+		cooldowns:           newCommandCooldowns(),
 
 		dadUsage:          make(map[string]*dadStreamUsage),
 		hangmanGames:      make(map[string]*hangman.Game),
@@ -331,7 +341,7 @@ func (b *Bot) handleMessage(message twitch.PrivateMessage) {
 	msg := strings.TrimSpace(strings.ToLower(message.Message))
 	if isBanishCommand(msg) {
 		// EventSub already handles !banish in channels that have granted chat-read.
-		if !b.channelHasPrivs(message.Channel) {
+		if !b.channelHasPrivs(message.Channel) && b.ircCommandAllowed(message, banishTrigger) {
 			b.handleIRCBanish(message)
 		}
 		return
@@ -573,12 +583,33 @@ func (b *Bot) Stop() {
 // Custom commands (no compiled handler) and disabled commands are skipped.
 // An unknown handler_key is a boot-time error so a bad seed fails loud
 // instead of silently dropping a command at dispatch.
-func getGlobalEnabledCommands(coreAPI api.CoreAPIClient) (map[string]commandHandler, error) {
+//
+// It also returns each builtin trigger's cooldown_secs for the central
+// cooldown guard.
+func getGlobalEnabledCommands(coreAPI api.CoreAPIClient) (map[string]commandHandler, map[string]int, error) {
 	rows, err := coreAPI.GetGlobalEnabledCommands()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return buildCommandMaps(rows)
+	cmds, err := buildCommandMaps(rows)
+	if err != nil {
+		return nil, nil, err
+	}
+	return cmds, buildCommandCooldowns(rows), nil
+}
+
+// buildCommandCooldowns maps each enabled builtin trigger to its configured
+// cooldown_secs. Only positive values are kept; anything else falls back to the
+// guard's defaults.
+func buildCommandCooldowns(rows []commands.Commands) map[string]int {
+	out := make(map[string]int, len(rows))
+	for _, row := range rows {
+		if row.Kind != "builtin" || !row.Enabled || row.CooldownSecs <= 0 {
+			continue
+		}
+		out[strings.ToLower(row.Trigger)] = row.CooldownSecs
+	}
+	return out
 }
 
 // buildCommandMaps turns command rows into the trigger -> handler dispatch map.

@@ -113,8 +113,10 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 	// contain other command words or URLs). Dispatch it up front and return so the
 	// word-by-word scan below never treats the promo body as more commands.
 	if strings.HasPrefix(msg, "!newpromo ") {
-		log.Printf("[CMD-RECV] [%s] %s: %q", channel, chatter, msg)
-		b.handleNewPromoCommand(&messageEvent)
+		if b.commandAllowed(&messageEvent, newPromoTrigger, b.builtinCooldownSecs(newPromoTrigger)) {
+			log.Printf("[CMD-RECV] [%s] %s: %q", channel, chatter, msg)
+			b.handleNewPromoCommand(&messageEvent)
+		}
 		return
 	}
 
@@ -122,8 +124,10 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 	// front so a target named after another command isn't also fired, and so the
 	// no-arg form still works if the DB seed hasn't loaded into b.commands yet.
 	if isStalkCommand(msg) {
-		log.Printf("[CMD-RECV] [%s] %s: %q", channel, chatter, msg)
-		b.handleStalkCommand(&messageEvent)
+		if b.commandAllowed(&messageEvent, stalkTrigger, b.builtinCooldownSecs(stalkTrigger)) {
+			log.Printf("[CMD-RECV] [%s] %s: %q", channel, chatter, msg)
+			b.handleStalkCommand(&messageEvent)
+		}
 		return
 	}
 
@@ -131,12 +135,15 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 	// command triggers. Dispatch it up front and return so that body is never
 	// scanned for more commands below.
 	if isTranslateCommand(msg) {
-		log.Printf("[CMD-RECV] [%s] %s: %q", channel, chatter, msg)
-		b.handleTranslateCommand(&messageEvent)
+		if b.commandAllowed(&messageEvent, translateTrigger, b.builtinCooldownSecs(translateTrigger)) {
+			log.Printf("[CMD-RECV] [%s] %s: %q", channel, chatter, msg)
+			b.handleTranslateCommand(&messageEvent)
+		}
 		return
 	}
 
-	// Check for commands
+	// Check for commands. Every builtin and custom dispatch below goes through
+	// commandAllowed (cooldown.go) -- keep it that way for new dispatch paths.
 	for msgword := range strings.SplitSeq(msg, " ") {
 		if strings.Contains(msgword, "^") {
 			b.say(channelId, "^")
@@ -145,6 +152,10 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 		// same trigger falls through to the handling below (a channel can't shadow
 		// a builtin in v1).
 		if handler, ok := b.commands[msgword]; ok {
+			// Central cooldown gate: silently skip a command still cooling down.
+			if !b.commandAllowed(&messageEvent, msgword, b.builtinCooldownSecs(msgword)) {
+				continue
+			}
 			log.Printf("[CMD-RECV] [%s] %s: %q", channel, chatter, msg)
 			messageEvent.matchedTrigger = msgword
 			handler(b, &messageEvent)
@@ -154,7 +165,10 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 		// ungated global with the same trigger wins — handled above via continue
 		// — so a channel can't shadow a builtin in v1.
 		if cmd, ok := b.customCommandFor(channel, msgword); ok {
-			if cmd.ResponseTmpl != nil && meetsMinRole(&messageEvent, cmd.MinRole) {
+			// Role check first so an unauthorized attempt doesn't burn the
+			// cooldown for everyone else.
+			if cmd.ResponseTmpl != nil && meetsMinRole(&messageEvent, cmd.MinRole) &&
+				b.commandAllowed(&messageEvent, msgword, cmd.CooldownSecs) {
 				log.Printf("[CMD-RECV] [%s] %s: %q (custom)", channel, chatter, msg)
 				b.say(channelId, *cmd.ResponseTmpl)
 			}
