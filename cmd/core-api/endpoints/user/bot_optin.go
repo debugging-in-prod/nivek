@@ -74,25 +74,89 @@ func NewPutBotOptInEndpoint(svc nivek.NivekService) echo.HandlerFunc {
 			return c.JSON(http.StatusConflict, map[string]string{"error": "the bot can't leave this channel"})
 		}
 
+		// Bound background work per user: at most one sync running plus one
+		// coalesced rerun. Anything beyond that is rejected before touching the
+		// DB, so repeated PUTs can't pile up Helix calls or IRC JOIN/PARTs.
+		if reconcileBusy(u.Id) {
+			return c.JSON(http.StatusTooManyRequests, map[string]string{"error": "still applying your last change, try again in a moment"})
+		}
+
 		if err := userlib.NewService(svc).SetBotOptInByID(u.Id, optIn); err != nil {
 			svc.Logger().Errorf("bot opt-in: update %s to %v failed: %s", login, optIn, err.Error())
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to save opt-in"})
 		}
 
-		go reconcileBotOptIn(svc, u.Id, login, twitchID)
+		scheduleReconcile(svc, u.Id, login, twitchID)
 
 		c.Response().Header().Set(echo.HeaderCacheControl, "no-store")
 		return c.JSON(http.StatusOK, map[string]bool{"opted_in": optIn})
 	}
 }
 
-// reconcileLocks serializes background syncs per user id so rapid on/off
-// toggles can't interleave their Twitch/bot calls.
-var reconcileLocks sync.Map // int -> *sync.Mutex
+// reconcileState tracks per-user background syncs. Because a sync always
+// applies the *stored* bot_opt_in, any number of toggles during a running sync
+// collapse into a single rerun (latest state wins).
+type reconcileState struct {
+	running bool // a worker goroutine is active for this user
+	pending bool // state changed while running; rerun once it finishes
+}
+
+var (
+	reconcileMu    sync.Mutex
+	reconcileUsers = map[int]*reconcileState{} // entries removed when idle
+)
+
+// reconcileRerunGap spaces coalesced reruns so a live channel toggled
+// repeatedly can't burst JOIN/PART on the bot account.
+const reconcileRerunGap = 2 * time.Second
+
+// reconcileBusy reports whether a sync is running and a rerun is already
+// queued for userID, i.e. a further request would add nothing but load.
+func reconcileBusy(userID int) bool {
+	reconcileMu.Lock()
+	defer reconcileMu.Unlock()
+	st := reconcileUsers[userID]
+	return st != nil && st.running && st.pending
+}
+
+// scheduleReconcile starts a worker for userID, or marks a rerun pending if
+// one is already running. At most one goroutine exists per user.
+func scheduleReconcile(svc nivek.NivekService, userID int, login, twitchID string) {
+	reconcileMu.Lock()
+	st := reconcileUsers[userID]
+	if st != nil && st.running {
+		st.pending = true
+		reconcileMu.Unlock()
+		return
+	}
+	reconcileUsers[userID] = &reconcileState{running: true}
+	reconcileMu.Unlock()
+
+	go func() {
+		for {
+			runReconcile(svc, userID, login, twitchID)
+
+			reconcileMu.Lock()
+			st := reconcileUsers[userID]
+			if !st.pending {
+				delete(reconcileUsers, userID)
+				reconcileMu.Unlock()
+				return
+			}
+			st.pending = false
+			reconcileMu.Unlock()
+			time.Sleep(reconcileRerunGap)
+		}
+	}()
+}
+
+// runReconcile is the sync step; a var so tests can observe scheduling.
+var runReconcile = reconcileBotOptIn
 
 // reconcileBotOptIn brings Twitch subscriptions and the bot in line with the
 // user's bot_opt_in as stored *now* (not as requested), so whichever sync runs
-// last always matches the final DB state even if toggles race.
+// last always matches the final DB state even if toggles race. Callers must go
+// through scheduleReconcile so runs for one user never overlap.
 func reconcileBotOptIn(svc nivek.NivekService, userID int, login, twitchID string) {
 	logger := svc.Logger()
 	defer func() {
@@ -100,10 +164,6 @@ func reconcileBotOptIn(svc nivek.NivekService, userID int, login, twitchID strin
 			logger.Errorf("bot opt-in sync panic: %v", r)
 		}
 	}()
-
-	mu, _ := reconcileLocks.LoadOrStore(userID, &sync.Mutex{})
-	mu.(*sync.Mutex).Lock()
-	defer mu.(*sync.Mutex).Unlock()
 
 	current, err := userlib.NewService(svc).GetUserById(userID)
 	if err != nil || current == nil {
@@ -193,7 +253,7 @@ func syncOptOut(ctx context.Context, cfg coreconfig.CoreAPIConfig, logger *logru
 		return
 	}
 	for _, s := range subs {
-		if !isBotSubscriptionFor(s, twitchID, cfg.TwitchEventSubCallbackURL) {
+		if !isBotSubscriptionFor(s, twitchID) {
 			continue
 		}
 		if err := es.DeleteEventSubSubscription(ctx, s.ID); err != nil {
@@ -203,11 +263,9 @@ func syncOptOut(ctx context.Context, cfg coreconfig.CoreAPIConfig, logger *logru
 }
 
 // isBotSubscriptionFor reports whether s is one of the bot's own subscriptions
-// for broadcaster twitchID. When the bot callback URL is configured, the
-// subscription must also target it.
-func isBotSubscriptionFor(s twitcheventsub.EventSubSubscription, twitchID, callbackURL string) bool {
-	if s.Condition.BroadcasterUserID != twitchID || !botSubscriptionTypes[s.Type] {
-		return false
-	}
-	return callbackURL == "" || s.Transport.Callback == callbackURL
+// for broadcaster twitchID. It matches on type + broadcaster only (not the
+// callback URL), so subs created under an older callback string are removed
+// too; overlay relay subs use different types and are never matched.
+func isBotSubscriptionFor(s twitcheventsub.EventSubSubscription, twitchID string) bool {
+	return s.Condition.BroadcasterUserID == twitchID && botSubscriptionTypes[s.Type]
 }
