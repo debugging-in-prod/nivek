@@ -154,6 +154,7 @@ onMounted(() => {
                     v-model="newMessage"
                     rows="2"
                     placeholder="Enter the message to repeat"
+                    maxlength="500"
                     required
                 ></textarea>
             </div>
@@ -211,7 +212,7 @@ onMounted(() => {
                 <!-- Edit mode -->
                 <template v-else>
                     <div class="promo-body">
-                        <textarea class="form-control" v-model="editMessage[p.id]" rows="2"></textarea>
+                        <textarea class="form-control" v-model="editMessage[p.id]" rows="2" maxlength="500"></textarea>
                         <div class="form-group interval-group mt-2">
                             <label>Every</label>
                             <input

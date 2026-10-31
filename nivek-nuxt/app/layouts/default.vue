@@ -72,6 +72,22 @@ const showCommandNav = computed(() => !!auth.user && route.path === '/')
         >
           Stalk
         </button>
+        <button
+          type="button"
+          class="dash-cmd"
+          :class="{ active: activePanel === 'customcmd' }"
+          @click="togglePanel('customcmd')"
+        >
+          Custom Commands
+        </button>
+        <button
+          type="button"
+          class="dash-cmd"
+          :class="{ active: activePanel === 'cmdsettings' }"
+          @click="togglePanel('cmdsettings')"
+        >
+          Command Settings
+        </button>
       </nav>
 
       <footer class="build-tag">
