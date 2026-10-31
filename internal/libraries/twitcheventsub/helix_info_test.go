@@ -136,3 +136,43 @@ func TestHelixLookupsHonorContext(t *testing.T) {
 		t.Fatal("lookup ignored the context deadline")
 	}
 }
+
+func TestGetLastStreamEnd(t *testing.T) {
+	c := newTestHelix(t, func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if r.URL.Path != "/videos" || q.Get("type") != "archive" || q.Get("first") != "1" {
+			t.Errorf("unexpected request %s", r.URL)
+		}
+		switch q.Get("user_id") {
+		case "9":
+			w.Write([]byte(`{"data":[{"created_at":"2026-10-31T10:00:00Z","duration":"3h8m33s"}]}`))
+		case "404":
+			w.WriteHeader(http.StatusNotFound)
+		case "500":
+			w.WriteHeader(http.StatusInternalServerError)
+		default:
+			w.Write([]byte(`{"data":[]}`))
+		}
+	})
+	end, found, err := c.GetLastStreamEnd(context.Background(), "9")
+	if err != nil || !found || !end.Equal(time.Date(2026, 10, 31, 13, 8, 33, 0, time.UTC)) {
+		t.Fatalf("GetLastStreamEnd = %v, %v, %v", end, found, err)
+	}
+	for _, id := range []string{"1", "404"} {
+		if _, found, err := c.GetLastStreamEnd(context.Background(), id); err != nil || found {
+			t.Fatalf("user %s: found=%v err=%v, want not found", id, found, err)
+		}
+	}
+	if _, _, err := c.GetLastStreamEnd(context.Background(), "500"); err == nil {
+		t.Fatal("want error on 500")
+	}
+	if _, _, err := c.GetLastStreamEnd(context.Background(), ""); err == nil {
+		t.Fatal("want error on empty id")
+	}
+	if _, found, err := parseLastStreamEnd([]byte(`{"data":[{"created_at":"2026-10-31T10:00:00Z","duration":"garbage"}]}`)); err != nil || found {
+		t.Fatalf("bad duration: found=%v err=%v", found, err)
+	}
+	if _, _, err := parseLastStreamEnd([]byte(`not json`)); err == nil {
+		t.Fatal("want decode error")
+	}
+}

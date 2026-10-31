@@ -42,6 +42,7 @@ type TwitchEventSubClient interface {
 
 	// Read-only Helix lookups for the bot's info commands (helix_info.go).
 	GetStream(ctx context.Context, broadcasterID string) (StreamInfo, error)
+	GetLastStreamEnd(ctx context.Context, broadcasterID string) (time.Time, bool, error)
 	GetChannelInfo(ctx context.Context, broadcasterID string) (ChannelInfo, error)
 	GetUserByLogin(ctx context.Context, login string) (UserInfo, bool, error)
 	GetChannelFollow(ctx context.Context, userToken, broadcasterID, userID string) (FollowInfo, error)

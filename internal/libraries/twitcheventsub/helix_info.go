@@ -83,6 +83,52 @@ func parseStreamInfo(body []byte) (StreamInfo, error) {
 	return StreamInfo{Live: true, StartedAt: parsed.Data[0].StartedAt}, nil
 }
 
+// GetLastStreamEnd estimates when broadcasterID's most recent stream ended
+// from their newest archive VOD (created_at + duration). found is false (nil
+// error) when there is no archive to go on: VODs disabled, expired or deleted.
+// Only meaningful while the channel is offline — during a live stream the
+// newest archive is the in-progress one.
+func (c *clientImpl) GetLastStreamEnd(ctx context.Context, broadcasterID string) (time.Time, bool, error) {
+	if broadcasterID == "" {
+		return time.Time{}, false, errors.New("broadcaster id is required")
+	}
+	q := url.Values{"user_id": {broadcasterID}, "type": {"archive"}, "sort": {"time"}, "first": {"1"}}
+	body, status, err := c.doAppGet(ctx, helixBaseURL+"/videos?"+q.Encode())
+	if err != nil {
+		return time.Time{}, false, err
+	}
+	if status == http.StatusNotFound {
+		// Helix answers 404 when the user has no videos at all.
+		return time.Time{}, false, nil
+	}
+	if status != http.StatusOK {
+		return time.Time{}, false, fmt.Errorf("get videos returned %d: %s", status, truncateBody(body))
+	}
+	return parseLastStreamEnd(body)
+}
+
+func parseLastStreamEnd(body []byte) (time.Time, bool, error) {
+	var parsed struct {
+		Data []struct {
+			CreatedAt time.Time `json:"created_at"`
+			Duration  string    `json:"duration"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return time.Time{}, false, fmt.Errorf("decode videos response: %w", err)
+	}
+	if len(parsed.Data) == 0 || parsed.Data[0].CreatedAt.IsZero() {
+		return time.Time{}, false, nil
+	}
+	// Helix durations look like "3h8m33s" / "45m2s" / "9s", which
+	// time.ParseDuration accepts as-is.
+	d, err := time.ParseDuration(parsed.Data[0].Duration)
+	if err != nil || d < 0 {
+		return time.Time{}, false, nil
+	}
+	return parsed.Data[0].CreatedAt.Add(d), true, nil
+}
+
 // GetChannelInfo returns the channel's current category and title.
 func (c *clientImpl) GetChannelInfo(ctx context.Context, broadcasterID string) (ChannelInfo, error) {
 	if broadcasterID == "" {
