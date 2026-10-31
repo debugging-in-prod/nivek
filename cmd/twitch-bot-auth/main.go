@@ -17,12 +17,15 @@
 //
 //	TWITCH_CLIENT_ID=xxx TWITCH_CLIENT_SECRET=yyy go run ./cmd/twitch-bot-auth
 //
-// It prints an authorize URL, waits for the browser redirect on :3000, exchanges
+// It prints an authorize URL, waits for the browser redirect on 127.0.0.1:3000, exchanges
 // the code, and prints the .env lines to set.
 package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/subtle"
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -62,12 +65,18 @@ func main() {
 
 	redirectURI := fmt.Sprintf("http://localhost:%s", *port)
 
+	state, err := newState()
+	if err != nil {
+		log.Fatalf("generating OAuth state: %v", err)
+	}
+
 	authURL := authorizeURL + "?" + url.Values{
 		"client_id":     {*clientID},
 		"redirect_uri":  {redirectURI},
 		"response_type": {"code"},
 		"scope":         {scopes},
 		"force_verify":  {"true"}, // always show consent so you can confirm the account
+		"state":         {state},
 	}.Encode()
 
 	fmt.Println("── Twitch bot token minter ──")
@@ -83,24 +92,8 @@ func main() {
 	codeCh := make(chan string, 1)
 	errCh := make(chan string, 1)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		q := r.URL.Query()
-		if e := q.Get("error"); e != "" {
-			msg := e + ": " + q.Get("error_description")
-			http.Error(w, msg, http.StatusBadRequest)
-			errCh <- msg
-			return
-		}
-		code := q.Get("code")
-		if code == "" {
-			return // ignore favicon etc.
-		}
-		io.WriteString(w, "Got it — you can close this tab and return to the terminal.")
-		codeCh <- code
-	})
-
-	srv := &http.Server{Addr: ":" + *port, Handler: mux}
+	// Bind to loopback only so the callback isn't reachable from the network.
+	srv := &http.Server{Addr: "127.0.0.1:" + *port, Handler: callbackHandler(state, codeCh, errCh)}
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("local server: %v", err)
@@ -161,4 +154,43 @@ func main() {
 	fmt.Println()
 	fmt.Printf("(scopes: %s | access token expires in ~%dm — the bot will auto-refresh from here)\n",
 		strings.Join(parsed.Scope, " "), parsed.ExpiresIn/60)
+}
+
+// newState returns a random, URL-safe OAuth state value (CSRF protection).
+func newState() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+// callbackHandler handles the OAuth redirect. Requests carrying a code or error
+// must present the expected state (constant-time compare) or get a 400.
+func callbackHandler(state string, codeCh, errCh chan<- string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		e, code := q.Get("error"), q.Get("code")
+		if e == "" && code == "" {
+			return // ignore favicon etc.
+		}
+		if subtle.ConstantTimeCompare([]byte(q.Get("state")), []byte(state)) != 1 {
+			http.Error(w, "invalid OAuth state", http.StatusBadRequest)
+			return
+		}
+		if e != "" {
+			msg := e + ": " + q.Get("error_description")
+			http.Error(w, msg, http.StatusBadRequest)
+			select {
+			case errCh <- msg:
+			default:
+			}
+			return
+		}
+		io.WriteString(w, "Got it — you can close this tab and return to the terminal.")
+		select {
+		case codeCh <- code:
+		default:
+		}
+	})
 }
