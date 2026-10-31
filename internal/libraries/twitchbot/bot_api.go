@@ -150,6 +150,11 @@ func newJoinChannelEndpoint(bot *Bot) echo.HandlerFunc {
 }
 
 func newTwitchEventSubEndpoint(bot *Bot) echo.HandlerFunc {
+	return newTwitchEventSubEndpointWithDispatcher(bot,
+		newChatDispatcher(chatDispatchWorkers, chatDispatchQueueSize, bot.handleWebhookMessage))
+}
+
+func newTwitchEventSubEndpointWithDispatcher(bot *Bot, chat *chatDispatcher) echo.HandlerFunc {
 	seenIDs := newMessageIDCache(eventSubMessageIDCacheSize)
 
 	return func(c echo.Context) error {
@@ -197,8 +202,10 @@ func newTwitchEventSubEndpoint(bot *Bot) echo.HandlerFunc {
 				handleGoOffline(bot, &notification)
 
 			case "channel.chat.message":
+				// Queue for a worker and ACK immediately so slow command
+				// handlers (core-api round trips) never delay the 204.
 				n := notification
-				go bot.handleWebhookMessage(&n)
+				chat.enqueue(&n)
 
 			default:
 				log.Printf("unrecognized webhook: %+v", notification)
