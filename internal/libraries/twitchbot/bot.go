@@ -42,6 +42,11 @@ var builtinRegistry = map[string]commandHandler{
 	"hangman":     (*Bot).handleHangmanCommand,
 	"so":          (*Bot).handleShoutoutCommand,
 	"translate":   (*Bot).handleTranslateCommand,
+	"uptime":      (*Bot).handleUptimeCommand,
+	"followage":   (*Bot).handleFollowAgeCommand,
+	"accountage":  (*Bot).handleAccountAgeCommand,
+	"game":        (*Bot).handleGameCommand,
+	"title":       (*Bot).handleTitleCommand,
 }
 
 type BotUser struct {
@@ -187,6 +192,14 @@ type Bot struct {
 	// noReply is the set of lowercased logins whose messages are ignored
 	// entirely (other chat bots + the bot itself). See no_reply.go.
 	noReply map[string]struct{}
+
+	// info is the Helix reader behind !uptime/!followage/!accountage/!game/
+	// !title (normally twitchClient; nil makes those commands reply "couldn't
+	// check"). infoCache holds ~60s of successful responses and infoSlots
+	// bounds concurrent lookups (see cmd_info.go).
+	info      infoHelix
+	infoCache *infoCache
+	infoSlots chan struct{}
 }
 
 func NewBot(
@@ -253,6 +266,11 @@ func NewBot(
 		grantAt:           make(map[string]time.Time),
 		grantInFlight:     make(map[string]bool),
 		noReply:           buildNoReplySet(config.NoReplyLogins, config.BotUsername),
+		infoCache:         newInfoCache(infoCacheTTL, infoCacheMax),
+		infoSlots:         make(chan struct{}, infoMaxInFlight),
+	}
+	if twitchClient != nil {
+		bot.info = twitchClient
 	}
 
 	bot.sayQueue = make(chan sayRequest, 64)
