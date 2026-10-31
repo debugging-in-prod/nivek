@@ -211,7 +211,7 @@ func (m *postgresConnectionManagerImpl) newDirectConnection(
 ) (session db.Session, err error) {
 	for i := 0; i < 3; i++ {
 		m.logger.Infof("connecting to postgres %s: %s", name, options.Host)
-		if session, err = postgresql.Open(options); err != nil {
+		if session, err = openPostgresSession(options.ConnectionURL); err != nil {
 			if i < 2 {
 				m.logger.Errorf("failed to open postgres connection for %s: %s", name, err.Error())
 				m.logger.Infof("retrying postgres connection after delay...")
