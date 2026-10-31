@@ -233,6 +233,21 @@ create TABLE IF NOT EXISTS nivek.fish_score (
     CONSTRAINT unique_user_chatter UNIQUE (channelname, chattername)
 );
 
+-- Per-channel command-usage analytics (issue #177). One row per (channel,
+-- trigger, UTC day); the bot counts dispatched commands in memory and core-api
+-- upserts the batched counts (uses = uses + n). Read by the public stats
+-- endpoint (top channels over the last 30 days), filtered by day.
+CREATE TABLE IF NOT EXISTS nivek.command_usage (
+    channel_twitch_id VARCHAR(64) NOT NULL,
+    channel_login     VARCHAR(50) NOT NULL DEFAULT '',
+    trigger           TEXT NOT NULL,
+    day               DATE NOT NULL,
+    uses              INTEGER NOT NULL DEFAULT 0 CHECK (uses >= 0),
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (channel_twitch_id, trigger, day)
+);
+CREATE INDEX IF NOT EXISTS command_usage_day_idx ON nivek.command_usage (day);
+
 -- Table to track bread counts
 create TABLE IF NOT EXISTS nivek.bread (
     id SERIAL PRIMARY KEY,

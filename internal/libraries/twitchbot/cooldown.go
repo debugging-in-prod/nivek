@@ -184,25 +184,35 @@ func (b *Bot) builtinCooldownSecs(trigger string) int {
 }
 
 // commandAllowed is the single cooldown gate for EventSub chat commands. Call it
-// immediately before running any command handler or custom reply.
+// immediately before running any command handler or custom reply. A command
+// that passes is also counted for per-channel usage analytics (in-memory only;
+// see usage_tracker.go), so usage is recorded exactly for dispatched commands.
 func (b *Bot) commandAllowed(message *chatMessageEvent, trigger string, cooldownSecs int) bool {
-	return b.cooldowns.allow(
+	if !b.cooldowns.allow(
 		message.BroadcasterUserId,
 		trigger,
 		message.ChatterUserId,
 		cooldownSecs,
 		isModOrBroadcaster(message),
-	)
+	) {
+		return false
+	}
+	b.recordCommandUse(message.BroadcasterUserId, message.BroadcasterUserLogin, trigger)
+	return true
 }
 
 // ircCommandAllowed is the IRC-path counterpart of commandAllowed, for the few
 // commands still executed from IRC PRIVMSGs (the !banish fallback).
 func (b *Bot) ircCommandAllowed(message twitch.PrivateMessage, trigger string) bool {
-	return b.cooldowns.allow(
+	if !b.cooldowns.allow(
 		message.RoomID,
 		trigger,
 		message.User.ID,
 		b.builtinCooldownSecs(trigger),
 		message.User.IsBroadcaster || message.User.IsMod || message.User.ID == message.RoomID,
-	)
+	) {
+		return false
+	}
+	b.recordCommandUse(message.RoomID, message.Channel, trigger)
+	return true
 }
