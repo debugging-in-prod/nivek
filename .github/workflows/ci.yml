@@ -44,3 +44,72 @@ jobs:
           cache-dependency-path: nivek-nuxt/package-lock.json
       - run: npm ci
       - run: npm run build
+
+  # Incident #172: prod-apply SQL is hand-run against prod. Prove every schema
+  # file applies cleanly on a fresh database built from init.sql, and that each
+  # prod-apply file is idempotent (applied twice). Then run the integration
+  # tests (build tag `integration`) against the same database.
+  db-migrations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: nivek
+          POSTGRES_PASSWORD: nivek
+          POSTGRES_DB: nivek
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nivek -d nivek"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      # Throwaway CI-only credentials for the service container above. These
+      # are the same POSTGRES_* vars core-api reads.
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: "5432"
+      POSTGRES_USERNAME: nivek
+      POSTGRES_PASSWORD: nivek
+      POSTGRES_DB: nivek
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGUSER: nivek
+      PGPASSWORD: nivek
+      PGDATABASE: nivek
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Apply base schema (init.sql, overlay-relay.sql)
+        run: |
+          set -euo pipefail
+          # Same flags the postgres image entrypoint uses for init.sql.
+          psql -v ON_ERROR_STOP=1 -q -f database/init.sql
+          # overlay_device/overlay_event live only in overlay-relay.sql, which
+          # prod-apply-overlay-device-start-seq.sql builds on.
+          psql -v ON_ERROR_STOP=1 -q -f database/overlay-relay.sql
+      - name: Apply every prod-apply-*.sql twice (clean + idempotent)
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(database/prod-apply-*.sql)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "no database/prod-apply-*.sql files found" >&2
+            exit 1
+          fi
+          for pass in 1 2; do
+            for f in "${files[@]}"; do
+              echo "::group::pass ${pass}: ${f}"
+              psql -v ON_ERROR_STOP=1 -q -f "$f"
+              echo "::endgroup::"
+            done
+          done
+      - name: Vet (integration tag)
+        run: go vet -tags integration ./...
+      - name: Integration tests
+        run: go test -tags integration -race -count=1 -run Integration -v ./...

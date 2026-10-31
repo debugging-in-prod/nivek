@@ -54,3 +54,25 @@ jobs:
       # the bot is only bounced intentionally.
       - name: Build twitch-bot binary
         run: /usr/local/go/bin/go build -o bin/twitch-bot ./cmd/twitch-bot
+
+      # Post-deploy smoke check (incident #172). Read-only: GET requests to the
+      # public API only, no restarts, nothing secret is sent or printed.
+      # /api/healthz (retried, to ride out the container rollout) proves
+      # core-api is up. /api/commands is a public route backed by a DB query
+      # (GetGlobalEnabledCommands) -- the one that 500'd with stale cached
+      # statements (08P01) in #172. It is NOT retried (curl --retry also
+      # retries 500s, which would mask an intermittent failure) and is hit
+      # several times so it lands on more than one pooled connection. Any
+      # non-2xx fails the job.
+      - name: Smoke check core-api
+        env:
+          CORE_API_BASE_URL: ${{ vars.CORE_API_BASE_URL || 'https://peanutbudderbot.com/api' }}
+        run: |
+          set -euo pipefail
+          curl -fsS -o /dev/null --max-time 10 \
+            --retry 12 --retry-delay 5 --retry-all-errors \
+            -w "%{http_code} /healthz\n" "${CORE_API_BASE_URL}/healthz"
+          for i in 1 2 3 4 5; do
+            curl -fsS -o /dev/null --max-time 10 \
+              -w "%{http_code} /commands\n" "${CORE_API_BASE_URL}/commands"
+          done
