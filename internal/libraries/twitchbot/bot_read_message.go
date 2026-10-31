@@ -93,7 +93,7 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 		return
 	}
 
-	if messageEvent.ChatterUserId == b.config.BotId || strings.EqualFold(messageEvent.ChatterUserLogin, b.config.BotUsername) {
+	if messageEvent.ChatterUserId == b.config.BotId || b.isNoReplyLogin(messageEvent.ChatterUserLogin) {
 		return
 	}
 
