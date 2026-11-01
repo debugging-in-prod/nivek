@@ -1,8 +1,18 @@
+// Entries are relative to the api() baseURL ('/api'), except the full-page
+// navigation links (TwitchStart, OverlayDownload), which are used as plain
+// hrefs and so include the '/api' prefix.
 export const API_ROUTES = {
   TwitchStart: '/api/auth/twitch/start',
-  AuthLanding: '/auth/landing',
+  OverlayDownload: '/api/overlay/download',
+  Public: {
+    Commands: '/commands',
+    Stats: '/stats/public',
+    DfSnapshot: '/df/snapshot',
+  },
   Secure: {
     Profile: '/profile',
+    Logout: '/logout',
+    OverlayDevices: '/overlay/device',
     PutBotOptIn: '/bot-optin',
     Weather: '/weather',
     GetFishScore: '/fishing',
@@ -27,10 +37,6 @@ export const API_ROUTES = {
     GetStalk: '/stalk',
     PostStalk: '/stalk',
     DeleteStalk: '/stalk',
-    Tasks: {
-      Create: (id: number) => `/user/${id}/task`,
-      GetAll: (id: number) => `/user/${id}/task`,
-    },
   },
 } as const
 
@@ -46,22 +52,4 @@ export interface User {
   // Whether this user may see the /overlay pairing page. Computed server-side
   // from the overlay allowlist (OVERLAY_DOWNLOAD_ALLOWLIST).
   overlay_access?: boolean
-}
-
-export interface Task {
-  id: number
-  uuid: string
-  user_id: number
-  title: string
-  description: string
-  priority: string
-  status: string
-  expires_at: string
-  completed_at: string
-  created_at: string
-  updated_at: string
-  is_important: boolean
-  position: number
-  estimated_duration: string
-  actual_duration: string
 }

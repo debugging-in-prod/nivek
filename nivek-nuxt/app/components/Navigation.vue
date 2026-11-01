@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { API_ROUTES } from '~/utils/constants'
+
 const auth = useAuthStore()
 const route = useRoute()
 const hasOverlayAccess = useHasOverlayAccess()
@@ -12,7 +14,7 @@ const hasOverlayAccess = useHasOverlayAccess()
     <a
       v-if="auth.initialized && !auth.user"
       class="nav-link"
-      href="/api/auth/twitch/start"
+      :href="API_ROUTES.TwitchStart"
     >Sign in with Twitch</a>
     <NuxtLink v-if="hasOverlayAccess" class="nav-link" to="/overlay">Overlay</NuxtLink>
     <NuxtLink class="nav-link" to="/devlog">Devlog</NuxtLink>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { API_ROUTES } from '~/utils/constants'
+
 definePageMeta({
   ssr: false,
   hideForAuth: true,
@@ -42,7 +44,7 @@ onMounted(async () => {
     <div v-else>
       <h2 class="red">Sign-in failed</h2>
       <p>{{ error }}</p>
-      <p><a href="/api/auth/twitch/start">Try again</a></p>
+      <p><a :href="API_ROUTES.TwitchStart">Try again</a></p>
     </div>
   </main>
 </template>
