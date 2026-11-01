@@ -9,6 +9,8 @@ import (
 )
 
 func NewGetAutoShoutChattersEndpoint(nivekSvc nivek.NivekService) echo.HandlerFunc {
+	autoShoutService := newAutoShoutService(nivekSvc)
+
 	return func(c echo.Context) error {
 
 		user, err := utilities.GetUserFromContext(c, nivekSvc.Logger())
@@ -23,7 +25,6 @@ func NewGetAutoShoutChattersEndpoint(nivekSvc nivek.NivekService) echo.HandlerFu
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": errBid.Error()})
 		}
 
-		autoShoutService := newAutoShoutService(nivekSvc)
 		chatters, errChat := autoShoutService.GetAutoShoutChatters(bid)
 		if errChat != nil {
 			nivekSvc.Logger().Errorf("[AutoShout] list chatters for broadcaster %d: %v", bid, errChat)

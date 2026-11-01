@@ -11,6 +11,8 @@ import (
 // NewCreateDadResponseEndpoint adds a !dad response scoped to the logged-in
 // channel.
 func NewCreateDadResponseEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
+	svc := newDadService(nivek)
+
 	return func(c echo.Context) error {
 		user, err := utilities.GetUserFromContext(c, nivek.Logger())
 		if err != nil {
@@ -40,7 +42,6 @@ func NewCreateDadResponseEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 			})
 		}
 
-		svc := newDadService(nivek)
 		if _, errAdd := svc.Add(*user.TwitchLogin, payload.Response); errAdd != nil {
 			nivek.Logger().Errorf("[Dad] add response for %s: %v", *user.TwitchLogin, errAdd)
 			return c.JSON(http.StatusInternalServerError, map[string]string{

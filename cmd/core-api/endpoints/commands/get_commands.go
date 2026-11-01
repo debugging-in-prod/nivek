@@ -13,8 +13,9 @@ import (
 var newCommandsService = commandSvc.NewService
 
 func NewGetCommandsEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
+	commandsService := newCommandsService(nivek)
+
 	return func(c echo.Context) error {
-		commandsService := newCommandsService(nivek)
 		cmds, err := commandsService.GetGlobalEnabledCommands()
 		if err != nil {
 			nivek.Logger().Errorf("[Commands] fetch global enabled commands: %v", err)

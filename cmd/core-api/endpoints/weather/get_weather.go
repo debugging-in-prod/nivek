@@ -20,10 +20,11 @@ var newReporter = func(svc nivek.NivekService) reporter {
 }
 
 func NewGetWeatherEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
+	weatherService := newReporter(nivek)
+
 	return func(c echo.Context) error {
 		ip := getIP(c)
 
-		weatherService := newReporter(nivek)
 		report, err := weatherService.GetReport(ip)
 		if err != nil {
 			nivek.Logger().Errorf("[Weather] fetch report: %v", err)

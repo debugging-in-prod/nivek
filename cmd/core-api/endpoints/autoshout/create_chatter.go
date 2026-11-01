@@ -10,6 +10,8 @@ import (
 )
 
 func NewCreateAutoShoutChatterEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
+	autoShoutService := newAutoShoutService(nivek)
+
 	return func(c echo.Context) error {
 		user, err := utilities.GetUserFromContext(c, nivek.Logger())
 		if err != nil {
@@ -32,7 +34,6 @@ func NewCreateAutoShoutChatterEndpoint(nivek nivek.NivekService) echo.HandlerFun
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": errBid.Error()})
 		}
 
-		autoShoutService := newAutoShoutService(nivek)
 		if _, errChat := autoShoutService.CreateAutoShoutChatter(bid, payload.Chattername); errChat != nil {
 			nivek.Logger().Errorf("[AutoShout] create chatter for broadcaster %d: %v", bid, errChat)
 			return c.JSON(http.StatusInternalServerError, map[string]string{

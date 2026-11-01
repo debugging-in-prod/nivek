@@ -11,6 +11,8 @@ import (
 
 // NewDeletePromoEndpoint removes one of the logged-in channel's own promos.
 func NewDeletePromoEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
+	svc := newPromoService(nivek)
+
 	return func(c echo.Context) error {
 		user, err := utilities.GetUserFromContext(c, nivek.Logger())
 		if err != nil {
@@ -29,7 +31,6 @@ func NewDeletePromoEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid id parameter"})
 		}
 
-		svc := newPromoService(nivek)
 		if errDel := svc.Remove(channel, id); errDel != nil {
 			nivek.Logger().Errorf("[Promo] delete promo for %s: %v", channel, errDel)
 			return c.JSON(http.StatusInternalServerError, map[string]string{

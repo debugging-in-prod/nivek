@@ -11,6 +11,8 @@ import (
 // NewGetDadResponsesEndpoint returns the logged-in channel's !dad pool: the
 // shared globals plus the channel's own responses (with usage counts).
 func NewGetDadResponsesEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
+	svc := newDadService(nivek)
+
 	return func(c echo.Context) error {
 		user, err := utilities.GetUserFromContext(c, nivek.Logger())
 		if err != nil {
@@ -26,7 +28,6 @@ func NewGetDadResponsesEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 			})
 		}
 
-		svc := newDadService(nivek)
 		responses, errList := svc.ListForChannel(*user.TwitchLogin)
 		if errList != nil {
 			nivek.Logger().Errorf("[Dad] list responses for %s: %v", *user.TwitchLogin, errList)
