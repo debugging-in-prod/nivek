@@ -46,7 +46,7 @@ func NewService(service nivek.NivekService) NivekUserService {
 
 func (s *nivekUserServiceImpl) CreateNewUser(newUser *User) error {
 	if err := s.userTable.InsertReturning(newUser); err != nil {
-		return fmt.Errorf("failed to create new user record in db: %s", err.Error())
+		return fmt.Errorf("failed to create new user record in db: %w", err)
 	}
 
 	return nil
