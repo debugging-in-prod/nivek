@@ -1,7 +1,6 @@
 package stalk
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -37,10 +36,11 @@ func NewSetStalkEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "that doesn't look like a username"})
 		}
 
-		svc := stalkSvc.NewService(nivek)
+		svc := newStalkService(nivek)
 		if errSet := svc.Set(channel, target, setByLogin(user)); errSet != nil {
+			nivek.Logger().Errorf("[Stalk] set stalk target for %s: %v", channel, errSet)
 			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": fmt.Sprintf("error setting stalk target for channel [%s]: %s", channel, errSet.Error()),
+				"error": "internal server error",
 			})
 		}
 

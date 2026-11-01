@@ -1,12 +1,10 @@
 package stalk
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
-	stalkSvc "github.com/tim-the-toolman-taylor/nivek/internal/libraries/stalk"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/utilities"
 )
 
@@ -25,11 +23,12 @@ func NewClearStalkEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": errCh.Error()})
 		}
 
-		svc := stalkSvc.NewService(nivek)
+		svc := newStalkService(nivek)
 		found, errClear := svc.Clear(channel)
 		if errClear != nil {
+			nivek.Logger().Errorf("[Stalk] clear stalk target for %s: %v", channel, errClear)
 			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": fmt.Sprintf("error clearing stalk target for channel [%s]: %s", channel, errClear.Error()),
+				"error": "internal server error",
 			})
 		}
 

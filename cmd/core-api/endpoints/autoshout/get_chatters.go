@@ -1,11 +1,9 @@
 package autoshout
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	autoShoutSvc "github.com/tim-the-toolman-taylor/nivek/internal/libraries/autoshout"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/utilities"
 )
@@ -25,14 +23,12 @@ func NewGetAutoShoutChattersEndpoint(nivekSvc nivek.NivekService) echo.HandlerFu
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": errBid.Error()})
 		}
 
-		autoShoutService := autoShoutSvc.NewService(nivekSvc)
+		autoShoutService := newAutoShoutService(nivekSvc)
 		chatters, errChat := autoShoutService.GetAutoShoutChatters(bid)
 		if errChat != nil {
+			nivekSvc.Logger().Errorf("[AutoShout] list chatters for broadcaster %d: %v", bid, errChat)
 			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": fmt.Sprintf(
-					"error fetching auto shout chatter for user [%d]: %s",
-					user.Id, errChat.Error(),
-				),
+				"error": "internal server error",
 			})
 		}
 

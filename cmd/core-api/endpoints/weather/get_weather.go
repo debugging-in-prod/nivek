@@ -1,7 +1,6 @@
 package weather
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -9,15 +8,27 @@ import (
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/weather"
 )
 
+// reporter is the part of weather.ReportService this endpoint uses.
+type reporter interface {
+	GetReport(ip string) (*weather.NivekWeatherReport, error)
+}
+
+// newReporter builds the weather report service. It is a var so tests can
+// swap in a fake.
+var newReporter = func(svc nivek.NivekService) reporter {
+	return weather.NewWeatherReportService(svc)
+}
+
 func NewGetWeatherEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		ip := getIP(c, nivek)
 
-		weatherService := weather.NewWeatherReportService(nivek)
+		weatherService := newReporter(nivek)
 		report, err := weatherService.GetReport(ip)
 		if err != nil {
+			nivek.Logger().Errorf("[Weather] fetch report: %v", err)
 			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": fmt.Sprintf("error fetching weather report: %s", err.Error()),
+				"error": "internal server error",
 			})
 		}
 

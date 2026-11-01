@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	stalkSvc "github.com/tim-the-toolman-taylor/nivek/internal/libraries/stalk"
 	userlib "github.com/tim-the-toolman-taylor/nivek/internal/libraries/user"
 )
 
@@ -20,3 +21,7 @@ func setByLogin(u *userlib.User) string {
 	}
 	return strings.ToLower(strings.TrimSpace(*u.TwitchLogin))
 }
+
+// newStalkService builds the stalk service. It is a var so tests can swap in a
+// fake.
+var newStalkService = stalkSvc.NewService

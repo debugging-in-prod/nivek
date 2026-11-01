@@ -1,13 +1,11 @@
 package promo
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/labstack/echo/v4"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
-	promoSvc "github.com/tim-the-toolman-taylor/nivek/internal/libraries/promo"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/utilities"
 )
 
@@ -31,10 +29,11 @@ func NewDeletePromoEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid id parameter"})
 		}
 
-		svc := promoSvc.NewService(nivek)
+		svc := newPromoService(nivek)
 		if errDel := svc.Remove(channel, id); errDel != nil {
+			nivek.Logger().Errorf("[Promo] delete promo for %s: %v", channel, errDel)
 			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": fmt.Sprintf("error deleting promo for channel [%s]: %s", channel, errDel.Error()),
+				"error": "internal server error",
 			})
 		}
 

@@ -1,7 +1,6 @@
 package promo
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -46,11 +45,12 @@ func NewCreatePromoEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "account has no linked twitch id"})
 		}
 
-		svc := promoSvc.NewService(nivek)
+		svc := newPromoService(nivek)
 		created, errAdd := svc.Create(channel, *user.TwitchID, payload.Message, payload.IntervalSeconds)
 		if errAdd != nil {
+			nivek.Logger().Errorf("[Promo] create promo for %s: %v", channel, errAdd)
 			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": fmt.Sprintf("error creating promo for channel [%s]: %s", channel, errAdd.Error()),
+				"error": "internal server error",
 			})
 		}
 

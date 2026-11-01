@@ -1,7 +1,6 @@
 package autoshout
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -31,22 +30,21 @@ func NewUpdateAutoShoutChatterEndpoint(nivek nivek.NivekService) echo.HandlerFun
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": errBid.Error()})
 		}
 
-		autoShoutService := autoShoutSvc.NewService(nivek)
+		autoShoutService := newAutoShoutService(nivek)
 
 		// get chatter record to make sure they exist first @TODO::update this to use a smaller fetch
 		chatter, errFetch := autoShoutService.GetAutoShoutChatter(bid, updatedChatter.ChatterName)
 		if errFetch != nil {
+			nivek.Logger().Errorf("[AutoShout] fetch chatter %q for broadcaster %d: %v", updatedChatter.ChatterName, bid, errFetch)
 			return c.JSON(http.StatusInternalServerError, map[string]string{
 				"error": "internal server error",
 			})
 		}
 
 		if errChat := autoShoutService.UpdateAutoShoutChatter(chatter); errChat != nil {
+			nivek.Logger().Errorf("[AutoShout] update chatter for broadcaster %d: %v", bid, errChat)
 			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": fmt.Sprintf(
-					"error deleting auto shout chatter for user [%d]: %s",
-					user.Id, errChat.Error(),
-				),
+				"error": "internal server error",
 			})
 		}
 
