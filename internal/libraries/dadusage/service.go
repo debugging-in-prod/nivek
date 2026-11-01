@@ -46,7 +46,7 @@ func (s *nivekDadUsageServiceImpl) GetCurrentStreamUsage(broadcasterId int) (map
 	`
 	rows, err := s.usageTable.Session().SQL().Query(query, broadcasterId)
 	if err != nil {
-		return nil, fmt.Errorf("[DadUsage] error fetching usage for channel %d - %s", broadcasterId, err.Error())
+		return nil, fmt.Errorf("[DadUsage] error fetching usage for channel %d - %w", broadcasterId, err)
 	}
 	defer rows.Close()
 
@@ -55,12 +55,12 @@ func (s *nivekDadUsageServiceImpl) GetCurrentStreamUsage(broadcasterId int) (map
 		var name string
 		var count int
 		if err := rows.Scan(&name, &count); err != nil {
-			return nil, fmt.Errorf("[DadUsage] error scanning usage for channel %d - %s", broadcasterId, err.Error())
+			return nil, fmt.Errorf("[DadUsage] error scanning usage for channel %d - %w", broadcasterId, err)
 		}
 		usage[name] = count
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("[DadUsage] error iterating usage for channel %d - %s", broadcasterId, err.Error())
+		return nil, fmt.Errorf("[DadUsage] error iterating usage for channel %d - %w", broadcasterId, err)
 	}
 
 	return usage, nil
@@ -86,7 +86,7 @@ func (s *nivekDadUsageServiceImpl) IncrementRoll(broadcasterId int, chattername 
 		    updated_at = NOW()
 	`
 	if _, err := s.usageTable.Session().SQL().Exec(query, broadcasterId, chattername); err != nil {
-		return fmt.Errorf("[DadUsage] error incrementing roll for channel %d chatter %s - %s", broadcasterId, chattername, err.Error())
+		return fmt.Errorf("[DadUsage] error incrementing roll for channel %d chatter %s - %w", broadcasterId, chattername, err)
 	}
 
 	return nil
