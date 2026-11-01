@@ -43,6 +43,7 @@ jobs:
           cache: npm
           cache-dependency-path: nivek-nuxt/package-lock.json
       - run: npm ci
+      - run: npm test
       - run: npm run build
 
   # Incident #172: prod-apply SQL is hand-run against prod. Prove every schema
