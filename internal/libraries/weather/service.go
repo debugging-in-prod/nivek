@@ -42,7 +42,7 @@ func (s *ReportService) GetReport(ip string) (*NivekWeatherReport, error) {
 	loc, err := s.locator.Locate(ip)
 	if err != nil {
 		return nil, fmt.Errorf(
-			"error fetching IP info during GetTemp for ip (%s): %s", ip, err.Error(),
+			"error fetching IP info during GetTemp for ip (%s): %w", ip, err,
 		)
 	}
 

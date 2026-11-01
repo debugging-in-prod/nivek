@@ -103,9 +103,9 @@ func (c *WindyClient) buildRequestBody(lat, lon float64) windyWeatherReportReque
 func (c *WindyClient) fetchData(ctx context.Context, body windyWeatherReportRequest) (*windyResponseBody, error) {
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
-		return nil, fmt.Errorf("error marshalling weather report request in Forecast for (%s): %s",
+		return nil, fmt.Errorf("error marshalling weather report request in Forecast for (%s): %w",
 			string(jsonBody),
-			err.Error(),
+			err,
 		)
 	}
 
@@ -116,29 +116,29 @@ func (c *WindyClient) fetchData(ctx context.Context, body windyWeatherReportRequ
 		bytes.NewBuffer(jsonBody),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("error building windy request: %s", err.Error())
+		return nil, fmt.Errorf("error building windy request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	windyResponse, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error fetching report from windy: %s", err.Error())
+		return nil, fmt.Errorf("error fetching report from windy: %w", err)
 	}
 	defer windyResponse.Body.Close()
 
 	rawBody, err := io.ReadAll(windyResponse.Body)
 	if err != nil {
 		return nil, fmt.Errorf(
-			"error reading report from windy: %s",
-			err.Error(),
+			"error reading report from windy: %w",
+			err,
 		)
 	}
 
 	var response windyResponseBody
 	if err := json.Unmarshal(rawBody, &response); err != nil {
 		return nil, fmt.Errorf(
-			"error unmarshalling report from windy: %s",
-			err.Error(),
+			"error unmarshalling report from windy: %w",
+			err,
 		)
 	}
 

@@ -128,12 +128,13 @@ func TestGetReportUsesLocator(t *testing.T) {
 }
 
 func TestGetReportLocatorErrorSkipsForecast(t *testing.T) {
+	errForced := errors.New("forced")
 	fc := &fakeForecaster{}
-	s := &ReportService{locator: fakeLocator{err: errors.New("forced")}, forecaster: fc}
+	s := &ReportService{locator: fakeLocator{err: errForced}, forecaster: fc}
 
 	report, err := s.GetReport("8.8.8.8")
-	if err == nil {
-		t.Fatal("GetReport: want error, got nil")
+	if !errors.Is(err, errForced) {
+		t.Fatalf("err = %v, want wrapped %v", err, errForced)
 	}
 	if report != nil {
 		t.Errorf("report = %+v, want nil on error", report)
