@@ -101,7 +101,7 @@ are out of scope for fixes (see merge-criteria §6).
 | F10 | L | **Resolved (#236, R2.5).** Stale comments mention a JWT/Bearer token (auth is an HttpOnly cookie) and a nonexistent `DF.vue`. There's leftover code: an empty `onMounted` with a commented `console.log` in devlog, and an empty `<style scoped>` in Weather. | `components/Weather.vue`, `utils/dfService.ts`, `pages/df/citizens.vue`, `pages/devlog/index.vue` |
 | F11 | L | **Resolved (#236, R2.5).** A component mutates store state directly (`auth.user.bot_opt_in = …`) instead of calling a store action. | `components/BotOptInToggle.vue` |
 | F12 | L | **Accepted, no change (R2.5 left it; the standards allow it).** `definePageMeta({ ssr: false })` is set on only two pages. The others rely on fetching in `onMounted`. | `pages/auth/landing.vue`, `pages/overlay/index.vue` |
-| F13 | L | **On hold (R1.1, awaiting owner approval).** No ESLint, Prettier, or typecheck. The only test (`tests/publicStats.test.ts`) isn't run in CI (job `nuxt` runs only `npm ci && npm run build`). `nivek-nuxt/README.md` is the unmodified Nuxt starter. | `nivek-nuxt/package.json`, `.github/workflows/ci.yml` |
+| F13 | L | **Test part resolved (#271, R1.1):** the `nuxt` CI job now runs `npm test`. Still open: no ESLint or Prettier (R2.6, on hold) and no typecheck. `nivek-nuxt/README.md` is the unmodified Nuxt starter. | `nivek-nuxt/package.json`, `.github/workflows/ci.yml` |
 | F14 | L | The only browser-side third-party call is `ipapi.co` (allowed through the CSP). | `components/Weather.vue`, `nuxt.config.ts` |
 
 ## Docs
