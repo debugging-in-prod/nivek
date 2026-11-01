@@ -124,11 +124,11 @@ func NewCoreAPIClient(baseURL, hmacKeyHex string) (CoreAPIClient, error) {
 func (c *coreAPIClientImpl) CreateNewUser(newUser *user.User) error {
 	body, err := json.Marshal(newUser)
 	if err != nil {
-		return fmt.Errorf("failed to marshal CreateNewUser request body for broadcaster %s - %s", *newUser.TwitchLogin, err.Error())
+		return fmt.Errorf("failed to marshal CreateNewUser request body for broadcaster %s - %w", *newUser.TwitchLogin, err)
 	}
 
 	if err := c.do(http.MethodPut, PutCreateNewUser, "", body, nil); err != nil {
-		return fmt.Errorf("CreateNewUser request failed for broadcaster %d - %s", newUser.TwitchLogin, err.Error())
+		return fmt.Errorf("CreateNewUser request failed for broadcaster %d - %w", newUser.TwitchLogin, err)
 	}
 
 	return nil
@@ -137,11 +137,11 @@ func (c *coreAPIClientImpl) CreateNewUser(newUser *user.User) error {
 func (c *coreAPIClientImpl) HealLegacyUser(user *user.User) error {
 	body, err := json.Marshal(user)
 	if err != nil {
-		return fmt.Errorf("failed to marshal HealLegacyUser user object: %+v - %s", user, err.Error())
+		return fmt.Errorf("failed to marshal HealLegacyUser user object: %+v - %w", user, err)
 	}
 
 	if err := c.do(http.MethodPost, PostHealLegacyUser, "", body, nil); err != nil {
-		return fmt.Errorf("heal legacy user request failed for user: %+v - %s", user, err.Error())
+		return fmt.Errorf("heal legacy user request failed for user: %+v - %w", user, err)
 	}
 
 	return nil
@@ -158,10 +158,10 @@ func (c *coreAPIClientImpl) PushState(broadcasterUserLogin *string, isLive bool)
 
 	body, err := json.Marshal(request)
 	if err != nil {
-		return fmt.Errorf("failed to marshal PushState request body for broadcaster %s state %v - %s",
+		return fmt.Errorf("failed to marshal PushState request body for broadcaster %s state %v - %w",
 			*broadcasterUserLogin,
 			isLive,
-			err.Error(),
+			err,
 		)
 	}
 
@@ -183,7 +183,7 @@ func (c *coreAPIClientImpl) OptOutUser(login string) error {
 
 	body, err := json.Marshal(request)
 	if err != nil {
-		return fmt.Errorf("failed to marshal OptOutUser request body for %s - %s", login, err.Error())
+		return fmt.Errorf("failed to marshal OptOutUser request body for %s - %w", login, err)
 	}
 
 	if err := c.do(http.MethodPost, PostBotOptOut, "", body, nil); err != nil {
@@ -205,7 +205,7 @@ func (c *coreAPIClientImpl) IsChannelOptedIn(login string) (bool, error) {
 
 	body, err := json.Marshal(request)
 	if err != nil {
-		return false, fmt.Errorf("failed to marshal IsChannelOptedIn request body for %s - %s", login, err.Error())
+		return false, fmt.Errorf("failed to marshal IsChannelOptedIn request body for %s - %w", login, err)
 	}
 
 	var resp struct {
