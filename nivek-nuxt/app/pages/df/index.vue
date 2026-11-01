@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { MapSnapshot, ZLevel } from '~/types/df'
-import { drawLevel, pixelToWorld, DEFAULT_CELL_SIZE, MIN_CELL_SIZE, MAX_CELL_SIZE } from './renderer'
+import { drawLevel, pixelToWorld, DEFAULT_CELL_SIZE, MIN_CELL_SIZE, MAX_CELL_SIZE } from '~/utils/dfRenderer'
 
 // Poll the snapshot endpoint on a timer. Faster than the DFHost pusher's
 // 15s cadence so a new push surfaces within one poll cycle instead of
