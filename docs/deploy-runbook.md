@@ -36,9 +36,20 @@ cd /home/deploy/actions-runner/_work/nivek/nivek
 
 Read the header comment of the `prod-apply-*.sql` file. Some files depend on
 code being deployed first. For example, a new builtin's seed row needs the bot
-binary with that handler, because the bot fails boot on an unknown
-`handler_key`. Make sure the merge/deploy that the file depends on is done
-(GitHub Actions run is green) before you continue.
+binary with that handler. The current bot doesn't crash on an unknown
+`handler_key`: `buildCommandMaps` (`internal/libraries/twitchbot/command_loader.go`)
+logs `skipping invalid command row: ... unknown handler_key` and skips the row.
+The order still matters, for two reasons:
+
+- binaries from before #174 do fail boot on an unknown `handler_key`;
+- on the current binary, a row applied before its handler ships stays
+  inactive (the trigger does nothing) until the binary is deployed and the
+  bot restarted.
+
+Older `prod-apply-*.sql` headers still give the old "fails boot" reason. Leave
+them as they are (they're applied history); the order they ask for is still
+right. Make sure the merge/deploy that the file depends on is done (GitHub
+Actions run is green) before you continue.
 
 ## 1. Back up the database (always)
 
@@ -128,10 +139,14 @@ docker compose logs --since 5m core-api | grep -E '5xx|SQLSTATE' || echo "clean"
 - **The SQL itself failed:** nothing after the failing statement ran
   (`ON_ERROR_STOP`). Fix the cause and re-run the file (it's idempotent). If
   data is wrong, restore from the step 1 dump.
-- **twitch-bot crash-loops at boot:** check `journalctl -u twitch-bot` for an
-  unknown `handler_key`. That means a seed row was applied before the binary
-  that handles it was deployed (see step 0). Deploy the binary, then restart
-  the bot.
+- **A new command does nothing, and the bot logs
+  `skipping invalid command row: ... unknown handler_key`:** a seed row was
+  applied before the binary that handles it was deployed (see step 0). The
+  bot keeps running and skips that row. Deploy the binary, then restart the
+  bot (step 4) so it reloads commands.
+- **twitch-bot crash-loops at boot:** check `journalctl -u twitch-bot` for the
+  cause. An unknown `handler_key` only crashes binaries from before #174; on
+  the current binary it is logged and skipped (see above).
 
 ## Automated post-deploy check
 
