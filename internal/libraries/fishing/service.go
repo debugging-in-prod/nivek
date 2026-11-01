@@ -128,8 +128,8 @@ func (s *nivekFishingServiceImpl) GoFishing(chatter string) string {
 func (s *nivekFishingServiceImpl) leaderboardUpdateMessage(chatterScore int, chatter string, msg string) (string, error) {
 	lastPlaceLeaderScore, err := s.fetchLastPlaceLeaderboard()
 	if err != nil {
-		return msg, fmt.Errorf("failed to fetch last place leader score chan [%s] chatter [%s]: %s",
-			s.channel, chatter, err.Error(),
+		return msg, fmt.Errorf("failed to fetch last place leader score chan [%s] chatter [%s]: %w",
+			s.channel, chatter, err,
 		)
 	}
 
@@ -139,9 +139,9 @@ func (s *nivekFishingServiceImpl) leaderboardUpdateMessage(chatterScore int, cha
 		leaderboard, errLeaderboard := s.fetchLeaderboard()
 		if errLeaderboard != nil {
 			return msg, fmt.Errorf(
-				"failed to fetch leaderboard for channel [%s]: %s",
+				"failed to fetch leaderboard for channel [%s]: %w",
 				s.channel,
-				errLeaderboard.Error(),
+				errLeaderboard,
 			)
 		}
 
@@ -191,7 +191,7 @@ func (s *nivekFishingServiceImpl) fetchLeaderboard() ([]FishScore, error) {
 		OrderBy("-score").
 		Limit(5).
 		All(&leaderboard); err != nil {
-		return nil, fmt.Errorf("failed to fetch leaderboard for channel [%s]: %s", s.channel, err.Error())
+		return nil, fmt.Errorf("failed to fetch leaderboard for channel [%s]: %w", s.channel, err)
 	}
 
 	return leaderboard, nil
