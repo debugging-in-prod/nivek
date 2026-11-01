@@ -155,3 +155,37 @@ docker compose logs --since 5m core-api | grep -E '5xx|SQLSTATE' || echo "clean"
 five times (not retried, so an intermittent 500 isn't hidden). The deploy job
 fails on any non-2xx. It doesn't restart anything and it doesn't apply SQL.
 This runbook is still the only way prod-apply SQL reaches prod.
+
+## twitch-bot binary location
+
+The canonical twitch-bot binary is `/home/deploy/nivek-bin/twitch-bot`,
+outside the checkout. `deploy-prod.yml` builds it there (build to
+`twitch-bot.new`, then an atomic rename). The last step of the deploy job in
+both `deploy-prod.yml` and `build.yml` copies it into
+`/home/deploy/actions-runner/_work/nivek/nivek/bin/twitch-bot`, the path the
+`twitch-bot.service` `ExecStart` runs. The copy happens on every deploy, even
+when an earlier step failed. It's needed because `actions/checkout` cleans the
+gitignored `bin/` in the shared workspace (issue
+[#248](https://github.com/debugging-in-prod/nivek/issues/248)). The two
+workflows share the `production-deploy` concurrency group, so they never run
+at the same time. Deploys never restart the bot.
+
+If the bot fails to start with `status=203/EXEC` (binary missing), reinstall
+the canonical copy and restart. Run this as `deploy`, not root:
+
+```sh
+cd /home/deploy/actions-runner/_work/nivek/nivek
+mkdir -p bin
+cp -f /home/deploy/nivek-bin/twitch-bot bin/twitch-bot.new \
+  && chmod 755 bin/twitch-bot.new && mv -f bin/twitch-bot.new bin/twitch-bot
+sudo systemctl restart twitch-bot
+```
+
+If `/home/deploy/nivek-bin/twitch-bot` is missing too, build it first (as
+`deploy`, from the checkout):
+
+```sh
+mkdir -p /home/deploy/nivek-bin
+/usr/local/go/bin/go build -o /home/deploy/nivek-bin/twitch-bot.new ./cmd/twitch-bot \
+  && mv -f /home/deploy/nivek-bin/twitch-bot.new /home/deploy/nivek-bin/twitch-bot
+```
