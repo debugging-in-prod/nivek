@@ -45,6 +45,25 @@ openssl rand -hex 32      # HMAC keys
 | --- | --- | --- |
 | `TWITCH_BOT_NO_REPLY_LOGINS` | _(empty)_ | Extra comma-delimited Twitch logins the bot never replies to or runs commands for (case-insensitive, spaces trimmed). Added to the built-in list of well-known chat-bot accounts (`defaultNoReplyLogins` in `internal/libraries/twitchbot/const.go`), not a replacement for it. The bot's own login is always ignored. |
 
+### `/api` prefix: local nginx vs prod Traefik
+
+core-api serves every route under `/api` (`e.Group("/api")` in
+`cmd/core-api/main.go`, e.g. `/api/healthz`), and the two proxies handle that
+prefix differently:
+
+- **Prod (Traefik, `docker-compose.yml`):** the `nivek` router matches
+  `Host(peanutbudderbot.com) && PathPrefix(/api)` and forwards the path
+  unchanged, so `/api/healthz` reaches core-api as `/api/healthz`. There is no
+  strip-prefix middleware.
+- **Local (`docker/nginx-local/default.conf`):** `location /api/` uses
+  `proxy_pass http://core-api/;`. Because of the trailing `/`, nginx replaces
+  the matched `/api/` with `/`, so `/api/healthz` reaches core-api as
+  `/healthz`. Everything else (`location /`) goes to the `vue` upstream on
+  `:5173`.
+
+This config isn't referenced by `docker-compose.yml`. If you put it in front
+of core-api, remember that it strips the prefix that core-api's routes expect.
+
 ## Validation
 
 ```bash
