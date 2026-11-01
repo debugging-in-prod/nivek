@@ -1,7 +1,6 @@
 package conman
 
 import (
-	"database/sql"
 	"fmt"
 	"sync"
 	"time"
@@ -9,8 +8,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/upper/db/v4"
 	"github.com/upper/db/v4/adapter/postgresql"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 )
 
 type PostgresConnectionOptions struct {
@@ -41,7 +38,6 @@ type connectionAndPostgresConnectionOptions struct {
 //go:generate mockgen -source=./postgres_conman.go -destination=./mocks/PostgresConnectionManager.go PostgresConnectionManager
 type PostgresConnectionManager interface {
 	ConnectionManager[db.Session, PostgresConnectionOptions]
-	gormConnector
 }
 
 type postgresConnectionManagerImpl struct {
@@ -138,71 +134,6 @@ func (m *postgresConnectionManagerImpl) Close() (err error) {
 	}
 	m.connections = make(map[string]connectionAndPostgresConnectionOptions)
 	return
-}
-
-func (m *postgresConnectionManagerImpl) Gorm(
-	name string,
-	createBatchSize int,
-	slowThreshold time.Duration,
-) (*gorm.DB, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-
-	if sessionData, exists := m.connections[name]; !exists {
-		return nil, fmt.Errorf("postgres connection %s was not initialized", name)
-	} else {
-		if gormDb, err := getGormDb(
-			postgres.New(postgres.Config{
-				Conn: sessionData.connection.Driver().(*sql.DB),
-			}),
-			m.logger,
-			createBatchSize,
-			slowThreshold,
-		); err != nil {
-			return nil, err
-		} else if err := m.afterGormInit(gormDb, sessionData.options); err != nil {
-			return nil, err
-		} else {
-			return gormDb, nil
-		}
-	}
-}
-
-func (m *postgresConnectionManagerImpl) CustomGorm(name string, config gorm.Config) (*gorm.DB, error) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-
-	if sessionData, exists := m.connections[name]; !exists {
-		return nil, fmt.Errorf("postgres connection %s was not initialized", name)
-	} else {
-		if gormDb, err := getCustomGormDb(
-			postgres.New(postgres.Config{
-				Conn: m.GetConnection(name).Driver().(*sql.DB),
-			}),
-			m.logger,
-			config,
-		); err != nil {
-			return nil, err
-		} else if err := m.afterGormInit(gormDb, sessionData.options); err != nil {
-			return nil, err
-		} else {
-			return gormDb, nil
-		}
-	}
-}
-
-func (m *postgresConnectionManagerImpl) afterGormInit(gormDb *gorm.DB, options PostgresConnectionOptions) error {
-	if connPool, err := gormDb.DB(); err != nil {
-		return err
-	} else {
-		// Setup connection pool options
-		connPool.SetMaxIdleConns(options.MaxIdleConnections)
-		connPool.SetMaxOpenConns(options.MaxConnections)
-		connPool.SetConnMaxIdleTime(5 * time.Minute)
-		connPool.SetConnMaxLifetime(time.Hour)
-	}
-
-	return nil
 }
 
 func (m *postgresConnectionManagerImpl) newDirectConnection(
