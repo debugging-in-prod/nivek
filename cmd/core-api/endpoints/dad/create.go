@@ -1,11 +1,9 @@
 package dad
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	dadSvc "github.com/tim-the-toolman-taylor/nivek/internal/libraries/dad"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/utilities"
 )
@@ -17,7 +15,7 @@ func NewCreateDadResponseEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 		user, err := utilities.GetUserFromContext(c, nivek.Logger())
 		if err != nil {
 			return c.JSON(http.StatusUnauthorized, map[string]string{
-				"error": "internal server error",
+				"error": "unauthorized",
 			})
 		}
 
@@ -36,18 +34,17 @@ func NewCreateDadResponseEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 		}
 
 		if user.TwitchLogin == nil {
+			nivek.Logger().Errorf("[Dad] user %d has no twitch_login", user.Id)
 			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": fmt.Sprintf("missing twitch_login for user %d", user.Id),
+				"error": "internal server error",
 			})
 		}
 
-		svc := dadSvc.NewService(nivek)
+		svc := newDadService(nivek)
 		if _, errAdd := svc.Add(*user.TwitchLogin, payload.Response); errAdd != nil {
+			nivek.Logger().Errorf("[Dad] add response for %s: %v", *user.TwitchLogin, errAdd)
 			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": fmt.Sprintf(
-					"error adding dad response for user [%s]: %s",
-					*user.TwitchLogin, errAdd.Error(),
-				),
+				"error": "internal server error",
 			})
 		}
 

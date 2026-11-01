@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	autoShoutSvc "github.com/tim-the-toolman-taylor/nivek/internal/libraries/autoshout"
 	userlib "github.com/tim-the-toolman-taylor/nivek/internal/libraries/user"
 )
 
@@ -21,3 +22,7 @@ func broadcasterID(u *userlib.User) (int, error) {
 	}
 	return id, nil
 }
+
+// newAutoShoutService builds the auto-shout service. It is a var so tests can
+// swap in a fake.
+var newAutoShoutService = autoShoutSvc.NewService

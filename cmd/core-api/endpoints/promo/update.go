@@ -1,7 +1,6 @@
 package promo
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -52,10 +51,11 @@ func NewUpdatePromoEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "interval_seconds required"})
 		}
 
-		svc := promoSvc.NewService(nivek)
+		svc := newPromoService(nivek)
 		if errUpd := svc.Update(channel, id, payload.Message, payload.IntervalSeconds, payload.Enabled, payload.MinChatLines); errUpd != nil {
+			nivek.Logger().Errorf("[Promo] update promo for %s: %v", channel, errUpd)
 			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": fmt.Sprintf("error updating promo for channel [%s]: %s", channel, errUpd.Error()),
+				"error": "internal server error",
 			})
 		}
 

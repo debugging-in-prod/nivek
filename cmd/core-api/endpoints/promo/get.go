@@ -1,12 +1,10 @@
 package promo
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
-	promoSvc "github.com/tim-the-toolman-taylor/nivek/internal/libraries/promo"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/utilities"
 )
 
@@ -26,11 +24,12 @@ func NewGetPromosEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": errCh.Error()})
 		}
 
-		svc := promoSvc.NewService(nivek)
+		svc := newPromoService(nivek)
 		promos, errList := svc.ListForChannel(channel)
 		if errList != nil {
+			nivek.Logger().Errorf("[Promo] list promos for %s: %v", channel, errList)
 			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": fmt.Sprintf("error fetching promos for channel [%s]: %s", channel, errList.Error()),
+				"error": "internal server error",
 			})
 		}
 
