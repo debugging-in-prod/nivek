@@ -45,7 +45,9 @@ type WindyWeatherReportRequest struct {
 	Key        string   `json:"key"` // Api Key
 }
 
-const GetWindyWeatherReportUrl = "https://api.windy.com/api/point-forecast/v2"
+// GetWindyWeatherReportUrl is a var (not a const) so tests can point it at an
+// httptest server.
+var GetWindyWeatherReportUrl = "https://api.windy.com/api/point-forecast/v2"
 
 type WindyClient struct {
 	nivek      nivek.NivekService
