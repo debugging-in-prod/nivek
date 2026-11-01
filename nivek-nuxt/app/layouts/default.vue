@@ -27,7 +27,14 @@ const showCommandNav = computed(() => !!auth.user && route.path === '/')
     <aside class="dash-sidebar">
       <div class="dash-logo">
         <!-- munk image preserved: authed-only, as before -->
-        <img v-if="auth.user" class="logo" src="/munk.gif" width="96" height="96" alt="peanutbudderbot" />
+        <img
+          v-if="auth.user"
+          class="logo"
+          src="/munk.gif"
+          width="96"
+          height="96"
+          alt="peanutbudderbot"
+        />
       </div>
 
       <!-- AutoShout / Fishing command toggles (moved here from the page) -->

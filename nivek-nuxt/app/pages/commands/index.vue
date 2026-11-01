@@ -14,11 +14,16 @@ const error = ref<string | null>(null)
 
 function roleLabel(role: string): string | null {
   switch (role) {
-    case 'broadcaster': return 'Broadcaster only'
-    case 'mod': return 'Mod only'
-    case 'vip': return 'VIP+'
-    case 'sub': return 'Subscribers'
-    default: return null // 'everyone' — no badge
+    case 'broadcaster':
+      return 'Broadcaster only'
+    case 'mod':
+      return 'Mod only'
+    case 'vip':
+      return 'VIP+'
+    case 'sub':
+      return 'Subscribers'
+    default:
+      return null // 'everyone' — no badge
   }
 }
 
@@ -45,8 +50,8 @@ useHead({ title: 'Commands — peanutbudderbot' })
       <h1 class="green">Commands &amp; Actions</h1>
       <p>
         Type any of these in a chat the
-        <a href="https://twitch.tv/peanutbudderbot/">peanutbudderbot</a> bot has joined.
-        Commands are case-insensitive.
+        <a href="https://twitch.tv/peanutbudderbot/">peanutbudderbot</a> bot has joined. Commands
+        are case-insensitive.
       </p>
     </section>
 
@@ -62,7 +67,9 @@ useHead({ title: 'Commands — peanutbudderbot' })
           <div class="cmd-head">
             <code class="trigger">{{ c.trigger }}</code>
             <span v-if="roleLabel(c.min_role)" class="badge">{{ roleLabel(c.min_role) }}</span>
-            <span v-if="c.cooldown_secs > 0" class="badge cooldown">{{ c.cooldown_secs }}s cooldown</span>
+            <span v-if="c.cooldown_secs > 0" class="badge cooldown"
+              >{{ c.cooldown_secs }}s cooldown</span
+            >
           </div>
           <p class="desc">{{ c.description || 'A bot command.' }}</p>
         </li>
@@ -82,8 +89,8 @@ useHead({ title: 'Commands — peanutbudderbot' })
             <span class="badge">Broadcaster configured</span>
           </div>
           <p class="desc">
-            Automatically shouts out chatters you've added to your auto-shout list the first
-            time they talk in your stream — great for regulars and fellow streamers.
+            Automatically shouts out chatters you've added to your auto-shout list the first time
+            they talk in your stream — great for regulars and fellow streamers.
           </p>
         </li>
       </ul>

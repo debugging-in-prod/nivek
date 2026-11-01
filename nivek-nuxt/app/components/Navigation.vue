@@ -11,11 +11,9 @@ const hasOverlayAccess = useHasOverlayAccess()
     <NuxtLink v-if="route.path !== '/'" class="nav-link" to="/">Home</NuxtLink>
     <NuxtLink class="nav-link" to="/commands">Commands</NuxtLink>
     <NuxtLink class="nav-link" to="/df">DF Dashboard</NuxtLink>
-    <a
-      v-if="auth.initialized && !auth.user"
-      class="nav-link"
-      :href="API_ROUTES.TwitchStart"
-    >Sign in with Twitch</a>
+    <a v-if="auth.initialized && !auth.user" class="nav-link" :href="API_ROUTES.TwitchStart"
+      >Sign in with Twitch</a
+    >
     <NuxtLink v-if="hasOverlayAccess" class="nav-link" to="/overlay">Overlay</NuxtLink>
     <NuxtLink class="nav-link" to="/devlog">Devlog</NuxtLink>
   </nav>
@@ -34,7 +32,9 @@ const hasOverlayAccess = useHasOverlayAccess()
   color: var(--color-text);
   text-decoration: none;
   white-space: nowrap;
-  transition: background-color 0.2s, color 0.2s;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
 }
 .nav-link:hover {
   background-color: hsla(160, 100%, 37%, 0.15);

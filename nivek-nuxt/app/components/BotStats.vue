@@ -27,7 +27,9 @@ const { data, status } = useFetch(API_ROUTES.Public.Stats, {
 
 const stats = computed<PublicStats | null>(() => data.value ?? null)
 const loading = computed(() => status.value === 'idle' || status.value === 'pending')
-const unavailable = computed(() => !loading.value && (status.value === 'error' || stats.value === null))
+const unavailable = computed(
+  () => !loading.value && (status.value === 'error' || stats.value === null),
+)
 const empty = computed(() => !!stats.value && isPublicStatsEmpty(stats.value))
 
 const windowLabel = computed(() => (stats.value ? topChannelsWindowLabel(stats.value) : 'all time'))
@@ -50,19 +52,29 @@ const updatedLabel = computed(() => {
 
     <template v-else-if="stats">
       <div class="active">
-        <span class="active-count">{{ stats.active_chats === null ? '—' : formatCount(stats.active_chats) }}</span>
-        <span class="active-label" :title="stats.active_chats_definition || undefined">active chats</span>
-        <p v-if="stats.active_chats_definition" class="caption">{{ stats.active_chats_definition }}</p>
+        <span class="active-count">{{
+          stats.active_chats === null ? '—' : formatCount(stats.active_chats)
+        }}</span>
+        <span class="active-label" :title="stats.active_chats_definition || undefined"
+          >active chats</span
+        >
+        <p v-if="stats.active_chats_definition" class="caption">{{
+          stats.active_chats_definition
+        }}</p>
       </div>
 
       <div class="boards">
         <div class="board">
-          <h3>Top channels <small>({{ windowLabel }})</small></h3>
+          <h3
+            >Top channels <small>({{ windowLabel }})</small></h3
+          >
           <p v-if="stats.top_channels.length === 0" class="muted">No data yet.</p>
           <ol v-else>
             <li v-for="(c, i) in stats.top_channels" :key="`c-${i}-${c.display_name}`">
               <span class="name">{{ c.display_name }}</span>
-              <span class="value">{{ formatCount(c.uses) }} {{ c.uses === 1 ? 'command' : 'commands' }}</span>
+              <span class="value"
+                >{{ formatCount(c.uses) }} {{ c.uses === 1 ? 'command' : 'commands' }}</span
+              >
             </li>
           </ol>
         </div>
@@ -74,7 +86,8 @@ const updatedLabel = computed(() => {
             <li v-for="(f, i) in stats.top_fishers" :key="`f-${i}-${f.display_name}`">
               <span class="name">{{ f.display_name }}</span>
               <span class="value">
-                {{ formatCount(f.score) }} pts · {{ formatCount(f.catches) }} {{ f.catches === 1 ? 'catch' : 'catches' }}
+                {{ formatCount(f.score) }} pts · {{ formatCount(f.catches) }}
+                {{ f.catches === 1 ? 'catch' : 'catches' }}
               </span>
             </li>
           </ol>

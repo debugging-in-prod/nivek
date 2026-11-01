@@ -67,8 +67,8 @@ onMounted(() => {
   <h4 class="title">Stalk</h4>
   <div>
     <p class="mb-2">
-      Pick one chatter. Anyone in your chat can then run <code>!stalk</code> and the bot quotes
-      that person's last message, verbatim.
+      Pick one chatter. Anyone in your chat can then run <code>!stalk</code> and the bot quotes that
+      person's last message, verbatim.
     </p>
     <p class="mb-2 chat-shortcuts">
       Broadcaster/mods can also set this from chat: <code>!stalk set Stan</code> (or
@@ -111,7 +111,9 @@ onMounted(() => {
           </button>
         </template>
         <template v-else>
-          <button class="btn btn-sm btn-success" :disabled="saving" @click="clearTarget">YES</button>
+          <button class="btn btn-sm btn-success" :disabled="saving" @click="clearTarget"
+            >YES</button
+          >
           <button class="btn btn-sm btn-secondary" @click="confirmingClear = false">NO</button>
         </template>
       </div>

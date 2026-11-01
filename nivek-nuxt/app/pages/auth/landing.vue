@@ -13,7 +13,8 @@ const error = ref('')
 const readableErrors: Record<string, string> = {
   access_denied: 'Twitch sign-in was cancelled.',
   missing_code_or_state: 'The Twitch callback was incomplete. Please start again.',
-  missing_state_cookie: 'The sign-in state cookie was unavailable. Check cookie settings and retry.',
+  missing_state_cookie:
+    'The sign-in state cookie was unavailable. Check cookie settings and retry.',
   state_mismatch: 'The sign-in request expired or failed its security check.',
   token_exchange_failed: 'Twitch did not accept the authorization code.',
   profile_fetch_failed: 'Twitch accepted sign-in, but the profile could not be loaded.',
@@ -33,7 +34,8 @@ onMounted(async () => {
     await auth.fetchUserProfile()
     await navigateTo('/', { replace: true })
   } catch {
-    error.value = 'The session cookie was not accepted. Verify the callback URL, HTTPS, and cookie configuration.'
+    error.value =
+      'The session cookie was not accepted. Verify the callback URL, HTTPS, and cookie configuration.'
   }
 })
 </script>

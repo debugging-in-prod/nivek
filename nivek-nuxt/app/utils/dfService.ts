@@ -13,12 +13,13 @@ import { API_ROUTES } from '~/utils/constants'
 //
 // Throws for actual failures (network errors, 5xx, malformed response).
 export async function fetchSnapshot(): Promise<MapSnapshot | null> {
-    try {
-        return await api<MapSnapshot>(API_ROUTES.Public.DfSnapshot)
-    } catch (err: unknown) {
-        const statusCode = (err as { statusCode?: number; status?: number })?.statusCode
-            ?? (err as { status?: number })?.status
-        if (statusCode === 404) return null
-        throw err
-    }
+  try {
+    return await api<MapSnapshot>(API_ROUTES.Public.DfSnapshot)
+  } catch (err: unknown) {
+    const statusCode =
+      (err as { statusCode?: number; status?: number })?.statusCode ??
+      (err as { status?: number })?.status
+    if (statusCode === 404) return null
+    throw err
+  }
 }
