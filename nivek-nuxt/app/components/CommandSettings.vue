@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { API_ROUTES, ROLES, MIN_COOLDOWN, MAX_COOLDOWN } from '~/utils/constants'
+import { errorMessage } from '~/utils/errorMessage'
 import type { CommandSetting, CommandSettingsResponse } from '~/types/commands'
 
 // Per-channel overrides of the bot's built-in commands
@@ -19,11 +20,6 @@ const loading = ref(true)
 const savingId = ref<number | null>(null)
 const error = ref<string | null>(null)
 const savedId = ref<number | null>(null)
-
-function errMessage(err: unknown, fallback: string): string {
-  const data = (err as { data?: { error?: string, message?: string } })?.data
-  return data?.error || data?.message || fallback
-}
 
 function draftOf(s: CommandSetting): CommandDraft {
   return {
@@ -45,7 +41,7 @@ async function load() {
     settings.value.forEach((s) => { drafts[s.command_id] = draftOf(s) })
   } catch (err: unknown) {
     console.error('error fetching command settings: ', err)
-    error.value = errMessage(err, 'Could not load command settings.')
+    error.value = errorMessage(err, 'Could not load command settings.')
   } finally {
     loading.value = false
   }
@@ -70,7 +66,7 @@ async function save(s: CommandSetting) {
     await load()
     savedId.value = s.command_id
   } catch (err: unknown) {
-    error.value = `${s.trigger}: ${errMessage(err, 'could not save.')}`
+    error.value = `${s.trigger}: ${errorMessage(err, 'could not save.')}`
   } finally {
     savingId.value = null
   }
@@ -85,7 +81,7 @@ async function reset(s: CommandSetting) {
     await api(API_ROUTES.Secure.DeleteCommandSetting(s.command_id), { method: 'DELETE' })
     await load()
   } catch (err: unknown) {
-    error.value = `${s.trigger}: ${errMessage(err, 'could not reset.')}`
+    error.value = `${s.trigger}: ${errorMessage(err, 'could not reset.')}`
   } finally {
     savingId.value = null
   }

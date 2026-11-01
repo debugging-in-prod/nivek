@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { errorMessage } from '~/utils/errorMessage'
 import type { MapSnapshot } from '~/types/df'
 
 // Poll faster than the DFHost pusher's 15s cadence so a new push surfaces
@@ -16,7 +17,8 @@ async function load() {
         snapshot.value = await fetchSnapshot()
         error.value = null
     } catch (err: unknown) {
-        error.value = (err as { message?: string })?.message ?? 'unknown error'
+        console.error('error fetching DF snapshot: ', err)
+        error.value = errorMessage(err, "couldn't reach the server. Retrying shortly.")
     }
 }
 
@@ -72,7 +74,7 @@ onBeforeUnmount(() => {
             </p>
         </header>
 
-        <div v-if="error" class="error">Snapshot unavailable: {{ error }}</div>
+        <div v-if="error" class="error" role="alert">Snapshot unavailable: {{ error }}</div>
 
         <div v-if="!snapshot && !error" class="waiting">
             <p class="waiting-text">Waiting for data…</p>

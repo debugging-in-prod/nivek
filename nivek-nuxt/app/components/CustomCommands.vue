@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { API_ROUTES, ROLES, MIN_COOLDOWN, MAX_COOLDOWN } from '~/utils/constants'
+import { errorMessage } from '~/utils/errorMessage'
 import type { Command, CommandsResponse } from '~/types/commands'
 
 // Editor for the logged-in channel's own custom chat commands
@@ -38,11 +39,6 @@ const editingId = ref<number | null>(null)
 const editDraft = reactive<CustomCommandDraft>(blank())
 const confirmingDelete = ref<number | null>(null)
 
-function errMessage(err: unknown, fallback: string): string {
-  const data = (err as { data?: { error?: string, message?: string } })?.data
-  return data?.error || data?.message || fallback
-}
-
 async function load() {
   loading.value = true
   try {
@@ -50,7 +46,7 @@ async function load() {
     commands.value = res.commands ?? []
   } catch (err: unknown) {
     console.error('error fetching custom commands: ', err)
-    error.value = errMessage(err, 'Could not load your commands.')
+    error.value = errorMessage(err, 'Could not load your commands.')
   } finally {
     loading.value = false
   }
@@ -76,7 +72,7 @@ async function create() {
     Object.assign(newDraft, blank())
     await load()
   } catch (err: unknown) {
-    error.value = errMessage(err, 'Could not create the command.')
+    error.value = errorMessage(err, 'Could not create the command.')
   } finally {
     saving.value = false
   }
@@ -105,7 +101,7 @@ async function update(id: number, d: CustomCommandDraft) {
     editingId.value = null
     await load()
   } catch (err: unknown) {
-    error.value = errMessage(err, 'Could not save the command.')
+    error.value = errorMessage(err, 'Could not save the command.')
   } finally {
     saving.value = false
   }
@@ -129,7 +125,7 @@ async function remove(id: number) {
     confirmingDelete.value = null
     await load()
   } catch (err: unknown) {
-    error.value = errMessage(err, 'Could not delete the command.')
+    error.value = errorMessage(err, 'Could not delete the command.')
   }
 }
 

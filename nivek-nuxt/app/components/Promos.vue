@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { API_ROUTES } from '~/utils/constants'
+import { errorMessage } from '~/utils/errorMessage'
 import type { Promo } from '~/types/promo'
 
 const MIN_MINUTES = 1
@@ -7,6 +8,7 @@ const MAX_MINUTES = 1440 // 24h, matches the server-side clamp
 
 const promos = ref<Promo[]>([])
 const loading = ref(true)
+const error = ref<string | null>(null)
 
 // New-promo form.
 const newMessage = ref('')
@@ -34,6 +36,7 @@ function intervalLabel(seconds: number): string {
 
 async function getPromos() {
     loading.value = true
+    error.value = null
     try {
         promos.value = await api<Promo[]>(API_ROUTES.Secure.GetPromos)
         promos.value.forEach((p) => {
@@ -42,6 +45,7 @@ async function getPromos() {
         })
     } catch (err: unknown) {
         console.error('error fetching promos: ', err)
+        error.value = errorMessage(err, "Couldn't load your recurring messages.")
     } finally {
         loading.value = false
     }
@@ -51,6 +55,7 @@ async function addPromo() {
     const message = newMessage.value.trim()
     if (!message) return
     const minutes = clampMinutes(newMinutes.value)
+    error.value = null
     try {
         await api(API_ROUTES.Secure.PostCreatePromo, {
             method: 'POST',
@@ -61,6 +66,7 @@ async function addPromo() {
         await getPromos()
     } catch (err: unknown) {
         console.error('error creating promo: ', err)
+        error.value = errorMessage(err, "Couldn't add the message.")
     }
 }
 
@@ -74,6 +80,7 @@ async function saveEdit(p: Promo) {
     const message = (editMessage[p.id] ?? '').trim()
     if (!message) return
     const minutes = clampMinutes(editMinutes[p.id] ?? minutesOf(p.interval_seconds))
+    error.value = null
     try {
         await api(API_ROUTES.Secure.PutUpdatePromo(p.id), {
             method: 'PUT',
@@ -83,11 +90,13 @@ async function saveEdit(p: Promo) {
         await getPromos()
     } catch (err: unknown) {
         console.error('error updating promo: ', err)
+        error.value = errorMessage(err, "Couldn't save the message.")
     }
 }
 
 // Flip enabled without entering edit mode; sends the row's current message/interval.
 async function toggleEnabled(p: Promo) {
+    error.value = null
     try {
         await api(API_ROUTES.Secure.PutUpdatePromo(p.id), {
             method: 'PUT',
@@ -100,15 +109,18 @@ async function toggleEnabled(p: Promo) {
         await getPromos()
     } catch (err: unknown) {
         console.error('error toggling promo: ', err)
+        error.value = errorMessage(err, p.enabled ? "Couldn't pause the message." : "Couldn't resume the message.")
     }
 }
 
 async function removePromo(id: number) {
+    error.value = null
     try {
         await api(API_ROUTES.Secure.DeletePromo(id), { method: 'DELETE' })
         await getPromos()
     } catch (err: unknown) {
         console.error('error deleting promo: ', err)
+        error.value = errorMessage(err, "Couldn't delete the message.")
     }
 }
 
@@ -165,6 +177,7 @@ onMounted(() => {
         </form>
 
         <h5 class="section-label">Your Messages</h5>
+        <p v-if="error" class="error" role="alert">{{ error }}</p>
         <p v-if="loading" class="empty">Loading…</p>
         <ul v-else class="promo-list list-group">
             <li v-if="promos.length === 0" class="list-group-item empty">
@@ -324,5 +337,8 @@ form {
 }
 .form-group {
     margin-bottom: 0.5rem;
+}
+.error {
+    color: #e5484d;
 }
 </style>

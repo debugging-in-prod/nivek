@@ -1,23 +1,32 @@
 <script setup lang="ts">
 import { API_ROUTES } from '~/utils/constants'
+import { errorMessage } from '~/utils/errorMessage'
 import type { AutoShoutChatter } from '~/types/autoshout'
 
 const autoShoutChatters = ref<AutoShoutChatter[]>([])
 const chattername = ref('')
+const loading = ref(true)
+const error = ref<string | null>(null)
 
 // Track which chatter is awaiting delete confirmation.
 const confirmingDelete = reactive<Record<number, boolean>>({})
 
 async function getChatters() {
+    loading.value = true
+    error.value = null
     try {
         autoShoutChatters.value = await api<AutoShoutChatter[]>(API_ROUTES.Secure.GetAutoShoutChatters)
         autoShoutChatters.value.forEach((c) => (confirmingDelete[c.id] = false))
     } catch (err: unknown) {
         console.error('error fetching auto shout chatters: ', err)
+        error.value = errorMessage(err, "Couldn't load your AutoShout chatters.")
+    } finally {
+        loading.value = false
     }
 }
 
 async function addNewChatter() {
+    error.value = null
     try {
         await api(API_ROUTES.Secure.PostCreateAutoShoutChatter, {
             method: 'POST',
@@ -27,10 +36,12 @@ async function addNewChatter() {
         chattername.value = ''
     } catch (err: unknown) {
         console.error('error creating auto shout chatter: ', err)
+        error.value = errorMessage(err, "Couldn't add the chatter.")
     }
 }
 
 async function removeChatter(id: number) {
+    error.value = null
     try {
         await api(API_ROUTES.Secure.DeleteAutoShoutChatter(id), {
             method: 'DELETE',
@@ -38,6 +49,7 @@ async function removeChatter(id: number) {
         await getChatters()
     } catch (err: unknown) {
         console.error('error deleting auto shout chatter: ', err)
+        error.value = errorMessage(err, "Couldn't remove the chatter.")
     }
 }
 
@@ -64,7 +76,9 @@ onMounted(() => {
             </div>
             <button type="submit" class="btn btn-primary mt-2">Add Chatter</button>
         </form>
-        <ul class="auto-shout-list list-group">
+        <p v-if="error" class="error" role="alert">{{ error }}</p>
+        <p v-if="loading">Loading…</p>
+        <ul v-else class="auto-shout-list list-group">
             <li v-for="chatter in autoShoutChatters"
                 :key="chatter.id"
                 class="list-group-item d-flex justify-content-between align-items-start"
@@ -130,5 +144,8 @@ input.form-control::placeholder {
 form {
     border-top: 2px solid gray;
     border-bottom: 2px solid gray;
+}
+.error {
+    color: #e5484d;
 }
 </style>
