@@ -120,7 +120,7 @@ func (s *nivekServiceImpl) Run(logic ...func(context.Context) error) error {
 		if !s.serviceConfig.SkipRegisteringShutdownHandlers {
 			s.RegisterShutdownHandler(func(_ context.Context) error {
 				if err := s.postgresManager.Close(); err != nil {
-					return fmt.Errorf("failed to disconnect from postgres: %s", err)
+					return fmt.Errorf("failed to disconnect from postgres: %w", err)
 				}
 				return nil
 			})
