@@ -36,6 +36,7 @@ func main() {
 	clientID := getEnv("TWITCH_CLIENT_ID", "")
 	clientSecret := getEnv("TWITCH_CLIENT_SECRET", "")
 	refreshToken := getEnv("TWITCH_BOT_REFRESH", "")
+	eventSubSecret := getEnv("TWITCH_EVENTSUB_SECRET", "")
 
 	// Fail soft if core-api is down at boot: retry with bounded backoff, then
 	// start with only the permanent home channels and let the bot keep
@@ -54,6 +55,13 @@ func main() {
 		ExecutorWSURL:   getEnv("EXECUTOR_WS_URL", ""),
 		OverseerHmacKey: getEnv("OVERSEER_HMAC_KEY", ""),
 		NoReplyLogins:   twitchbot.ParseNoReplyLogins(os.Getenv("TWITCH_BOT_NO_REPLY_LOGINS")),
+
+		// All optional; empty keeps each feature off / on its default exactly
+		// as when the libraries read these themselves (R5.1).
+		DeepLAPIKey:          getEnv("DEEPL_API_KEY", ""),
+		DiscordWebhookURL:    getEnv("TWITCH_BOT_DISCORD_WEBHOOK", ""),
+		WebhookListenAddress: getEnv("WEBHOOK_LISTEN_ADDRESS", ""),
+		EventSubSecret:       eventSubSecret,
 	}
 	log.Printf("Ignoring chat from %d no-reply logins (built-in bot accounts + TWITCH_BOT_NO_REPLY_LOGINS %v + the bot's own login)",
 		twitchbot.NoReplyLoginCount(config.NoReplyLogins, config.BotUsername), config.NoReplyLogins)
@@ -88,7 +96,7 @@ func main() {
 	twitchClient, err := twitcheventsub.NewClient(twitcheventsub.Config{
 		ClientID:       clientID,
 		ClientSecret:   clientSecret,
-		EventSubSecret: getEnv("TWITCH_EVENTSUB_SECRET", ""),
+		EventSubSecret: eventSubSecret,
 	})
 
 	bot, err := twitchbot.NewBot(coreAPI, twitchClient, config)

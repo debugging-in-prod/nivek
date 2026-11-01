@@ -7,7 +7,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -69,13 +68,9 @@ type SubscriptionResponse struct {
 // It returns once the server goroutine is launched so bot startup is not
 // blocked; the server runs for the lifetime of the process.
 func NewWebhookListener(bot *Bot) {
-	addr := os.Getenv("WEBHOOK_LISTEN_ADDRESS")
-	explicit := addr != ""
-	if !explicit {
-		addr = defaultWebhookListenAddress
-	}
+	addr, explicit := webhookListenAddress(bot.config)
 
-	if os.Getenv("TWITCH_EVENTSUB_SECRET") == "" {
+	if bot.config.EventSubSecret == "" {
 		log.Println("warning: TWITCH_EVENTSUB_SECRET is not set; eventsub signature verification will reject every request")
 	}
 
@@ -114,6 +109,16 @@ func NewWebhookListener(bot *Bot) {
 	}()
 
 	log.Printf("eventsub webhook listener started on %s%s", ln.Addr(), api.TwitchWebhookSubscriptionRequest)
+}
+
+// webhookListenAddress returns the address the EventSub listener binds and
+// whether it was set explicitly. An empty Config.WebhookListenAddress means the
+// default bridge address, which may fall back (see listenWebhook).
+func webhookListenAddress(cfg Config) (addr string, explicit bool) {
+	if cfg.WebhookListenAddress != "" {
+		return cfg.WebhookListenAddress, true
+	}
+	return defaultWebhookListenAddress, false
 }
 
 // listenWebhook binds addr. When allowFallback is set and addr cannot be bound
@@ -195,9 +200,9 @@ func newTwitchEventSubEndpoint(bot *Bot) echo.HandlerFunc {
 
 func newTwitchEventSubEndpointWithDispatcher(bot *Bot, chat *chatDispatcher) echo.HandlerFunc {
 	seenIDs := newMessageIDCache(eventSubMessageIDCacheSize)
+	secret := bot.config.EventSubSecret
 
 	return func(c echo.Context) error {
-		secret := os.Getenv("TWITCH_EVENTSUB_SECRET")
 
 		body, err := io.ReadAll(c.Request().Body)
 		if err != nil {
@@ -330,7 +335,7 @@ func handleGoLive(bot *Bot, notification *EventSubSubscriptionResponse) {
 	// reset every chatter's per-stream !dad allotment.
 	bot.startDadStream(event.BroadcasterUserLogin, event.StartedAt)
 	// Announce the go-live in Discord (no-op if DISCORD_WEBHOOK_URL is unset).
-	go notifyDiscordGoLive(event.BroadcasterUserName, event.BroadcasterUserLogin)
+	go notifyDiscordGoLive(bot.config.DiscordWebhookURL, event.BroadcasterUserName, event.BroadcasterUserLogin)
 	log.Printf("[WEBHOOK] %s is now live!", event.BroadcasterUserLogin)
 }
 

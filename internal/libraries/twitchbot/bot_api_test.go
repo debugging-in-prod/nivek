@@ -18,6 +18,11 @@ import (
 
 const testEventSubSecret = "test-eventsub-secret"
 
+// eventSubTestBot is a zero Bot except for the EventSub secret.
+func eventSubTestBot() *Bot {
+	return &Bot{config: Config{EventSubSecret: testEventSubSecret}}
+}
+
 func signedEventSubRequest(msgType, id string, ts time.Time, body string) *http.Request {
 	tsStr := ts.UTC().Format(time.RFC3339Nano)
 	mac := hmac.New(sha256.New, []byte(testEventSubSecret))
@@ -44,8 +49,7 @@ func serveEventSub(t *testing.T, h echo.HandlerFunc, req *http.Request) *httptes
 const unknownNotification = `{"subscription":{"id":"s1","type":"test.unknown"},"event":{}}`
 
 func TestEventSubVerificationChallengeAccepted(t *testing.T) {
-	t.Setenv("TWITCH_EVENTSUB_SECRET", testEventSubSecret)
-	h := newTwitchEventSubEndpoint(&Bot{})
+	h := newTwitchEventSubEndpoint(eventSubTestBot())
 	body := `{"challenge":"pogchamp-kappa-360","subscription":{"id":"s1","type":"stream.online"}}`
 
 	for i := 0; i < 2; i++ { // a retried handshake must still be answered
@@ -57,8 +61,7 @@ func TestEventSubVerificationChallengeAccepted(t *testing.T) {
 }
 
 func TestEventSubFreshNotificationAccepted(t *testing.T) {
-	t.Setenv("TWITCH_EVENTSUB_SECRET", testEventSubSecret)
-	h := newTwitchEventSubEndpoint(&Bot{})
+	h := newTwitchEventSubEndpoint(eventSubTestBot())
 	rec := serveEventSub(t, h, signedEventSubRequest(MESSAGE_TYPE_NOTIFICATION, "n-1", time.Now(), unknownNotification))
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("got %d, want 204", rec.Code)
@@ -66,8 +69,7 @@ func TestEventSubFreshNotificationAccepted(t *testing.T) {
 }
 
 func TestEventSubStaleTimestampRejected(t *testing.T) {
-	t.Setenv("TWITCH_EVENTSUB_SECRET", testEventSubSecret)
-	h := newTwitchEventSubEndpoint(&Bot{})
+	h := newTwitchEventSubEndpoint(eventSubTestBot())
 	for name, ts := range map[string]time.Time{
 		"old":    time.Now().Add(-11 * time.Minute),
 		"future": time.Now().Add(11 * time.Minute),
@@ -80,8 +82,7 @@ func TestEventSubStaleTimestampRejected(t *testing.T) {
 }
 
 func TestEventSubDuplicateMessageIDAcknowledged(t *testing.T) {
-	t.Setenv("TWITCH_EVENTSUB_SECRET", testEventSubSecret)
-	h := newTwitchEventSubEndpoint(&Bot{})
+	h := newTwitchEventSubEndpoint(eventSubTestBot())
 
 	// Revocation of a non-chat-read type touches nothing on the bot.
 	revocation := `{"subscription":{"id":"s1","type":"stream.online","status":"authorization_revoked"}}`
@@ -111,8 +112,7 @@ func handlerSeen(t *testing.T, h echo.HandlerFunc, id string) bool {
 }
 
 func TestEventSubUnknownTypeStillRejected(t *testing.T) {
-	t.Setenv("TWITCH_EVENTSUB_SECRET", testEventSubSecret)
-	h := newTwitchEventSubEndpoint(&Bot{})
+	h := newTwitchEventSubEndpoint(eventSubTestBot())
 	if handlerSeen(t, h, "fresh-id") {
 		t.Fatal("fresh id with unknown message type should be 400, not deduped")
 	}

@@ -150,7 +150,6 @@ func TestChatDispatcherRecoversFromPanic(t *testing.T) {
 
 // The endpoint ACKs a chat notification without waiting on the handler.
 func TestEventSubChatMessageAckedBeforeHandling(t *testing.T) {
-	t.Setenv("TWITCH_EVENTSUB_SECRET", testEventSubSecret)
 	release := make(chan struct{})
 	handled := make(chan struct{})
 	var once sync.Once
@@ -160,7 +159,7 @@ func TestEventSubChatMessageAckedBeforeHandling(t *testing.T) {
 		<-release
 		once.Do(func() { close(handled) })
 	})
-	h := newTwitchEventSubEndpointWithDispatcher(&Bot{}, chat)
+	h := newTwitchEventSubEndpointWithDispatcher(eventSubTestBot(), chat)
 
 	body := `{"subscription":{"id":"s1","type":"channel.chat.message","condition":{"broadcaster_user_id":"42"}},"event":{}}`
 	rec := serveEventSub(t, h, signedEventSubRequest(MESSAGE_TYPE_NOTIFICATION, "chat-1", time.Now(), body))

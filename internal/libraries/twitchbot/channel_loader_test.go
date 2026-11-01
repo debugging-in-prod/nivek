@@ -371,7 +371,6 @@ func TestRetryChannelsInBackgroundJoinsWithoutChat(t *testing.T) {
 // cmd/twitch-bot/main.go does.
 func bootBot(t *testing.T, core *fakeCoreAPI, irc *fakeIRC, grantedID string) (*Bot, *countingTransport) {
 	t.Helper()
-	t.Setenv("WEBHOOK_LISTEN_ADDRESS", "127.0.0.1:0")
 	channels, ok := LoadChannelsAtBoot(core.client)
 	b, err := NewBot(core.client, &fakeEventSub{grantedID: grantedID}, Config{
 		BotUsername:     "peanutbudderbot",
@@ -380,6 +379,8 @@ func bootBot(t *testing.T, core *fakeCoreAPI, irc *fakeIRC, grantedID string) (*
 		ChannelsPending: !ok,
 		StoragePath:     filepath.Join(t.TempDir(), "counters.json"),
 		Timezone:        "UTC",
+
+		WebhookListenAddress: "127.0.0.1:0",
 	})
 	if err != nil {
 		t.Fatalf("NewBot: %s", err)
