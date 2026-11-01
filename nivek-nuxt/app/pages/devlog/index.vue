@@ -3,11 +3,6 @@ import { marked } from 'marked'
 import updatesMd from '~/content/bot-updates.md?raw'
 
 const updatesHtml = computed(() => marked.parse(updatesMd) as string)
-
-onMounted(() => {
-    // console.log('hi mom')
-})
-
 </script>
 
 <template>

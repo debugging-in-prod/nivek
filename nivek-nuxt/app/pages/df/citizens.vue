@@ -37,7 +37,7 @@ function stressClass(s: number): string {
     return 'stress-bad'                             // Stressed, Miserable (0–1)
 }
 
-// In-game elevation = raw embark-local z + snapshot offset. See DF.vue's
+// In-game elevation = raw embark-local z + snapshot offset. See pages/df/index.vue's
 // toElev for the rationale; mirrored here so the position column reads in
 // the same units as the in-game UI.
 function toElev(z: number): number | string {

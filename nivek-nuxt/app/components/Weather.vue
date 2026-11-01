@@ -7,8 +7,9 @@ const weatherReport = ref<WeatherReport>({})
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-// External IP lookup uses plain $fetch (no JWT). Auth-attaching api()
-// would leak the Bearer token to a third-party service.
+// External IP lookup uses plain $fetch: the shared api() client targets
+// core-api (session cookie + CSRF header) and must not be pointed at a
+// third-party service.
 async function getWeather() {
     loading.value = true
     error.value = null

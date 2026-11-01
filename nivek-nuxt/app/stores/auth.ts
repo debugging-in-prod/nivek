@@ -38,6 +38,10 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  function setBotOptIn(optedIn: boolean): void {
+    if (user.value) user.value.bot_opt_in = optedIn
+  }
+
   async function logout(): Promise<void> {
     try {
       await api(API_ROUTES.Secure.Logout, { method: 'POST' })
@@ -54,6 +58,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     fetchUserProfile,
     initAuth,
+    setBotOptIn,
     logout,
   }
 })

@@ -23,7 +23,7 @@ async function toggle(event: Event) {
       method: 'PUT',
       body: { opted_in: next },
     })
-    auth.user.bot_opt_in = res.opted_in
+    auth.setBotOptIn(res.opted_in)
   } catch (err: unknown) {
     console.error('error updating bot opt-in: ', err)
     error.value = 'Could not update the bot setting. Please try again.'
