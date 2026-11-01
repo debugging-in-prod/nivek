@@ -66,7 +66,7 @@ func (s *nivekAutoShoutServiceImpl) GetAllAutoShoutChatters() ([]ShoutChatter, e
 	var chatters []ShoutChatter
 
 	if err := s.shoutTable.Find().All(&chatters); err != nil {
-		return nil, fmt.Errorf("[AutoShout] error fetching all auto shout chatters %s", err.Error())
+		return nil, fmt.Errorf("[AutoShout] error fetching all auto shout chatters %w", err)
 	}
 
 	return chatters, nil
@@ -76,7 +76,7 @@ func (s *nivekAutoShoutServiceImpl) GetAutoShoutChatters(broadcasterId int) ([]S
 	var chatters []ShoutChatter
 
 	if err := s.shoutTable.Find(db.Cond{"twitch_id": broadcasterId}).All(&chatters); err != nil {
-		return nil, fmt.Errorf("[AutoShout] error fetching auto shout chatters for channel %d - %s", broadcasterId, err.Error())
+		return nil, fmt.Errorf("[AutoShout] error fetching auto shout chatters for channel %d - %w", broadcasterId, err)
 	}
 
 	return chatters, nil
@@ -95,7 +95,7 @@ func (s *nivekAutoShoutServiceImpl) GetAutoShoutChattersForBot(broadcasterId int
 	`
 	rows, err := s.shoutTable.Session().SQL().Query(query, broadcasterId)
 	if err != nil {
-		return []string{}, fmt.Errorf("[AutoShout] error fetching chatters for channel %d - %s", broadcasterId, err.Error())
+		return []string{}, fmt.Errorf("[AutoShout] error fetching chatters for channel %d - %w", broadcasterId, err)
 	}
 	defer rows.Close()
 
@@ -103,12 +103,12 @@ func (s *nivekAutoShoutServiceImpl) GetAutoShoutChattersForBot(broadcasterId int
 	for rows.Next() {
 		var name string
 		if err := rows.Scan(&name); err != nil {
-			return []string{}, fmt.Errorf("[AutoShout] error scanning chatter for channel %d - %s", broadcasterId, err.Error())
+			return []string{}, fmt.Errorf("[AutoShout] error scanning chatter for channel %d - %w", broadcasterId, err)
 		}
 		chatters = append(chatters, name)
 	}
 	if err := rows.Err(); err != nil {
-		return []string{}, fmt.Errorf("[AutoShout] error iterating chatters for channel %d - %s", broadcasterId, err.Error())
+		return []string{}, fmt.Errorf("[AutoShout] error iterating chatters for channel %d - %w", broadcasterId, err)
 	}
 
 	return chatters, nil
@@ -121,8 +121,8 @@ func (s *nivekAutoShoutServiceImpl) GetAutoShoutChatter(broadcasterId int, chatt
 		"twitch_id":   broadcasterId,
 		"chattername": chattername,
 	}).One(&chatter); err != nil {
-		return nil, fmt.Errorf("[AutoShout] error fetching auto shout chatter for channel %d chatter %s - %s",
-			broadcasterId, chattername, err.Error(),
+		return nil, fmt.Errorf("[AutoShout] error fetching auto shout chatter for channel %d chatter %s - %w",
+			broadcasterId, chattername, err,
 		)
 	}
 
@@ -133,10 +133,10 @@ func (s *nivekAutoShoutServiceImpl) CreateAutoShoutChatter(broadcasterId int, ch
 	result, err := s.shoutTable.Insert(db.Cond{"twitch_id": broadcasterId, "chattername": chattername})
 	if err != nil {
 		return 0, fmt.Errorf(
-			"[AutoShout] error creating auto shout chatter record for channel %d chatter %s - %s",
+			"[AutoShout] error creating auto shout chatter record for channel %d chatter %s - %w",
 			broadcasterId,
 			chattername,
-			err.Error(),
+			err,
 		)
 	}
 
@@ -150,7 +150,7 @@ func (s *nivekAutoShoutServiceImpl) CreateAutoShoutChatter(broadcasterId int, ch
 
 func (s *nivekAutoShoutServiceImpl) UpdateAutoShoutChatter(chatter *ShoutChatter) error {
 	if err := s.shoutTable.UpdateReturning(chatter); err != nil {
-		return fmt.Errorf("[AutoShout] error updating shout chatter record for channel %d chatter %s - %s", chatter.TwitchID, chatter.ChatterName, err.Error())
+		return fmt.Errorf("[AutoShout] error updating shout chatter record for channel %d chatter %s - %w", chatter.TwitchID, chatter.ChatterName, err)
 	}
 	return nil
 }
@@ -158,10 +158,10 @@ func (s *nivekAutoShoutServiceImpl) UpdateAutoShoutChatter(chatter *ShoutChatter
 func (s *nivekAutoShoutServiceImpl) DeleteAutoShoutChatter(broadcasterId int, id int) error {
 	if err := s.shoutTable.Find(db.Cond{"twitch_id": broadcasterId, "id": id}).Delete(); err != nil {
 		return fmt.Errorf(
-			"[AutoShout] error deleting auto shout chatter record for channel %d chatter id %d - %s",
+			"[AutoShout] error deleting auto shout chatter record for channel %d chatter id %d - %w",
 			broadcasterId,
 			id,
-			err.Error(),
+			err,
 		)
 	}
 
@@ -186,7 +186,7 @@ func (s *nivekAutoShoutServiceImpl) IncrementShoutCount(broadcasterId int, chatt
 		  AND u.twitch_id = $1::text
 	`
 	if _, err := s.shoutTable.Session().SQL().Exec(query, broadcasterId, chattername); err != nil {
-		return fmt.Errorf("[AutoShout] error incrementing shout count for channel %d chatter %s - %s", broadcasterId, chattername, err.Error())
+		return fmt.Errorf("[AutoShout] error incrementing shout count for channel %d chatter %s - %w", broadcasterId, chattername, err)
 	}
 
 	return nil
