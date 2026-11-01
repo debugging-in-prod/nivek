@@ -22,10 +22,6 @@ const (
 	PostCreateAutoShoutChatter = "/auto-shout"
 	PutUpdateAutoShoutChatter  = "/auto-shout/:id"
 	DeleteAutoShoutChatter     = "/auto-shout/:id"
-	// Deprecated: POST update kept for one deploy so an already-loaded
-	// dashboard keeps working; use PutUpdateAutoShoutChatter. Removed in a
-	// follow-up PR (R3.5).
-	PostUpdateAutoShoutChatter = "/auto-shout/:id"
 
 	GetDadResponses       = "/dad"
 	PostCreateDadResponse = "/dad"
@@ -38,10 +34,6 @@ const (
 	PostCreatePromo = "/promo"
 	PutUpdatePromo  = "/promo/:id"
 	DeletePromo     = "/promo/:id"
-	// Deprecated: POST update kept for one deploy so an already-loaded
-	// dashboard keeps working; use PutUpdatePromo. Removed in a follow-up PR
-	// (R3.5).
-	PostUpdatePromo = "/promo/:id"
 
 	// Dashboard toggle: the logged-in broadcaster opts the bot in/out of their
 	// own chat. Current state is read from GetUserProfile (bot_opt_in).
