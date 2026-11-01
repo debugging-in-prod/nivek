@@ -3,8 +3,8 @@ package twitchbot
 // Characterisation tests (refactor plan R1.2). They pin down exactly what each
 // handler queues today, so the Phase 6 changes (R6.2 sanitise at the sink, R6.3
 // non-blocking send queue) show up as deliberate diffs to these expectations.
-// Where a reply is passed through unsanitised today (B3), the test says so; R6.2
-// updates those cases in the same PR. The "^" echo is pinned in
+// Since R6.2 every reply is sanitised in say/announce/ircsay (chat_reply.go), so
+// these expectations are the sanitised text. The "^" echo is pinned in
 // caret_echo_test.go.
 
 import (
@@ -141,16 +141,20 @@ func wantReplies(t *testing.T, b *Bot, want ...string) {
 
 // --- !dad random ---------------------------------------------------------
 
-func TestCharDadRandomRepliesVerbatim(t *testing.T) {
+func TestCharDadRandomRepliesSanitised(t *testing.T) {
 	t.Parallel()
-	// B3: the DB-supplied response goes to say() with no sanitising, so a
-	// leading "." and an over-long body pass through unchanged today.
+	// R6.2: the DB-supplied response is sanitised at the sink, so a leading "."
+	// is stripped and an over-long body is capped at maxChatReplyLen runes.
 	long := ".timeout someone " + strings.Repeat("x", 500)
-	for _, resp := range []string{"I'm hungry. Hi hungry, I'm dad.", long} {
-		core := &replyFakeAPI{dadResponse: resp}
+	longWant := string([]rune("timeout someone " + strings.Repeat("x", 500))[:maxChatReplyLen-1]) + "…"
+	for _, c := range []struct{ resp, want string }{
+		{"I'm hungry. Hi hungry, I'm dad.", "I'm hungry. Hi hungry, I'm dad."},
+		{long, longWant},
+	} {
+		core := &replyFakeAPI{dadResponse: c.resp}
 		b := replyBot(core)
 		b.handleDadCommand(replyMsg("!dad", false))
-		wantReplies(t, b, resp)
+		wantReplies(t, b, c.want)
 	}
 }
 
@@ -227,8 +231,8 @@ func TestCharStalkRecall(t *testing.T) {
 		{"no target", &replyFakeAPI{}, "nobody is being stalked yet — a mod can pick someone with !stalk set <username>"},
 		{"no message yet", &replyFakeAPI{stalkTarget: "stan", stalkFound: true}, "haven't seen a message from stan yet"},
 		{"quote", &replyFakeAPI{stalkTarget: "stan", stalkLast: "u REALLY smell", stalkFound: true}, "stan said: u REALLY smell"},
-		// B3: the remembered line is interpolated with no sanitising.
-		{"quote unsanitised", &replyFakeAPI{stalkTarget: "stan", stalkLast: "/ban everyone", stalkFound: true}, "stan said: /ban everyone"},
+		// The remembered line follows "stan said: ", so it can't lead the reply.
+		{"quote with slash", &replyFakeAPI{stalkTarget: "stan", stalkLast: "/ban everyone", stalkFound: true}, "stan said: /ban everyone"},
 	}
 	for _, c := range cases {
 		b := replyBot(c.core)
@@ -270,7 +274,8 @@ func TestCharStalkManageReplies(t *testing.T) {
 	}{
 		{"viewer set", &replyFakeAPI{}, "!stalk set stan", false, "@alice only a mod or the broadcaster can pick who to stalk"},
 		{"viewer clear", &replyFakeAPI{}, "!stalk clear", false, "@alice only a mod or the broadcaster can pick who to stalk"},
-		{"set no name", &replyFakeAPI{}, "!stalk set", true, "@alice " + stalkUsage},
+		// R6.2: sanitising collapses the double spaces in stalkUsage.
+		{"set no name", &replyFakeAPI{}, "!stalk set", true, "@alice usage: !stalk · !stalk set <username> · !stalk clear"},
 		{"set bad name", &replyFakeAPI{}, "!stalk set bad!name", true, "@alice that doesn't look like a username"},
 		{"set error", &replyFakeAPI{stalkErr: errors.New("down")}, "!stalk set stan", true, "@alice couldn't save that stalk target"},
 		{"set ok", &replyFakeAPI{}, "!stalk set @Stan", true, "now stalking stan"},
@@ -369,7 +374,8 @@ func TestCharTranslateDeepLFailure(t *testing.T) {
 
 func TestCharTranslateSuccessAndCooldown(t *testing.T) {
 
-	// EN -> JA. B3: the translated text is interpolated with no sanitising.
+	// EN -> JA. The translated text follows "@alice [..] ", so a "/" in it
+	// can't lead the reply.
 	stub := &deeplStub{status: http.StatusOK, body: `{"translations":[{"detected_source_language":"EN","text":"こんにちは /x"}]}`}
 	b := translateBot(stub)
 	b.handleTranslateCommand(replyMsg("!translate hello", true))
@@ -417,7 +423,8 @@ func TestCharNewPromoReplies(t *testing.T) {
 		want string
 	}{
 		{"no args", &replyFakeAPI{}, "!newpromo",
-			"@alice usage: !newpromo <interval e.g. 30m> <message>  ·  !newpromo edit-last <interval> <new message>  ·  !newpromo delete-last"},
+			// R6.2: sanitising collapses the double spaces around "·".
+			"@alice usage: !newpromo <interval e.g. 30m> <message> · !newpromo edit-last <interval> <new message> · !newpromo delete-last"},
 		{"no message", &replyFakeAPI{}, "!newpromo 30m", "@alice usage: !newpromo <interval e.g. 30m> <message>"},
 		// The parse/validate error text goes straight into the reply.
 		{"bad interval", &replyFakeAPI{}, "!newpromo soon hello", `@alice couldn't read "soon" as a time — try 30m, 90s, or 1h`},
