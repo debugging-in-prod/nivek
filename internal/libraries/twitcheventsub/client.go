@@ -453,9 +453,9 @@ func (c *clientImpl) fetchTwitchProfileByBroadcasterId(
 	u, err := url.Parse(TwitchUsersURL)
 	if err != nil {
 		return nil, fmt.Errorf(
-			"error parsing twitch-users-url %s - %s",
+			"error parsing twitch-users-url %s - %w",
 			TwitchUsersURL,
-			err.Error(),
+			err,
 		)
 	}
 
