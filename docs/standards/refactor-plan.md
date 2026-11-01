@@ -53,9 +53,11 @@ matter least. See the status table below for what has landed.
 **Deploy note.** While this plan was rolling out, a race between the two
 prod deploy workflows deleted `bin/twitch-bot` from the shared checkout and
 the bot crash-looped on restart. #249 fixed it: the binary now lives outside
-the checkout and both workflows share one concurrency group. Open issue #256
-tracks a remaining gap: when a pending "Prod Service Deployment" run is
-cancelled by that group, the installed binary can be left stale.
+the checkout and both workflows share one concurrency group. Issue #256
+tracked a remaining gap: when a pending "Prod Service Deployment" run was
+cancelled by that group, the installed binary could be left stale. Fixed by
+having `build.yml` (Deploy Production) also rebuild the binary for its own
+commit on every run.
 
 ---
 
