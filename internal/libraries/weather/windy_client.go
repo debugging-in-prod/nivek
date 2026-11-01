@@ -2,18 +2,18 @@ package weather
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"math"
 	"net/http"
-
-	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
+	"time"
 )
 
-type WindyResponseBody struct {
+type windyResponseBody struct {
 	Ts                  []int                  `json:"ts"`
-	Units               WindyResponseBodyUnits `json:"units"`
+	Units               windyResponseBodyUnits `json:"units"`
 	TempSurface         []float64              `json:"temp-surface"`
 	Past3hPrecipSurface []float64              `json:"past3hprecip-surface"`
 	WindUSurface        []float64              `json:"wind_u-surface"`
@@ -24,7 +24,7 @@ type WindyResponseBody struct {
 	HCloudsSurface      []float64              `json:"hclouds-surface"`
 }
 
-type WindyResponseBodyUnits struct {
+type windyResponseBodyUnits struct {
 	TempSurface         string `json:"temp-surface"`
 	Past3hPrecipSurface string `json:"past3hprecip-surface"`
 	WindUSurface        string `json:"wind_u-surface"`
@@ -35,8 +35,8 @@ type WindyResponseBodyUnits struct {
 	HCloudsSurface      string `json:"hclouds-surface"`
 }
 
-// WindyWeatherReportRequest based on docs: https://api.windy.com/point-forecast/docs
-type WindyWeatherReportRequest struct {
+// windyWeatherReportRequest based on docs: https://api.windy.com/point-forecast/docs
+type windyWeatherReportRequest struct {
 	Lat        float64  `json:"lat"`
 	Lon        float64  `json:"lon"`
 	Model      string   `json:"model"`
@@ -49,33 +49,40 @@ type WindyWeatherReportRequest struct {
 // httptest server.
 var GetWindyWeatherReportUrl = "https://api.windy.com/api/point-forecast/v2"
 
+// windyTimeout bounds every Windy request so a slow upstream can't hang the
+// weather endpoint.
+const windyTimeout = 10 * time.Second
+
+// WindyClient is the only code that knows the Windy point-forecast API. It
+// implements forecastProvider.
 type WindyClient struct {
-	nivek      nivek.NivekService
+	apiKey     string
 	httpClient *http.Client
 }
 
-func NewWindyClient(nivek nivek.NivekService) *WindyClient {
-	httpClient := &http.Client{}
-
+// NewWindyClient builds a Windy client with the API key injected and a
+// 10-second HTTP timeout.
+func NewWindyClient(apiKey string) *WindyClient {
 	return &WindyClient{
-		nivek,
-		httpClient,
+		apiKey:     apiKey,
+		httpClient: &http.Client{Timeout: windyTimeout},
 	}
 }
 
-func (c WindyClient) GetTemp(lat, lon float64) (string, error) {
-	weatherReportRequestBody := c.buildRequestBody(lat, lon)
-	data, err := c.fetchData(weatherReportRequestBody)
+// Forecast fetches the point forecast for lat/lon and returns the average
+// surface temperature in °F.
+func (c *WindyClient) Forecast(ctx context.Context, lat, lon float64) (Forecast, error) {
+	data, err := c.fetchData(ctx, c.buildRequestBody(lat, lon))
 	if err != nil {
-		return "", err
+		return Forecast{}, err
 	}
 
-	return c.formatTemp(data.TempSurface), nil
+	return Forecast{TempF: kelvinAvgToF(data.TempSurface)}, nil
 }
 
 // buildRequestBody - handles building request body for weather api request
-func (c WindyClient) buildRequestBody(lat, lon float64) WindyWeatherReportRequest {
-	return WindyWeatherReportRequest{
+func (c *WindyClient) buildRequestBody(lat, lon float64) windyWeatherReportRequest {
+	return windyWeatherReportRequest{
 		Lat:   lat,
 		Lon:   lon,
 		Model: "gfs",
@@ -89,30 +96,37 @@ func (c WindyClient) buildRequestBody(lat, lon float64) WindyWeatherReportReques
 			"hclouds",
 		},
 		Levels: []string{"surface"},
-		Key:    c.nivek.CommonConfig().Windy.Token,
+		Key:    c.apiKey,
 	}
 }
 
-func (c WindyClient) fetchData(body WindyWeatherReportRequest) (*WindyResponseBody, error) {
+func (c *WindyClient) fetchData(ctx context.Context, body windyWeatherReportRequest) (*windyResponseBody, error) {
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
-		return nil, fmt.Errorf("error marshalling weather report request in GetTemp for (%s): %s",
+		return nil, fmt.Errorf("error marshalling weather report request in Forecast for (%s): %s",
 			string(jsonBody),
 			err.Error(),
 		)
 	}
 
-	windyResponse, err := c.httpClient.Post(
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
 		GetWindyWeatherReportUrl,
-		"application/json",
 		bytes.NewBuffer(jsonBody),
 	)
+	if err != nil {
+		return nil, fmt.Errorf("error building windy request: %s", err.Error())
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	windyResponse, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching report from windy: %s", err.Error())
 	}
 	defer windyResponse.Body.Close()
 
-	windyResponseBody, err := io.ReadAll(windyResponse.Body)
+	rawBody, err := io.ReadAll(windyResponse.Body)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"error reading report from windy: %s",
@@ -120,8 +134,8 @@ func (c WindyClient) fetchData(body WindyWeatherReportRequest) (*WindyResponseBo
 		)
 	}
 
-	var response WindyResponseBody
-	if err := json.Unmarshal(windyResponseBody, &response); err != nil {
+	var response windyResponseBody
+	if err := json.Unmarshal(rawBody, &response); err != nil {
 		return nil, fmt.Errorf(
 			"error unmarshalling report from windy: %s",
 			err.Error(),
@@ -131,12 +145,12 @@ func (c WindyClient) fetchData(body WindyWeatherReportRequest) (*WindyResponseBo
 	return &response, nil
 }
 
-// formatTemp - Windy returns "surface temp" as a []float64 where each value is in Kelvin
-// this method finds an average value and converts it to F
-// then finally formats it nicely as a string with the unit provided
-func (c WindyClient) formatTemp(values []float64) string {
+// kelvinAvgToF - Windy returns "surface temp" as a []float64 where each value
+// is in Kelvin. This averages the values, converts to °F and rounds to the
+// nearest integer. An empty series yields 0.
+func kelvinAvgToF(values []float64) int {
 	if len(values) == 0 {
-		return "0°F"
+		return 0
 	}
 
 	var sum float64
@@ -145,10 +159,7 @@ func (c WindyClient) formatTemp(values []float64) string {
 	}
 
 	avgKelvin := sum / float64(len(values))
-
-	// Convert to Fahrenheit
 	avgFahrenheit := (avgKelvin-273.15)*9/5 + 32
 
-	// Round to nearest integer and convert to int64
-	return fmt.Sprintf("%d°F", int64(math.Round(avgFahrenheit)))
+	return int(math.Round(avgFahrenheit))
 }

@@ -1,6 +1,7 @@
 package weather
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strconv"
@@ -15,17 +16,23 @@ type NivekWeatherReport struct {
 	Temp string `json:"temp"`
 }
 
+// forecastProvider is what ReportService needs from a weather API.
+// WindyClient implements it; tests pass a fake.
+type forecastProvider interface {
+	Forecast(ctx context.Context, lat, lon float64) (Forecast, error)
+}
+
 type ReportService struct {
 	nivek.NivekService
-	infoClient  *ipinfo.Client
-	windyClient *WindyClient
+	infoClient *ipinfo.Client
+	forecaster forecastProvider
 }
 
 func NewWeatherReportService(nivek nivek.NivekService) *ReportService {
 	return &ReportService{
 		NivekService: nivek,
 		infoClient:   ipinfo.NewClient(nil, nil, nivek.CommonConfig().IPInfo.Token),
-		windyClient:  NewWindyClient(nivek),
+		forecaster:   NewWindyClient(nivek.CommonConfig().Windy.Token),
 	}
 }
 
@@ -38,14 +45,16 @@ func (s *ReportService) GetReport(ip string) (*NivekWeatherReport, error) {
 	}
 
 	lat, lon := s.getLatAndLon(info)
-	temp, err := s.windyClient.GetTemp(lat, lon)
+	// GetReport has no caller context yet; the client's HTTP timeout bounds
+	// the request.
+	forecast, err := s.forecaster.Forecast(context.Background(), lat, lon)
 	if err != nil {
 		return nil, err
 	}
 
 	nivekReport := NivekWeatherReport{
 		City: info.City,
-		Temp: temp,
+		Temp: fmt.Sprintf("%d°F", forecast.TempF),
 	}
 
 	return &nivekReport, nil
