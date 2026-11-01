@@ -275,14 +275,4 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 		}
 	}
 
-	// DF commands are suspended until further notice
-	// !DF takes arguments — handle separately from the exact-match commands below
-	// if msg == "!df" || strings.HasPrefix(msg, "!df ") {
-	// 	if message.Channel != botCreatorChannel {
-	// 		return
-	// 	}
-	// 	args := strings.TrimSpace(strings.TrimPrefix(msg, "!df"))
-	// 	b.handleDFCommand(message.Message, args, chattername, message.Channel)
-	// 	return
-	// }
 }
