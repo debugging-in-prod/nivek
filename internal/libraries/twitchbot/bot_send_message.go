@@ -221,20 +221,31 @@ func (b *Bot) senderLoop() {
 
 // say queues a chat message. The text is sanitized here (sanitizeChatReply),
 // so every reply is capped and can't start with '/' or '.'; a message that
-// sanitizes to empty is dropped, not queued.
+// sanitizes to empty is dropped, not queued. The enqueue never blocks: if
+// sayQueue is full the reply is dropped and logged, so a slow sender can't
+// stall the message handler.
 func (b *Bot) say(broadcasterId, message string) {
 	if message = sanitizeChatReply(message); message == "" {
 		return
 	}
-	b.sayQueue <- sayRequest{broadcasterId: broadcasterId, message: message}
+	select {
+	case b.sayQueue <- sayRequest{broadcasterId: broadcasterId, message: message}:
+	default:
+		log.Printf("[SAY] queue full, dropping reply to %s", broadcasterId)
+	}
 }
 
 // announce queues a Twitch chat announcement (Helix Send Chat Announcement).
 // Goes through the same sayQueue as say() so it keeps its place in order and
-// the inter-message spacing. Sanitized and empty-dropped like say().
+// the inter-message spacing. Sanitized, empty-dropped and non-blocking like
+// say().
 func (b *Bot) announce(broadcasterId, message string) {
 	if message = sanitizeChatReply(message); message == "" {
 		return
 	}
-	b.sayQueue <- sayRequest{broadcasterId: broadcasterId, message: message, announce: true}
+	select {
+	case b.sayQueue <- sayRequest{broadcasterId: broadcasterId, message: message, announce: true}:
+	default:
+		log.Printf("[SAY] queue full, dropping reply to %s", broadcasterId)
+	}
 }

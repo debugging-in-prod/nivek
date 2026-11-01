@@ -487,12 +487,17 @@ func (b *Bot) ircsenderLoop() {
 	}
 }
 
-// ircsay queues an IRC chat message, sanitized and empty-dropped like say().
+// ircsay queues an IRC chat message, sanitized, empty-dropped and
+// non-blocking like say().
 func (b *Bot) ircsay(channel, message string) {
 	if message = sanitizeChatReply(message); message == "" {
 		return
 	}
-	b.ircSayQueue <- ircSayRequest{channel, message}
+	select {
+	case b.ircSayQueue <- ircSayRequest{channel, message}:
+	default:
+		log.Printf("[SAY] queue full, dropping reply to %s", channel)
+	}
 }
 
 // promoPollInterval is how often the scheduler re-reads the promo set from
