@@ -84,8 +84,8 @@ async function saveEdit(p: Promo) {
     if (!message) return
     const minutes = clampMinutes(editMinutes[p.id] ?? minutesOf(p.interval_seconds))
     try {
-        await api(API_ROUTES.Secure.PostUpdatePromo(p.id), {
-            method: 'POST',
+        await api(API_ROUTES.Secure.PutUpdatePromo(p.id), {
+            method: 'PUT',
             body: { message, interval_seconds: minutes * 60, enabled: p.enabled },
         })
         editing[p.id] = false
@@ -98,8 +98,8 @@ async function saveEdit(p: Promo) {
 // Flip enabled without entering edit mode; sends the row's current message/interval.
 async function toggleEnabled(p: Promo) {
     try {
-        await api(API_ROUTES.Secure.PostUpdatePromo(p.id), {
-            method: 'POST',
+        await api(API_ROUTES.Secure.PutUpdatePromo(p.id), {
+            method: 'PUT',
             body: {
                 message: p.message,
                 interval_seconds: p.interval_seconds,

@@ -20,20 +20,28 @@ const (
 
 	GetAutoShoutChatters       = "/auto-shout"
 	PostCreateAutoShoutChatter = "/auto-shout"
-	PostUpdateAutoShoutChatter = "/auto-shout/:id"
+	PutUpdateAutoShoutChatter  = "/auto-shout/:id"
 	DeleteAutoShoutChatter     = "/auto-shout/:id"
+	// Deprecated: POST update kept for one deploy so an already-loaded
+	// dashboard keeps working; use PutUpdateAutoShoutChatter. Removed in a
+	// follow-up PR (R3.5).
+	PostUpdateAutoShoutChatter = "/auto-shout/:id"
 
 	GetDadResponses       = "/dad"
 	PostCreateDadResponse = "/dad"
 	DeleteDadResponse     = "/dad/:id"
 
 	// Authed (dashboard) recurring-message CRUD. GET/POST share "/promo" and
-	// POST/DELETE share "/promo/:id" — distinct HTTP methods, so Echo does not
+	// PUT/DELETE share "/promo/:id" — distinct HTTP methods, so Echo does not
 	// treat them as duplicate routes.
 	GetPromos       = "/promo"
 	PostCreatePromo = "/promo"
-	PostUpdatePromo = "/promo/:id"
+	PutUpdatePromo  = "/promo/:id"
 	DeletePromo     = "/promo/:id"
+	// Deprecated: POST update kept for one deploy so an already-loaded
+	// dashboard keeps working; use PutUpdatePromo. Removed in a follow-up PR
+	// (R3.5).
+	PostUpdatePromo = "/promo/:id"
 
 	// Dashboard toggle: the logged-in broadcaster opts the bot in/out of their
 	// own chat. Current state is read from GetUserProfile (bot_opt_in).

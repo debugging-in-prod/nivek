@@ -62,7 +62,8 @@ func RegisterRoutes(svc nivek.NivekService, e *echo.Group) {
 
 	e.GET(apilib.GetAutoShoutChatters, autoshout.NewGetAutoShoutChattersEndpoint(svc), authenticated)
 	e.POST(apilib.PostCreateAutoShoutChatter, autoshout.NewCreateAutoShoutChatterEndpoint(svc), authenticated)
-	e.POST(apilib.PostUpdateAutoShoutChatter, autoshout.NewUpdateAutoShoutChatterEndpoint(svc), authenticated)
+	e.PUT(apilib.PutUpdateAutoShoutChatter, autoshout.NewUpdateAutoShoutChatterEndpoint(svc), authenticated)
+	e.POST(apilib.PostUpdateAutoShoutChatter, autoshout.NewUpdateAutoShoutChatterEndpoint(svc), authenticated) // deprecated, R3.5
 	e.DELETE(apilib.DeleteAutoShoutChatter, autoshout.NewDeleteAutoShoutChatterEndpoint(svc), authenticated)
 
 	e.GET(apilib.GetDadResponses, dad.NewGetDadResponsesEndpoint(svc), authenticated)
@@ -71,7 +72,8 @@ func RegisterRoutes(svc nivek.NivekService, e *echo.Group) {
 
 	e.GET(apilib.GetPromos, promoEp.NewGetPromosEndpoint(svc), authenticated)
 	e.POST(apilib.PostCreatePromo, promoEp.NewCreatePromoEndpoint(svc), authenticated)
-	e.POST(apilib.PostUpdatePromo, promoEp.NewUpdatePromoEndpoint(svc), authenticated)
+	e.PUT(apilib.PutUpdatePromo, promoEp.NewUpdatePromoEndpoint(svc), authenticated)
+	e.POST(apilib.PostUpdatePromo, promoEp.NewUpdatePromoEndpoint(svc), authenticated) // deprecated, R3.5
 	e.DELETE(apilib.DeletePromo, promoEp.NewDeletePromoEndpoint(svc), authenticated)
 
 	e.GET(apilib.GetOverlayDevices, overlay.NewListDevicesEndpoint(svc, overlayRelay, overlayRegistry), authenticated)
