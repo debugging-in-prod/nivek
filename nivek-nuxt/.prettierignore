@@ -1,0 +1,15 @@
+# Build and generated output
+.nuxt
+.output
+.nitro
+.data
+.cache
+dist
+node_modules
+
+# Lockfiles and generated files
+package-lock.json
+
+# Content: Markdown is rendered verbatim (devlog), so formatting changes output
+*.md
+app/content/**

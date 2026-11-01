@@ -31,7 +31,7 @@ matter least. See the status table below for what has landed.
 | R2.3 | done | #221 |
 | R2.4 | done | #237 |
 | R2.5 | done | #236 |
-| R2.6 | **on hold** (awaiting owner approval) | — |
+| R2.6 | done (lint is report-only; CI lint step and colour variables are follow-ups) | issue #272 |
 | R3.1 | done | #213 |
 | R3.2 | done | #218 |
 | R3.3 | done | #207 |
@@ -149,9 +149,12 @@ through the affected panels on prod after deploy.
   `bot_opt_in`.
 - **Risk:** very low.
 
-### R2.6 Formatter and linter (F6, F9) — ON HOLD (awaiting owner approval)
-- **Status:** on hold, awaiting owner approval (large mechanical diff).
-  Not started.
+### R2.6 Formatter and linter (F6, F9) — done (issue #272)
+- **Status:** done. Prettier (`.prettierrc`, 2-space, no semicolons, single
+  quotes, width 100) and ESLint via `@nuxt/eslint` (`eslint.config.mjs`) are
+  devDependencies with `lint`, `format`, and `format:check` scripts. The
+  codebase was reformatted in one mechanical commit. `lint` is report-only
+  (no `--fix` applied); the CI lint step and colour variables are still open.
 - **Scope:** add Prettier (2-space) and ESLint (`@nuxt/eslint`) with a
   `lint` script. Reformat in one mechanical commit with nothing else in it.
   Turning on the CI lint step is a separate follow-up PR. Replacing colour
