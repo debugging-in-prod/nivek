@@ -3,7 +3,6 @@ package twitchbot
 import (
 	"fmt"
 	"log"
-	"os"
 	"strings"
 	"time"
 	"unicode"
@@ -75,7 +74,7 @@ func (b *Bot) handleTranslateCommand(message *chatMessageEvent) {
 		return
 	}
 
-	apiKey := os.Getenv("DEEPL_API_KEY")
+	apiKey := b.config.DeepLAPIKey
 	if apiKey == "" {
 		b.say(channelId, fmt.Sprintf("@%s translation isn't configured right now", username))
 		return

@@ -91,6 +91,23 @@ type Config struct {
 	// background, joining the rest once it loads (see channel_loader.go). The
 	// zero value keeps the normal boot.
 	ChannelsPending bool
+
+	// DeepLAPIKey is the DeepL key for !translate (env DEEPL_API_KEY). Empty
+	// means !translate replies that translation isn't configured.
+	DeepLAPIKey string
+
+	// DiscordWebhookURL is where go-live notifications are posted (env
+	// TWITCH_BOT_DISCORD_WEBHOOK). Empty disables them.
+	DiscordWebhookURL string
+
+	// WebhookListenAddress overrides the EventSub listener bind address (env
+	// WEBHOOK_LISTEN_ADDRESS). Empty binds defaultWebhookListenAddress, falling
+	// back to fallbackWebhookListenAddress if that isn't bindable.
+	WebhookListenAddress string
+
+	// EventSubSecret verifies EventSub delivery signatures (env
+	// TWITCH_EVENTSUB_SECRET). Empty makes the listener reject every delivery.
+	EventSubSecret string
 }
 
 type sayRequest struct {

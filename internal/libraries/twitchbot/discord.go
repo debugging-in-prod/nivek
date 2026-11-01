@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 )
@@ -24,12 +23,11 @@ type discordWebhookPayload struct {
 	Content string `json:"content,omitempty"`
 }
 
-// notifyDiscordGoLive posts a "channel is live" message to the Discord webhook
-// named by TWITCH_BOT_DISCORD_WEBHOOK. It is a no-op when the URL is unset, so
+// notifyDiscordGoLive posts a "channel is live" message to webhookURL
+// (Config.DiscordWebhookURL). It is a no-op when the URL is empty, so
 // the feature is opt-in per environment. Network-bound — call it in a goroutine,
 // never on the webhook/parser path.
-func notifyDiscordGoLive(displayName, login string) {
-	webhookURL := os.Getenv("TWITCH_BOT_DISCORD_WEBHOOK")
+func notifyDiscordGoLive(webhookURL, displayName, login string) {
 	if webhookURL == "" {
 		return
 	}

@@ -317,14 +317,12 @@ func (s *deeplStub) RoundTrip(r *http.Request) (*http.Response, error) {
 
 func translateBot(stub *deeplStub) *Bot {
 	b := replyBot(&replyFakeAPI{})
+	b.config.DeepLAPIKey = "key:fx"
 	b.httpClient = &http.Client{Transport: stub}
 	return b
 }
 
-// Not parallel: these use t.Setenv for DEEPL_API_KEY.
-
 func TestCharTranslateRepliesBeforeDeepL(t *testing.T) {
-	t.Setenv("DEEPL_API_KEY", "key:fx")
 	cases := []struct {
 		name string
 		text string
@@ -351,9 +349,9 @@ func TestCharTranslateRepliesBeforeDeepL(t *testing.T) {
 }
 
 func TestCharTranslateNotConfigured(t *testing.T) {
-	t.Setenv("DEEPL_API_KEY", "")
 	stub := &deeplStub{status: http.StatusOK}
 	b := translateBot(stub)
+	b.config.DeepLAPIKey = "" // zero value: not configured
 	b.handleTranslateCommand(replyMsg("!translate hello", true))
 	wantReplies(t, b, "@alice translation isn't configured right now")
 	if len(stub.langs) != 0 {
@@ -362,7 +360,6 @@ func TestCharTranslateNotConfigured(t *testing.T) {
 }
 
 func TestCharTranslateDeepLFailure(t *testing.T) {
-	t.Setenv("DEEPL_API_KEY", "key:fx")
 	for _, status := range []int{http.StatusForbidden, http.StatusTooManyRequests, 456, http.StatusInternalServerError} {
 		b := translateBot(&deeplStub{status: status, body: "nope"})
 		b.handleTranslateCommand(replyMsg("!translate hello", true))
@@ -371,7 +368,6 @@ func TestCharTranslateDeepLFailure(t *testing.T) {
 }
 
 func TestCharTranslateSuccessAndCooldown(t *testing.T) {
-	t.Setenv("DEEPL_API_KEY", "key:fx")
 
 	// EN -> JA. B3: the translated text is interpolated with no sanitising.
 	stub := &deeplStub{status: http.StatusOK, body: `{"translations":[{"detected_source_language":"EN","text":"こんにちは /x"}]}`}
