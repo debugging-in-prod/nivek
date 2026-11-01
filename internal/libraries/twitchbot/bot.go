@@ -57,8 +57,14 @@ type BotUser struct {
 	hasPrivs bool
 }
 
+// DefaultBotID is the chat bot's (peanutbudderbot) Twitch user id, used when
+// Config.BotId is empty (env TWITCH_BOT_ID unset).
+const DefaultBotID = twitcheventsub.DefaultBotUserID
+
 type Config struct {
-	BotUsername     string
+	BotUsername string
+	// BotId is the bot's Twitch user id (env TWITCH_BOT_ID). Empty means
+	// DefaultBotID; read it through botID().
 	BotId           string
 	BotOAuth        string
 	ClientID        string    // Twitch app client id; Helix Send Chat Message requires it
@@ -108,6 +114,14 @@ type Config struct {
 	// EventSubSecret verifies EventSub delivery signatures (env
 	// TWITCH_EVENTSUB_SECRET). Empty makes the listener reject every delivery.
 	EventSubSecret string
+}
+
+// botID returns the bot's Twitch user id: BotId, or DefaultBotID when empty.
+func (c Config) botID() string {
+	if id := strings.TrimSpace(c.BotId); id != "" {
+		return id
+	}
+	return DefaultBotID
 }
 
 type sayRequest struct {
