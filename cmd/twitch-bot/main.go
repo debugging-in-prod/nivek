@@ -21,6 +21,7 @@ import (
 //	BOT_API_HMAC_KEY   — hex, must match the key core-api validates against
 //	TWITCH_BOT_USERNAME, TWITCH_BOT_OAUTH
 //	EXECUTOR_WS_URL, OVERSEER_HMAC_KEY (for DF Twitch-plays)
+//	TWITCH_BOT_ID      — optional, defaults to twitchbot.DefaultBotID
 func main() {
 	coreAPIURL := getEnv("CORE_API_URL", "")
 	botHmacKey := getEnv("BOT_API_HMAC_KEY", "")
@@ -45,7 +46,7 @@ func main() {
 
 	config := twitchbot.Config{
 		BotUsername:     getEnv("TWITCH_BOT_USERNAME", ""),
-		BotId:           "1322716097",
+		BotId:           getEnv("TWITCH_BOT_ID", twitchbot.DefaultBotID),
 		BotOAuth:        getEnv("TWITCH_BOT_OAUTH", ""),
 		ClientID:        clientID,
 		Channels:        channels,
@@ -97,6 +98,7 @@ func main() {
 		ClientID:       clientID,
 		ClientSecret:   clientSecret,
 		EventSubSecret: eventSubSecret,
+		BotUserID:      config.BotId,
 	})
 
 	bot, err := twitchbot.NewBot(coreAPI, twitchClient, config)

@@ -2,6 +2,7 @@ package twitcheventsub
 
 import (
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -19,6 +20,10 @@ const (
 	// value (webhook_callback_verification_failed, notification_failures_exceeded,
 	// authorization_revoked, …) means Twitch will not deliver notifications.
 	StatusEnabled = "enabled"
+
+	// DefaultBotUserID is the Twitch user id of the chat bot (peanutbudderbot).
+	// It is used when Config.BotUserID is empty.
+	DefaultBotUserID = "1322716097"
 )
 
 // Config holds Twitch app credentials and EventSub transport settings.
@@ -28,6 +33,17 @@ type Config struct {
 	EventSubSecret    string
 	CallbackURL       string // defaults to DefaultCallbackURL
 	HTTPClientTimeout time.Duration
+	// BotUserID is the chat bot's Twitch user id, used as the user_id condition
+	// of channel.chat.message subscriptions. Empty means DefaultBotUserID.
+	BotUserID string
+}
+
+// botUserID returns BotUserID, or DefaultBotUserID when it is empty.
+func (c Config) botUserID() string {
+	if id := strings.TrimSpace(c.BotUserID); id != "" {
+		return id
+	}
+	return DefaultBotUserID
 }
 
 // EventSubSubscription is one subscription as returned by Get EventSub

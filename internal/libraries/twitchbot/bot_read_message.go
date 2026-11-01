@@ -132,7 +132,7 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 		return
 	}
 
-	if messageEvent.ChatterUserId == b.config.BotId || b.isNoReplyLogin(messageEvent.ChatterUserLogin) {
+	if messageEvent.ChatterUserId == b.config.botID() || b.isNoReplyLogin(messageEvent.ChatterUserLogin) {
 		return
 	}
 

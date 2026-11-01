@@ -176,7 +176,7 @@ func (c *clientImpl) SubscribeChannelChatMessages(ctx context.Context, broadcast
 		return SubscribeResult{}, errors.New("broadcaster user id is required")
 	}
 
-	botId := "1322716097"
+	botId := c.cfg.botUserID()
 	var payload subscriptionPayload
 	payload.Type = "channel.chat.message"
 	payload.Version = "1"

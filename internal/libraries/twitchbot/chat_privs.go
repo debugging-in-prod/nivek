@@ -103,7 +103,7 @@ func (b *Bot) isChatReadNudge(text string) bool {
 }
 
 func (b *Bot) isBotIRCUser(message twitch.PrivateMessage) bool {
-	if id := strings.TrimSpace(b.config.BotId); id != "" && message.User.ID == id {
+	if message.User.ID == b.config.botID() {
 		return true
 	}
 	return strings.EqualFold(message.User.Name, b.config.BotUsername) ||

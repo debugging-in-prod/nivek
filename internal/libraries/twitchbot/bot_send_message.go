@@ -91,7 +91,7 @@ func (b *Bot) postChatMessage(ctx context.Context, token, broadcasterId, message
 
 	body, err := json.Marshal(sendChatMessageBody{
 		BroadcasterId: broadcasterId,
-		SenderId:      b.config.BotId,
+		SenderId:      b.config.botID(),
 		Message:       message,
 	})
 	if err != nil {
@@ -185,7 +185,7 @@ func (b *Bot) sendChatAnnouncement(broadcasterId, message string) error {
 	q.Set("broadcaster_id", broadcasterId)
 	// The moderator sending the announcement is the bot itself; its user token
 	// must match this id and hold moderator:manage:announcements.
-	q.Set("moderator_id", b.config.BotId)
+	q.Set("moderator_id", b.config.botID())
 	req.URL.RawQuery = q.Encode()
 	req.Header.Set("Client-Id", b.config.ClientID)
 	req.Header.Set("Authorization", "Bearer "+token)
