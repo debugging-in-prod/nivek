@@ -487,7 +487,11 @@ func (b *Bot) ircsenderLoop() {
 	}
 }
 
+// ircsay queues an IRC chat message, sanitized and empty-dropped like say().
 func (b *Bot) ircsay(channel, message string) {
+	if message = sanitizeChatReply(message); message == "" {
+		return
+	}
 	b.ircSayQueue <- ircSayRequest{channel, message}
 }
 

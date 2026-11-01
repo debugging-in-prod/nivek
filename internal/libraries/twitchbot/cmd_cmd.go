@@ -75,7 +75,7 @@ func parseCmdArgs(raw string) (action, trigger, response string, ok bool) {
 	return action, trigger, response, true
 }
 
-// cmdReply posts text through the shared sanitizeChatReply (cmd_info.go).
+// cmdReply posts text through the shared sanitizeChatReply (chat_reply.go).
 func (b *Bot) cmdReply(channelID, text string) {
 	if text = sanitizeChatReply(text); text != "" {
 		b.say(channelID, text)

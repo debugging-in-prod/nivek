@@ -8,8 +8,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/twitcheventsub"
 )
@@ -37,8 +35,6 @@ const (
 	// (cooldown-passing) !followage with the same apology.
 	followageUnavailableWindow = 10 * time.Minute
 	followageUnavailableKey    = "!followage\x00unavailable"
-
-	maxChatReplyLen = 450
 )
 
 const followageUnavailableMsg = "can't check follow age here (the bot needs to be a mod in this channel)"
@@ -373,30 +369,6 @@ func (b *Bot) sayInfo(channelId, msg string) {
 	if msg = sanitizeChatReply(msg); msg != "" {
 		b.say(channelId, msg)
 	}
-}
-
-// sanitizeChatReply makes text safe to post as a single chat line: control
-// characters (newlines, tabs, NUL, ...) and invalid UTF-8 become spaces and
-// all whitespace runs (including unicode spaces) collapse to one space;
-// leading '/' or '.' are stripped so user/broadcaster-controlled text can never
-// be read as a Twitch chat command such as "/ban" or ".timeout"; and the result
-// is capped at maxChatReplyLen runes (ending in "…" when cut). An empty result
-// means "send nothing".
-func sanitizeChatReply(s string) string {
-	s = strings.Map(func(r rune) rune {
-		if r == utf8.RuneError || unicode.IsControl(r) {
-			return ' '
-		}
-		return r
-	}, s)
-	s = strings.Join(strings.Fields(s), " ")
-	s = strings.TrimLeftFunc(s, func(r rune) bool {
-		return r == '/' || r == '.' || unicode.IsSpace(r)
-	})
-	if r := []rune(s); len(r) > maxChatReplyLen {
-		s = strings.TrimRightFunc(string(r[:maxChatReplyLen-1]), unicode.IsSpace) + "…"
-	}
-	return s
 }
 
 func channelDisplayName(message *chatMessageEvent) string {
