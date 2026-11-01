@@ -159,8 +159,14 @@ This runbook is still the only way prod-apply SQL reaches prod.
 ## twitch-bot binary location
 
 The canonical twitch-bot binary is `/home/deploy/nivek-bin/twitch-bot`,
-outside the checkout. `deploy-prod.yml` builds it there (build to
-`twitch-bot.new`, then an atomic rename). The last step of the deploy job in
+outside the checkout. Both `deploy-prod.yml` and `build.yml` rebuild it there
+from their own commit on every deploy (build to `twitch-bot.new`, then an
+atomic rename). The two workflows share the `production-deploy` concurrency
+group, so a pending run can be cancelled; building in both means the binary
+still matches the last deployed commit (issue
+[#256](https://github.com/debugging-in-prod/nivek/issues/256)). If the build
+fails in `build.yml`, the previous canonical binary is kept and still
+installed, and the run goes red. The last step of the deploy job in
 both `deploy-prod.yml` and `build.yml` copies it into
 `/home/deploy/actions-runner/_work/nivek/nivek/bin/twitch-bot`, the path the
 `twitch-bot.service` `ExecStart` runs. The copy happens on every deploy, even

@@ -27,20 +27,33 @@ jobs:
       # workspace with deploy-prod.yml, and the checkout above cleans the
       # gitignored bin/ -- deleting bin/twitch-bot, which the twitch-bot
       # systemd unit runs (ExecStart path unchanged). Put it back from the
-      # canonical copy outside the checkout. If that copy doesn't exist yet
-      # (first run after this change), build it there first with the same
-      # atomic build-then-rename as deploy-prod.yml. Runs even if env-setup
-      # failed. Does not restart anything.
+      # canonical copy outside the checkout.
+      #
+      # Always rebuild the canonical copy from this checkout first (issue
+      # #256). Both deploy workflows share the production-deploy concurrency
+      # group, so a pending run can be cancelled when pushes land close
+      # together. If the cancelled run were the only one building the binary,
+      # the bot would be left on an older commit. So each deploy workflow
+      # builds the binary for its own commit, with the same atomic
+      # build-then-rename as deploy-prod.yml.
+      #
+      # If the build fails, keep the previous canonical binary, still install
+      # it into bin/ (so bin/ is never left empty), then fail the step so the
+      # run is red. Runs even if env-setup failed. Does not restart anything.
       - name: Install twitch-bot binary into checkout
         if: success() || failure()
         run: |
           set -euo pipefail
           SRC=/home/deploy/nivek-bin/twitch-bot
           DST="$GITHUB_WORKSPACE/bin/twitch-bot"
-          if [ ! -f "$SRC" ]; then
-            mkdir -p /home/deploy/nivek-bin
-            /usr/local/go/bin/go build -o /home/deploy/nivek-bin/twitch-bot.new ./cmd/twitch-bot
+          BUILD_FAILED=0
+          mkdir -p /home/deploy/nivek-bin
+          if /usr/local/go/bin/go build -o /home/deploy/nivek-bin/twitch-bot.new ./cmd/twitch-bot; then
             mv -f /home/deploy/nivek-bin/twitch-bot.new /home/deploy/nivek-bin/twitch-bot
+          else
+            BUILD_FAILED=1
+            rm -f /home/deploy/nivek-bin/twitch-bot.new
+            echo "::error::twitch-bot build failed; installing the previous canonical binary"
           fi
           mkdir -p "$GITHUB_WORKSPACE/bin"
           cp -f "$SRC" "$DST.new"
@@ -48,3 +61,6 @@ jobs:
           mv -f "$DST.new" "$DST"
           test -x "$DST"
           ls -l "$DST"
+          if [ "$BUILD_FAILED" -ne 0 ]; then
+            exit 1
+          fi
