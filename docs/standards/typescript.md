@@ -77,8 +77,8 @@ Rules:
 - Rely on Nuxt auto-imports for `utils/`, `composables/`, and `stores/`
   consistently. Either import explicitly everywhere in a file or nowhere, and
   don't mix the two for the same symbol across files.
-- Indentation is 2 spaces. Some files use 4, and nothing enforces it yet (see
-  [refactor-plan.md](refactor-plan.md)).
+- Formatting is Prettier (`nivek-nuxt/.prettierrc`: 2 spaces, no semicolons,
+  single quotes, width 100). Run `npm run format` before committing.
 - `v-html` is allowed only for trusted, repo-local content (devlog markdown).
   Never use it for API data.
 
@@ -128,6 +128,5 @@ async function loadThings() {
 
 - Pure logic in `utils/` gets a `tests/<name>.test.ts` (Node test runner with
   native TS stripping; see `tests/publicStats.test.ts`).
-- `npm run build` must pass. ESLint, Prettier, and `nuxi typecheck` aren't set
-  up yet. Adding them is a planned refactor PR, not something to slip into a
-  feature PR.
+- `npm run build` must pass. `npm run lint` (ESLint via `@nuxt/eslint`) is
+  report-only and not yet a CI step; `nuxi typecheck` isn't set up.
