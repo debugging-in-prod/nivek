@@ -119,9 +119,7 @@ func NewGetStalkEndpoint(svc nivek.NivekService) echo.HandlerFunc {
     reaches the Discord alert hook. Don't put `err.Error()` in a 5xx body.
 - Request structs are unexported, live in the endpoint file, and have `json`
   tags. Validate required fields right after `c.Bind`.
-- Update verbs: new endpoints use `PUT` for update and `DELETE` for delete.
-  The existing `POST /promo/:id` and `POST /auto-shout/:id` stay until a
-  dedicated PR migrates them together with the frontend.
+- Update verbs: endpoints use `PUT` for update and `DELETE` for delete.
 - Handlers for public, unauthenticated routes that hit the DB need a cache or
   rate bound (see `stats.PublicService`: a 60 s TTL plus an error backoff).
 
