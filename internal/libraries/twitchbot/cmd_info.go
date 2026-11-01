@@ -286,7 +286,7 @@ func (b *Bot) cachedFollow(ctx context.Context, broadcasterId, userId string) (t
 		}
 		tok, err := b.helixUserToken(ctx)
 		if err != nil {
-			return twitcheventsub.FollowInfo{}, fmt.Errorf("%w: %v", twitcheventsub.ErrFollowsUnavailable, err)
+			return twitcheventsub.FollowInfo{}, fmt.Errorf("%w: %w", twitcheventsub.ErrFollowsUnavailable, err)
 		}
 		return b.info.GetChannelFollow(ctx, tok, broadcasterId, userId)
 	})
