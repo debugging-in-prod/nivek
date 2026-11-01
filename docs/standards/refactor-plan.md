@@ -23,7 +23,7 @@ matter least. See the status table below for what has landed.
 | --- | --- | --- |
 | R0.1 | done | #199 |
 | R0.2 | done | #198 |
-| R1.1 | **on hold** (awaiting owner approval) | — |
+| R1.1 | done | #271 |
 | R1.2 | done | #201 (+ #203, clock-independent info tests) |
 | R1.3 | done | #200 |
 | R2.1 | done | #208 |
@@ -82,9 +82,9 @@ commit on every run.
 
 ## Phase 1: Tests and CI (no runtime risk)
 
-### R1.1 Run frontend unit tests in CI (F13) — ON HOLD (awaiting owner approval)
-- **Status:** on hold. It edits `.github/workflows/ci.yml`, which needs
-  explicit owner approval. Not started.
+### R1.1 Run frontend unit tests in CI (F13)
+- **Status:** done (#271). Owner approved the `.github/workflows/ci.yml`
+  edit.
 - **Scope:** add `- run: npm test` to the `nuxt` job in
   `.github/workflows/ci.yml`. This edits a CI workflow, not a deploy
   workflow, but still needs explicit maintainer approval.
