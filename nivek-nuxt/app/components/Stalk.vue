@@ -1,12 +1,6 @@
 <script setup lang="ts">
 import { API_ROUTES } from '~/utils/constants'
-
-interface StalkConfig {
-  found: boolean
-  target: string
-  last_message: string
-  set_by: string
-}
+import type { StalkConfig } from '~/types/stalk'
 
 const loading = ref(true)
 const saving = ref(false)

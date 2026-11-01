@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { API_ROUTES } from '~/utils/constants'
+import type { OverlayDevice, OverlayDevicesResponse, CreateOverlayDeviceResponse } from '~/types/overlay'
 
 // Owner-only pairing page for the Ridiculous Stream overlay. Mints the device
 // token the overlay sends in its first websocket frame; once paired, cheers,
@@ -16,17 +17,7 @@ definePageMeta({
   middleware: 'overlay-access',
 })
 
-interface Device {
-  id: number
-  user_id: number
-  label: string
-  created_at: string
-  last_seen_at?: string | null
-  revoked_at?: string | null
-  connected: boolean
-}
-
-const devices = ref<Device[]>([])
+const devices = ref<OverlayDevice[]>([])
 const loadingDevices = ref(true)
 const generating = ref(false)
 const token = ref<string | null>(null)
@@ -38,7 +29,7 @@ const activeDevice = computed(() => devices.value.find((d) => !d.revoked_at) ?? 
 async function loadDevices(): Promise<void> {
   loadingDevices.value = true
   try {
-    const res = await api<{ devices: Device[] }>(API_ROUTES.Secure.OverlayDevices)
+    const res = await api<OverlayDevicesResponse>(API_ROUTES.Secure.OverlayDevices)
     devices.value = res.devices ?? []
   } catch (e) {
     error.value = 'Could not load the current overlay device.'
@@ -55,7 +46,7 @@ async function generateToken(): Promise<void> {
   token.value = null
   try {
     // Label is capped at 100 characters server-side; a date stamp is well under.
-    const res = await api<{ device: Device; token: string }>(API_ROUTES.Secure.OverlayDevices, {
+    const res = await api<CreateOverlayDeviceResponse>(API_ROUTES.Secure.OverlayDevices, {
       method: 'POST',
       body: { label: `Overlay ${new Date().toLocaleDateString()}` },
     })

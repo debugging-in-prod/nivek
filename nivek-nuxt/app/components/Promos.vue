@@ -1,15 +1,6 @@
 <script setup lang="ts">
 import { API_ROUTES } from '~/utils/constants'
-
-interface Promo {
-    id: number
-    channelname: string
-    message: string
-    interval_seconds: number
-    enabled: boolean
-    created_at: string
-    updated_at: string
-}
+import type { Promo } from '~/types/promo'
 
 const MIN_MINUTES = 1
 const MAX_MINUTES = 1440 // 24h, matches the server-side clamp

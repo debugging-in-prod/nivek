@@ -1,35 +1,20 @@
 <script setup lang="ts">
-import { API_ROUTES } from '~/utils/constants'
+import { API_ROUTES, ROLES, MIN_COOLDOWN, MAX_COOLDOWN } from '~/utils/constants'
+import type { CommandSetting, CommandSettingsResponse } from '~/types/commands'
 
 // Per-channel overrides of the bot's built-in commands
 // (nivek.channel_command_settings). "Default" means the channel inherits the
 // command's global setting; the server scopes every write to the session
 // user's channel and validates every field.
 
-interface Setting {
-  command_id: number
-  trigger: string
-  description: string
-  default_enabled: boolean
-  default_min_role: string
-  default_cooldown_secs: number
-  enabled: boolean | null
-  min_role: string | null
-  cooldown_secs: number | null
-}
-
-interface Draft {
+interface CommandDraft {
   enabled: '' | 'on' | 'off'
   min_role: string // '' = default
   cooldown: string | number // '' = default (Vue casts number inputs)
 }
 
-const ROLES = ['everyone', 'sub', 'vip', 'mod', 'broadcaster'] as const
-const MIN_COOLDOWN = 5
-const MAX_COOLDOWN = 3600
-
-const settings = ref<Setting[]>([])
-const drafts = reactive<Record<number, Draft>>({})
+const settings = ref<CommandSetting[]>([])
+const drafts = reactive<Record<number, CommandDraft>>({})
 const loading = ref(true)
 const savingId = ref<number | null>(null)
 const error = ref<string | null>(null)
@@ -40,7 +25,7 @@ function errMessage(err: unknown, fallback: string): string {
   return data?.error || data?.message || fallback
 }
 
-function draftOf(s: Setting): Draft {
+function draftOf(s: CommandSetting): CommandDraft {
   return {
     enabled: s.enabled === null ? '' : s.enabled ? 'on' : 'off',
     min_role: s.min_role ?? '',
@@ -48,14 +33,14 @@ function draftOf(s: Setting): Draft {
   }
 }
 
-function isOverridden(s: Setting): boolean {
+function isOverridden(s: CommandSetting): boolean {
   return s.enabled !== null || s.min_role !== null || s.cooldown_secs !== null
 }
 
 async function load() {
   loading.value = true
   try {
-    const res = await api<{ settings: Setting[] }>(API_ROUTES.Secure.GetCommandSettings)
+    const res = await api<CommandSettingsResponse>(API_ROUTES.Secure.GetCommandSettings)
     settings.value = res.settings ?? []
     settings.value.forEach((s) => { drafts[s.command_id] = draftOf(s) })
   } catch (err: unknown) {
@@ -66,7 +51,7 @@ async function load() {
   }
 }
 
-async function save(s: Setting) {
+async function save(s: CommandSetting) {
   const d = drafts[s.command_id]
   if (!d || savingId.value !== null) return
   error.value = null
@@ -91,7 +76,7 @@ async function save(s: Setting) {
   }
 }
 
-async function reset(s: Setting) {
+async function reset(s: CommandSetting) {
   if (savingId.value !== null) return
   error.value = null
   savedId.value = null

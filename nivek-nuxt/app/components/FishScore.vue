@@ -1,23 +1,6 @@
 <script setup lang="ts">
 import { API_ROUTES } from '~/utils/constants'
-
-interface FishScore {
-    id: number
-    channelname: string
-    chattername: string
-    score: number
-    fish: Fish[]
-    trash_caught: number
-    times_fished: number
-    created_at: string
-    updated_at: string
-}
-
-interface Fish {
-    value: number
-    name: string
-    scarcity: number
-}
+import type { Fish, FishScoresResponse } from '~/types/fishing'
 
 const expandedRows = ref<Record<string | number, boolean>>({})
 
@@ -25,14 +8,14 @@ function toggleRow(id: string | number) {
     expandedRows.value[id] = !expandedRows.value[id]
 }
 
-const fishScores = ref<{ as_channel: FishScore[]; as_chatter: FishScore[] }>({
+const fishScores = ref<FishScoresResponse>({
     as_channel: [],
     as_chatter: [],
 })
 
 async function getFishScore() {
     try {
-        fishScores.value = await api<{ as_channel: FishScore[]; as_chatter: FishScore[] }>(
+        fishScores.value = await api<FishScoresResponse>(
             API_ROUTES.Secure.GetFishScore
         )
     } catch (err: unknown) {

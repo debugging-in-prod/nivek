@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { api } from '~/utils/api'
-import { API_ROUTES, type User } from '~/utils/constants'
+import { API_ROUTES } from '~/utils/constants'
+import type { User } from '~/types/user'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)

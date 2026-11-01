@@ -1,23 +1,12 @@
 <script setup lang="ts">
 import { API_ROUTES } from '~/utils/constants'
+import type { Command, CommandsResponse } from '~/types/commands'
 
 // Public, no-login page. The set of commands is driven by the DB (fetched from
 // the public /api/commands endpoint), so enabling/disabling or adding a command
 // server-side is reflected here automatically. Friendly descriptions are kept
 // frontend-side, keyed by trigger, mirroring app/pages/df/help.vue — a command
 // with no description entry still lists, just without the blurb.
-
-interface Command {
-  id: number
-  trigger: string
-  kind: string
-  handler_key: string | null
-  description: string
-  scope: string
-  min_role: string
-  cooldown_secs: number
-  enabled: boolean
-}
 
 const commands = ref<Command[]>([])
 const loading = ref(true)
@@ -35,7 +24,7 @@ function roleLabel(role: string): string | null {
 
 onMounted(async () => {
   try {
-    const res = await api<{ commands: Command[] }>(API_ROUTES.Public.Commands)
+    const res = await api<CommandsResponse>(API_ROUTES.Public.Commands)
     commands.value = (res.commands ?? [])
       .filter((c) => c.enabled && c.scope === 'global')
       .sort((a, b) => a.trigger.localeCompare(b.trigger))

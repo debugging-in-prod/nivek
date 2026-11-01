@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { API_ROUTES } from '~/utils/constants'
-
-interface WeatherReport {
-    city?: string
-    temp?: string
-}
+import type { WeatherReport } from '~/types/weather'
 
 const weatherReport = ref<WeatherReport>({})
 
