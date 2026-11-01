@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { api } from '~/utils/api'
-import type { User } from '~/utils/constants'
+import { API_ROUTES, type User } from '~/utils/constants'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
@@ -19,7 +19,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function fetchUserProfile(): Promise<User> {
-    const profile = await api<User>('/profile', { method: 'GET' })
+    const profile = await api<User>(API_ROUTES.Secure.Profile, { method: 'GET' })
     user.value = profile
     return profile
   }
@@ -39,7 +39,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout(): Promise<void> {
     try {
-      await api('/logout', { method: 'POST' })
+      await api(API_ROUTES.Secure.Logout, { method: 'POST' })
     } finally {
       user.value = null
       initialized.value = true

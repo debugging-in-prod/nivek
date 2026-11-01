@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { API_ROUTES } from '~/utils/constants'
+
 // Public, no-login page. The set of commands is driven by the DB (fetched from
 // the public /api/commands endpoint), so enabling/disabling or adding a command
 // server-side is reflected here automatically. Friendly descriptions are kept
@@ -33,7 +35,7 @@ function roleLabel(role: string): string | null {
 
 onMounted(async () => {
   try {
-    const res = await api<{ commands: Command[] }>('/commands')
+    const res = await api<{ commands: Command[] }>(API_ROUTES.Public.Commands)
     commands.value = (res.commands ?? [])
       .filter((c) => c.enabled && c.scope === 'global')
       .sort((a, b) => a.trigger.localeCompare(b.trigger))
@@ -82,7 +84,7 @@ useHead({ title: 'Commands — peanutbudderbot' })
       <h2>Automated actions</h2>
       <p class="section-note">
         Not chat commands — these run on their own once a streamer sets them up from the
-        <a href="/api/auth/twitch/start">dashboard</a>.
+        <a :href="API_ROUTES.TwitchStart">dashboard</a>.
       </p>
       <ul class="cmd-list">
         <li class="cmd">

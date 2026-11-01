@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { API_ROUTES } from '~/utils/constants'
+
 // Owner-only pairing page for the Ridiculous Stream overlay. Mints the device
 // token the overlay sends in its first websocket frame; once paired, cheers,
 // power-ups, extension Bits interactions and relayed chat commands are delivered
@@ -36,7 +38,7 @@ const activeDevice = computed(() => devices.value.find((d) => !d.revoked_at) ?? 
 async function loadDevices(): Promise<void> {
   loadingDevices.value = true
   try {
-    const res = await api<{ devices: Device[] }>('/overlay/device')
+    const res = await api<{ devices: Device[] }>(API_ROUTES.Secure.OverlayDevices)
     devices.value = res.devices ?? []
   } catch (e) {
     error.value = 'Could not load the current overlay device.'
@@ -53,7 +55,7 @@ async function generateToken(): Promise<void> {
   token.value = null
   try {
     // Label is capped at 100 characters server-side; a date stamp is well under.
-    const res = await api<{ device: Device; token: string }>('/overlay/device', {
+    const res = await api<{ device: Device; token: string }>(API_ROUTES.Secure.OverlayDevices, {
       method: 'POST',
       body: { label: `Overlay ${new Date().toLocaleDateString()}` },
     })
@@ -101,7 +103,7 @@ useHead({ title: 'Overlay — peanutbudderbot' })
         <code>RidiculousStream.exe</code> from inside the extracted folder — keep the
         <code>.dll</code> next to it.
       </p>
-      <a class="btn download" href="/api/overlay/download" download>Download for Windows</a>
+      <a class="btn download" :href="API_ROUTES.OverlayDownload" download>Download for Windows</a>
       <p class="hint">Windows 64-bit · ~52&nbsp;MB</p>
     </section>
 

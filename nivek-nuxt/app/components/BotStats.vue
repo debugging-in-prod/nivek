@@ -13,8 +13,10 @@ import {
   topChannelsWindowLabel,
   type PublicStats,
 } from '~/utils/publicStats'
+import { API_ROUTES } from '~/utils/constants'
 
-const { data, status } = useFetch('/api/stats/public', {
+const { data, status } = useFetch(API_ROUTES.Public.Stats, {
+  baseURL: '/api',
   key: 'public-stats',
   server: false,
   lazy: true,
