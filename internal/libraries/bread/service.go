@@ -34,7 +34,7 @@ func (s *nivekBreadServiceImpl) GetTotalBreadForChannel(channel string) (int, er
 		One(&result)
 
 	if err != nil {
-		return 0, fmt.Errorf("error getting bread for channel %s: %s", channel, err.Error())
+		return 0, fmt.Errorf("error getting bread for channel %s: %w", channel, err)
 	}
 
 	return result.Total, nil
@@ -59,11 +59,11 @@ func (s *nivekBreadServiceImpl) IncrementCount(channel, chatter string) (int, er
 		QueryRow(query, channel, chatter)
 
 	if err != nil {
-		return 0, fmt.Errorf("error upserting bread count: %v", err)
+		return 0, fmt.Errorf("error upserting bread count: %w", err)
 	}
 
 	if errScan := res.Scan(&result.Count); errScan != nil {
-		return 0, fmt.Errorf("error formatting updated bread count: %v", err)
+		return 0, fmt.Errorf("error formatting updated bread count: %w", errScan)
 	}
 
 	return result.Count, nil
