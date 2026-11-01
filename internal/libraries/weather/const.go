@@ -8,3 +8,10 @@ type Forecast struct {
 	// whole degree Fahrenheit.
 	TempF int
 }
+
+// Location is nivek's view of where an IP address is. Geolocation clients
+// translate their vendor's response into this type.
+type Location struct {
+	City     string
+	Lat, Lon float64
+}

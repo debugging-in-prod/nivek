@@ -3,11 +3,7 @@ package weather
 import (
 	"context"
 	"fmt"
-	"net"
-	"strconv"
-	"strings"
 
-	"github.com/ipinfo/go/v2/ipinfo"
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/nivek"
 )
 
@@ -22,75 +18,45 @@ type forecastProvider interface {
 	Forecast(ctx context.Context, lat, lon float64) (Forecast, error)
 }
 
+// locator is what ReportService needs from a geolocation API.
+// IPInfoClient implements it; tests pass a fake.
+type locator interface {
+	Locate(ip string) (Location, error)
+}
+
 type ReportService struct {
 	nivek.NivekService
-	infoClient *ipinfo.Client
+	locator    locator
 	forecaster forecastProvider
 }
 
 func NewWeatherReportService(nivek nivek.NivekService) *ReportService {
 	return &ReportService{
 		NivekService: nivek,
-		infoClient:   ipinfo.NewClient(nil, nil, nivek.CommonConfig().IPInfo.Token),
+		locator:      NewIPInfoClient(nivek.CommonConfig().IPInfo.Token),
 		forecaster:   NewWindyClient(nivek.CommonConfig().Windy.Token),
 	}
 }
 
 func (s *ReportService) GetReport(ip string) (*NivekWeatherReport, error) {
-	info, err := s.getInfo(ip)
+	loc, err := s.locator.Locate(ip)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"error fetching IP info during GetTemp for ip (%s): %s", ip, err.Error(),
 		)
 	}
 
-	lat, lon := s.getLatAndLon(info)
 	// GetReport has no caller context yet; the client's HTTP timeout bounds
 	// the request.
-	forecast, err := s.forecaster.Forecast(context.Background(), lat, lon)
+	forecast, err := s.forecaster.Forecast(context.Background(), loc.Lat, loc.Lon)
 	if err != nil {
 		return nil, err
 	}
 
 	nivekReport := NivekWeatherReport{
-		City: info.City,
+		City: loc.City,
 		Temp: fmt.Sprintf("%d°F", forecast.TempF),
 	}
 
 	return &nivekReport, nil
-}
-
-func (s *ReportService) getInfo(ip string) (*ipinfo.Core, error) {
-	return s.infoClient.GetIPInfo(net.ParseIP(ip))
-}
-
-func (s *ReportService) getLatAndLon(info *ipinfo.Core) (float64, float64) {
-	str := info.Location
-	parts := strings.Split(str, ",")
-
-	if len(parts) != 2 {
-		s.Logger().Errorf(
-			"error parsing lat/lon %s",
-			str,
-		)
-		return 0, 0
-	}
-
-	latStr := strings.TrimSpace(parts[0])
-	lonStr := strings.TrimSpace(parts[1])
-
-	lat, err1 := strconv.ParseFloat(latStr, 64)
-	lon, err2 := strconv.ParseFloat(lonStr, 64)
-
-	if err1 != nil {
-		s.Logger().Errorf("error parsing lat %s", err1.Error())
-		return 0, 0
-	}
-
-	if err2 != nil {
-		s.Logger().Errorf("error parsing lat/lon %s", err2.Error())
-		return 0, 0
-	}
-
-	return lat, lon
 }
