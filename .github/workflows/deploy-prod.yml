@@ -15,6 +15,15 @@ on:
 permissions:
   contents: write
 
+# Same group as build.yml ("Deploy Production"). Both workflows fire on push
+# to main, run on the same self-hosted runner and share one checkout
+# workspace, so they must never overlap: one run's actions/checkout cleans the
+# gitignored bin/ that the other just populated (issue #248). Queue, never
+# cancel, so every push still deploys.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
 jobs:
   pull:
     runs-on: [self-hosted, linux, prod]  # Vultr runner labels
@@ -46,14 +55,29 @@ jobs:
       - name: Env Setup
         run: /home/deploy/actions-runner/env-setup.sh
 
-      # Rebuild the twitch-bot host-daemon binary. git clean (-x) wipes the
-      # gitignored bin/ on every deploy, so without this the binary would be
-      # missing until manually rebuilt — a running bot survives the delete
-      # (Linux keeps the open inode) but the NEXT restart would fail to find it.
-      # Building here does not restart the daemon; that stays a manual step so
-      # the bot is only bounced intentionally.
+      # Rebuild the twitch-bot host-daemon binary (issue #248).
+      #
+      # The canonical copy lives OUTSIDE the checkout, at
+      # /home/deploy/nivek-bin/twitch-bot. bin/ inside the workspace is
+      # gitignored, and actions/checkout (in this workflow AND in build.yml,
+      # which shares this workspace) cleans it, so a binary that only lived in
+      # bin/ could vanish and the next bot restart would fail with 203/EXEC.
+      #
+      # Build to a temp name, then rename: the rename is atomic and swaps the
+      # directory entry, so it never hits "text file busy" while the old
+      # binary is running and nothing ever sees a half-written file.
+      #
+      # The systemd unit still runs $GITHUB_WORKSPACE/bin/twitch-bot (that
+      # path is unchanged); the "Install twitch-bot binary into checkout" step
+      # at the end of this job (and of build.yml's job) copies the canonical
+      # binary there. Nothing here restarts the daemon; that stays a manual
+      # step so the bot is only bounced intentionally.
       - name: Build twitch-bot binary
-        run: /usr/local/go/bin/go build -o bin/twitch-bot ./cmd/twitch-bot
+        run: |
+          set -euo pipefail
+          mkdir -p /home/deploy/nivek-bin
+          /usr/local/go/bin/go build -o /home/deploy/nivek-bin/twitch-bot.new ./cmd/twitch-bot
+          mv -f /home/deploy/nivek-bin/twitch-bot.new /home/deploy/nivek-bin/twitch-bot
 
       # Post-deploy smoke check (incident #172). Read-only: GET requests to the
       # public API only, no restarts, nothing secret is sent or printed.
@@ -76,3 +100,23 @@ jobs:
             curl -fsS -o /dev/null --max-time 10 \
               -w "%{http_code} /commands\n" "${CORE_API_BASE_URL}/commands"
           done
+
+      # Must stay the LAST step. Copies the canonical binary into the
+      # checkout's bin/ (the systemd ExecStart path). Runs even if the smoke
+      # check (or the build) failed, so bin/ is never left empty: if the build
+      # failed, the previous canonical binary is installed. Does not restart
+      # anything.
+      - name: Install twitch-bot binary into checkout
+        if: success() || failure()
+        run: |
+          set -euo pipefail
+          SRC=/home/deploy/nivek-bin/twitch-bot
+          DST="$GITHUB_WORKSPACE/bin/twitch-bot"
+          if [ -f "$SRC" ]; then
+            mkdir -p "$GITHUB_WORKSPACE/bin"
+            cp -f "$SRC" "$DST.new"
+            chmod 755 "$DST.new"
+            mv -f "$DST.new" "$DST"
+          fi
+          test -x "$DST"
+          ls -l "$DST"

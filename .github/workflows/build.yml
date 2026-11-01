@@ -22,3 +22,29 @@ jobs:
         uses: actions/checkout@v4
       - name: Prepare production environment
         run: /home/deploy/actions-runner/env-setup.sh
+
+      # Must stay the LAST step (issue #248). This workflow shares the runner
+      # workspace with deploy-prod.yml, and the checkout above cleans the
+      # gitignored bin/ -- deleting bin/twitch-bot, which the twitch-bot
+      # systemd unit runs (ExecStart path unchanged). Put it back from the
+      # canonical copy outside the checkout. If that copy doesn't exist yet
+      # (first run after this change), build it there first with the same
+      # atomic build-then-rename as deploy-prod.yml. Runs even if env-setup
+      # failed. Does not restart anything.
+      - name: Install twitch-bot binary into checkout
+        if: success() || failure()
+        run: |
+          set -euo pipefail
+          SRC=/home/deploy/nivek-bin/twitch-bot
+          DST="$GITHUB_WORKSPACE/bin/twitch-bot"
+          if [ ! -f "$SRC" ]; then
+            mkdir -p /home/deploy/nivek-bin
+            /usr/local/go/bin/go build -o /home/deploy/nivek-bin/twitch-bot.new ./cmd/twitch-bot
+            mv -f /home/deploy/nivek-bin/twitch-bot.new /home/deploy/nivek-bin/twitch-bot
+          fi
+          mkdir -p "$GITHUB_WORKSPACE/bin"
+          cp -f "$SRC" "$DST.new"
+          chmod 755 "$DST.new"
+          mv -f "$DST.new" "$DST"
+          test -x "$DST"
+          ls -l "$DST"
