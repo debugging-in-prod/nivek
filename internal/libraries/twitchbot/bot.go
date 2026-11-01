@@ -213,10 +213,12 @@ type Bot struct {
 	// info is the Helix reader behind !uptime/!followage/!accountage/!game/
 	// !title (normally twitchClient; nil makes those commands reply "couldn't
 	// check"). infoCache holds ~60s of successful responses and infoSlots
-	// bounds concurrent lookups (see cmd_info.go).
+	// bounds concurrent lookups (see cmd_info.go). infoNow is the clock the
+	// replies measure ages against (nil means time.Now; tests pin it).
 	info      infoHelix
 	infoCache *infoCache
 	infoSlots chan struct{}
+	infoNow   func() time.Time
 
 	// usage counts dispatched commands per (channel, trigger, day) for the
 	// usage analytics; flushed to core-api in the background (usage_tracker.go).

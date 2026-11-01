@@ -106,9 +106,15 @@ func (f *fakeInfoHelix) GetChannelFollow(ctx context.Context, tok, _, _ string) 
 	return f.follow, f.followErr
 }
 
+// infoTestNow is the fixed "now" the info handler tests run at, so ages and
+// durations never depend on the wall clock. It sits just past a month end
+// (TestFollowAgeCommand used to fail on 2026-11-01).
+var infoTestNow = time.Date(2026, 11, 1, 0, 30, 0, 0, time.UTC)
+
 func newInfoBot(h infoHelix) *Bot {
 	cd, _ := newTestCooldowns()
 	return &Bot{
+		infoNow:   func() time.Time { return infoTestNow },
 		config:    Config{BotUsername: "peanutbudderbot", BotId: "1", BotOAuth: "oauth:usertok"},
 		noReply:   buildNoReplySet(nil, "peanutbudderbot"),
 		cooldowns: cd,
@@ -180,6 +186,7 @@ func TestFormatCalendarAge(t *testing.T) {
 		want      string
 	}{
 		{d(2025, 6, 18, 12), d(2026, 10, 31, 12), "1 year 4 months 13 days"},
+		{d(2025, 6, 18, 0), d(2026, 11, 1, 0), "1 year 4 months 14 days"},
 		{d(2024, 10, 31, 12), d(2026, 10, 31, 12), "2 years"},
 		{d(2026, 1, 31, 0), d(2026, 3, 1, 0), "29 days"},
 		{d(2024, 2, 29, 0), d(2025, 2, 28, 0), "11 months 30 days"},
@@ -262,7 +269,7 @@ func TestCommandArgAndTarget(t *testing.T) {
 
 func TestUptimeCommand(t *testing.T) {
 	t.Parallel()
-	h := &fakeInfoHelix{stream: twitcheventsub.StreamInfo{Live: true, StartedAt: time.Now().Add(-(time.Hour + 2*time.Minute + 10*time.Second))}}
+	h := &fakeInfoHelix{stream: twitcheventsub.StreamInfo{Live: true, StartedAt: infoTestNow.Add(-(time.Hour + 2*time.Minute + 10*time.Second))}}
 	b := newInfoBot(h)
 	b.handleUptimeCommand(infoMsg("!uptime", "!uptime"))
 	if got := onlySay(t, b); got != "SomeChannel has been live for 1 hour 2 mins" {
@@ -285,7 +292,7 @@ func TestUptimeCommand(t *testing.T) {
 
 func TestUptimeOfflineDuration(t *testing.T) {
 	t.Parallel()
-	h := &fakeInfoHelix{lastEnd: time.Now().Add(-(15*time.Hour + 33*time.Minute + 20*time.Second)), endFound: true}
+	h := &fakeInfoHelix{lastEnd: infoTestNow.Add(-(15*time.Hour + 33*time.Minute + 20*time.Second)), endFound: true}
 	b := newInfoBot(h)
 	b.handleUptimeCommand(infoMsg("!uptime", "!uptime"))
 	if got := onlySay(t, b); got != "SomeChannel has been offline for 15 hours 33 mins" {
@@ -297,14 +304,14 @@ func TestUptimeOfflineDuration(t *testing.T) {
 		t.Fatalf("last-stream lookup called %d times, want 1 (cached)", n)
 	}
 
-	days := newInfoBot(&fakeInfoHelix{lastEnd: time.Now().Add(-(50*time.Hour + 5*time.Minute + 10*time.Second)), endFound: true})
+	days := newInfoBot(&fakeInfoHelix{lastEnd: infoTestNow.Add(-(50*time.Hour + 5*time.Minute + 10*time.Second)), endFound: true})
 	days.handleUptimeCommand(infoMsg("!uptime", "!uptime"))
 	if got := onlySay(t, days); got != "SomeChannel has been offline for 2 days 2 hours 5 mins" {
 		t.Fatalf("got %q", got)
 	}
 
 	// Live channels never consult the VOD lookup.
-	live := &fakeInfoHelix{stream: twitcheventsub.StreamInfo{Live: true, StartedAt: time.Now().Add(-time.Hour)}, endFound: true, lastEnd: time.Now()}
+	live := &fakeInfoHelix{stream: twitcheventsub.StreamInfo{Live: true, StartedAt: infoTestNow.Add(-time.Hour)}, endFound: true, lastEnd: infoTestNow}
 	lb := newInfoBot(live)
 	lb.handleUptimeCommand(infoMsg("!uptime", "!uptime"))
 	drainSays(lb)
@@ -318,7 +325,7 @@ func TestUptimeOfflineFallsBack(t *testing.T) {
 	cases := map[string]infoHelix{
 		"lookup error": &fakeInfoHelix{endErr: errors.New("boom")},
 		"no archive":   &fakeInfoHelix{},
-		"future end":   &fakeInfoHelix{lastEnd: time.Now().Add(time.Hour), endFound: true},
+		"future end":   &fakeInfoHelix{lastEnd: infoTestNow.Add(time.Hour), endFound: true},
 	}
 	if !testing.Short() {
 		// Stream lookup succeeds (offline) but the VOD lookup hangs until
@@ -434,7 +441,7 @@ func TestGameAndTitleCommands(t *testing.T) {
 
 func TestAccountAgeCommand(t *testing.T) {
 	t.Parallel()
-	created := time.Now().UTC().AddDate(-3, -2, -1).Add(-time.Hour)
+	created := time.Date(2023, 8, 30, 23, 30, 0, 0, time.UTC) // 3y 2m 1d 1h before infoTestNow
 	h := &fakeInfoHelix{users: map[string]twitcheventsub.UserInfo{
 		"bob":   {ID: "7", Login: "bob", DisplayName: "Bob", CreatedAt: created},
 		"alice": {ID: "42", Login: "alice", DisplayName: "Alice", CreatedAt: created},
@@ -456,7 +463,7 @@ func TestAccountAgeCommand(t *testing.T) {
 
 func TestFollowAgeCommand(t *testing.T) {
 	t.Parallel()
-	followed := time.Now().UTC().AddDate(-1, -4, -13).Add(-time.Hour)
+	followed := time.Date(2025, 6, 18, 23, 30, 0, 0, time.UTC) // 1y 4m 13d 1h before infoTestNow
 	h := &fakeInfoHelix{
 		users:  map[string]twitcheventsub.UserInfo{"bob": {ID: "7", Login: "bob", DisplayName: "Bob"}},
 		follow: twitcheventsub.FollowInfo{Following: true, FollowedAt: followed},

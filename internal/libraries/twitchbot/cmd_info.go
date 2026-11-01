@@ -77,7 +77,7 @@ func (b *Bot) handleUptimeCommand(message *chatMessageEvent) {
 				lastEnd = end
 			}
 		}
-		b.sayInfo(channelId, uptimeReply(channel, s, lastEnd, time.Now()))
+		b.sayInfo(channelId, uptimeReply(channel, s, lastEnd, b.infoClock()))
 	})
 }
 
@@ -128,7 +128,7 @@ func (b *Bot) handleAccountAgeCommand(message *chatMessageEvent) {
 			b.sayInfo(channelId, fmt.Sprintf("@%s couldn't find a user named %s", asker, target))
 			return
 		}
-		b.sayInfo(channelId, accountAgeReply(asker, u, time.Now()))
+		b.sayInfo(channelId, accountAgeReply(asker, u, b.infoClock()))
 	})
 }
 
@@ -170,7 +170,7 @@ func (b *Bot) handleFollowAgeCommand(message *chatMessageEvent) {
 			b.sayFollowageUnavailable(channelId)
 			return
 		}
-		b.sayInfo(channelId, followAgeReply(asker, userName, channel, f, time.Now()))
+		b.sayInfo(channelId, followAgeReply(asker, userName, channel, f, b.infoClock()))
 	})
 }
 
@@ -215,6 +215,14 @@ func (b *Bot) runInfoLookup(name string, fn func(ctx context.Context)) {
 		defer func() { <-b.infoSlots }()
 		run()
 	}()
+}
+
+// infoClock is the info commands' clock: b.infoNow when set, else time.Now.
+func (b *Bot) infoClock() time.Time {
+	if b.infoNow != nil {
+		return b.infoNow()
+	}
+	return time.Now()
 }
 
 var errNoHelix = errors.New("twitch client not configured")
