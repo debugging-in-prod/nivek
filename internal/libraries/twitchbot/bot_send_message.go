@@ -95,7 +95,7 @@ func (b *Bot) postChatMessage(ctx context.Context, token, broadcasterId, message
 		Message:       message,
 	})
 	if err != nil {
-		return 0, fmt.Errorf("failed to convert message body to []byte: %s", err.Error())
+		return 0, fmt.Errorf("failed to convert message body to []byte: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, helixSendChatMessageURL, bytes.NewReader(body))
@@ -174,7 +174,7 @@ func (b *Bot) sendChatAnnouncement(broadcasterId, message string) error {
 	}
 	body, err := json.Marshal(announcementBody{Message: message, Color: "primary"})
 	if err != nil {
-		return fmt.Errorf("failed to convert announcement body to []byte: %s", err.Error())
+		return fmt.Errorf("failed to convert announcement body to []byte: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, helixSendChatAnnouncementURL, bytes.NewReader(body))
