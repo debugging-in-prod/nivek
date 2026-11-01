@@ -1,14 +1,6 @@
 <script setup lang="ts">
 import { API_ROUTES } from '~/utils/constants'
-
-interface AutoShoutChatter {
-    id: number
-    channelname: string
-    chattername: string
-    shout_count: number
-    created_at: string
-    updated_at: string
-}
+import type { AutoShoutChatter } from '~/types/autoshout'
 
 const autoShoutChatters = ref<AutoShoutChatter[]>([])
 const chattername = ref('')

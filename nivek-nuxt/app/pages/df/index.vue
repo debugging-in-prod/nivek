@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { MapSnapshot, ZLevel } from '~/types/df'
+import type { MapSnapshot, Position, ZLevel } from '~/types/df'
 import { drawLevel, pixelToWorld, DEFAULT_CELL_SIZE, MIN_CELL_SIZE, MAX_CELL_SIZE } from '~/utils/dfRenderer'
 
 // Poll the snapshot endpoint on a timer. Faster than the DFHost pusher's
@@ -30,11 +30,10 @@ const currentLevelIdx = ref<number>(0)
 // out from under the user.
 let hasInitialized = false
 
-type Coord = { x: number; y: number; z: number }
-const hoverCoord = ref<Coord | null>(null)
+const hoverCoord = ref<Position | null>(null)
 // Multiple tiles can be selected at once; clicking a selected tile again
 // deselects it, and the sidebar "clear" button empties the list.
-const selectedCoords = ref<Coord[]>([])
+const selectedCoords = ref<Position[]>([])
 
 let pollTimer: number | undefined
 let elapsedTimer: number | undefined

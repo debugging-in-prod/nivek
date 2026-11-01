@@ -1,15 +1,6 @@
 <script setup lang="ts">
 import { API_ROUTES } from '~/utils/constants'
-
-interface DadResponse {
-    id: number
-    channelname: string | null
-    response: string
-    is_global: boolean
-    use_count: number
-    created_at: string
-    updated_at: string
-}
+import type { DadResponse } from '~/types/dad'
 
 const dadResponses = ref<DadResponse[]>([])
 const newResponse = ref('')

@@ -40,16 +40,12 @@ export const API_ROUTES = {
   },
 } as const
 
-export interface User {
-  id: number
-  username?: string
-  created_at: string
-  twitch_id: string | null
-  twitch_login: string | null
-  twitch_display_name: string | null
-  bot_opt_in: boolean
-  is_live: boolean
-  // Whether this user may see the /overlay pairing page. Computed server-side
-  // from the overlay allowlist (OVERLAY_DOWNLOAD_ALLOWLIST).
-  overlay_access?: boolean
-}
+// Roles accepted for min_role. Mirrors `validRoles` in
+// internal/libraries/commands/validate.go (and the CHECK constraint on
+// nivek.command.min_role).
+export const ROLES = ['everyone', 'sub', 'vip', 'mod', 'broadcaster'] as const
+
+// Dashboard cooldown limits. Mirror `MinCooldownSecs`/`MaxCooldownSecs` in
+// internal/libraries/commands/validate.go; the server enforces them.
+export const MIN_COOLDOWN = 5
+export const MAX_COOLDOWN = 3600

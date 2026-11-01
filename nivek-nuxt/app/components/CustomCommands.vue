@@ -1,22 +1,13 @@
 <script setup lang="ts">
-import { API_ROUTES } from '~/utils/constants'
+import { API_ROUTES, ROLES, MIN_COOLDOWN, MAX_COOLDOWN } from '~/utils/constants'
+import type { Command, CommandsResponse } from '~/types/commands'
 
 // Editor for the logged-in channel's own custom chat commands
 // (nivek.command, scope='channel', kind='custom'). The server scopes every
 // request to the session user's channel and does all validation; the limits
 // below only mirror it for a friendlier form.
 
-interface CustomCommand {
-  id: number
-  trigger: string
-  response_tmpl: string | null
-  description: string
-  min_role: string
-  cooldown_secs: number
-  enabled: boolean
-}
-
-interface Draft {
+interface CustomCommandDraft {
   trigger: string
   response_tmpl: string
   description: string
@@ -25,18 +16,15 @@ interface Draft {
   enabled: boolean
 }
 
-const ROLES = ['everyone', 'sub', 'vip', 'mod', 'broadcaster'] as const
-const MIN_COOLDOWN = 5
-const MAX_COOLDOWN = 3600
 const MAX_RESPONSE = 500
 const MAX_DESCRIPTION = 200
 
-const commands = ref<CustomCommand[]>([])
+const commands = ref<Command[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 const saving = ref(false)
 
-const blank = (): Draft => ({
+const blank = (): CustomCommandDraft => ({
   trigger: '',
   response_tmpl: '',
   description: '',
@@ -44,10 +32,10 @@ const blank = (): Draft => ({
   cooldown_secs: 30,
   enabled: true,
 })
-const newDraft = reactive<Draft>(blank())
+const newDraft = reactive<CustomCommandDraft>(blank())
 
 const editingId = ref<number | null>(null)
-const editDraft = reactive<Draft>(blank())
+const editDraft = reactive<CustomCommandDraft>(blank())
 const confirmingDelete = ref<number | null>(null)
 
 function errMessage(err: unknown, fallback: string): string {
@@ -58,7 +46,7 @@ function errMessage(err: unknown, fallback: string): string {
 async function load() {
   loading.value = true
   try {
-    const res = await api<{ commands: CustomCommand[] }>(API_ROUTES.Secure.GetChannelCommands)
+    const res = await api<CommandsResponse>(API_ROUTES.Secure.GetChannelCommands)
     commands.value = res.commands ?? []
   } catch (err: unknown) {
     console.error('error fetching custom commands: ', err)
@@ -68,7 +56,7 @@ async function load() {
   }
 }
 
-function payload(d: Draft) {
+function payload(d: CustomCommandDraft) {
   return {
     trigger: d.trigger.trim(),
     response_tmpl: d.response_tmpl.trim(),
@@ -94,7 +82,7 @@ async function create() {
   }
 }
 
-function startEdit(c: CustomCommand) {
+function startEdit(c: Command) {
   Object.assign(editDraft, {
     trigger: c.trigger,
     response_tmpl: c.response_tmpl ?? '',
@@ -108,7 +96,7 @@ function startEdit(c: CustomCommand) {
   error.value = null
 }
 
-async function update(id: number, d: Draft) {
+async function update(id: number, d: CustomCommandDraft) {
   if (saving.value) return
   saving.value = true
   error.value = null
@@ -123,7 +111,7 @@ async function update(id: number, d: Draft) {
   }
 }
 
-function toggleEnabled(c: CustomCommand) {
+function toggleEnabled(c: Command) {
   update(c.id, {
     trigger: c.trigger,
     response_tmpl: c.response_tmpl ?? '',
