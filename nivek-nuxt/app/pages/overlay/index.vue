@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { API_ROUTES } from '~/utils/constants'
-import type { OverlayDevice, OverlayDevicesResponse, CreateOverlayDeviceResponse } from '~/types/overlay'
+import type {
+  OverlayDevice,
+  OverlayDevicesResponse,
+  CreateOverlayDeviceResponse,
+} from '~/types/overlay'
 
 // Owner-only pairing page for the Ridiculous Stream overlay. Mints the device
 // token the overlay sends in its first websocket frame; once paired, cheers,

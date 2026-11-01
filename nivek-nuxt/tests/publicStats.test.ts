@@ -49,7 +49,11 @@ test('null lists are treated as empty', () => {
 
 test('caps list lengths', () => {
   const channels = Array.from({ length: 20 }, (_, i) => ({ display_name: `c${i}`, uses: 100 - i }))
-  const fishers = Array.from({ length: 20 }, (_, i) => ({ display_name: `f${i}`, score: 100 - i, catches: i }))
+  const fishers = Array.from({ length: 20 }, (_, i) => ({
+    display_name: `f${i}`,
+    score: 100 - i,
+    catches: i,
+  }))
   const s = normalizePublicStats({ ...sample, top_channels: channels, top_fishers: fishers })
   assert.ok(s)
   assert.equal(s.top_channels.length, MAX_TOP_CHANNELS)
@@ -69,7 +73,10 @@ test('drops malformed entries and bad numbers', () => {
       { display_name: 'nan', uses: Number.NaN },
       { display_name: '  good  ', uses: 7.9 },
     ],
-    top_fishers: [{ display_name: 42, score: 1 }, { display_name: 'fish', score: 3 }],
+    top_fishers: [
+      { display_name: 42, score: 1 },
+      { display_name: 'fish', score: 3 },
+    ],
     top_channels_window_days: 0,
     generated_at: 'not a date',
   })
@@ -93,7 +100,10 @@ test('truncates overly long names and definitions', () => {
 })
 
 test('markup in names is kept as plain text (rendered escaped by Vue)', () => {
-  const s = normalizePublicStats({ ...sample, top_fishers: [{ display_name: '<img src=x>', score: 1, catches: 1 }] })
+  const s = normalizePublicStats({
+    ...sample,
+    top_fishers: [{ display_name: '<img src=x>', score: 1, catches: 1 }],
+  })
   assert.ok(s)
   assert.equal(s.top_fishers[0].display_name, '<img src=x>')
 })
@@ -110,7 +120,11 @@ test('formatCount groups thousands', () => {
 })
 
 test('all-time window (issue #184)', () => {
-  const s = normalizePublicStats({ ...sample, top_channels_window: 'all_time', top_channels_window_days: 0 })
+  const s = normalizePublicStats({
+    ...sample,
+    top_channels_window: 'all_time',
+    top_channels_window_days: 0,
+  })
   assert.ok(s)
   assert.equal(s.top_channels_window, 'all_time')
   assert.equal(s.top_channels_window_days, null)
@@ -121,7 +135,11 @@ test('all-time window (issue #184)', () => {
 
 test('window label: all_time wins over any days value', () => {
   for (const days of [0, 30]) {
-    const s = normalizePublicStats({ ...sample, top_channels_window: 'all_time', top_channels_window_days: days })
+    const s = normalizePublicStats({
+      ...sample,
+      top_channels_window: 'all_time',
+      top_channels_window_days: days,
+    })
     assert.ok(s)
     assert.equal(topChannelsWindowLabel(s), 'all time')
   }
@@ -129,7 +147,11 @@ test('window label: all_time wins over any days value', () => {
 
 test('window label: missing or zero days without a window is all time', () => {
   for (const days of [undefined, null, 0, -5, 'x']) {
-    const s = normalizePublicStats({ ...sample, top_channels_window: undefined, top_channels_window_days: days })
+    const s = normalizePublicStats({
+      ...sample,
+      top_channels_window: undefined,
+      top_channels_window_days: days,
+    })
     assert.ok(s)
     assert.equal(topChannelsWindowLabel(s), 'all time')
   }

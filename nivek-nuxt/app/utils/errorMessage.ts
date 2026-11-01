@@ -9,7 +9,7 @@ interface FetchErrorLike {
   statusCode?: number
   status?: number
   response?: { status?: number }
-  data?: { error?: unknown, message?: unknown }
+  data?: { error?: unknown; message?: unknown }
 }
 
 export function errorMessage(err: unknown, fallback: string): string {

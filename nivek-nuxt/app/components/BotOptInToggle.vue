@@ -45,7 +45,9 @@ async function toggle(event: Event) {
         :disabled="saving || !auth.user"
         @change="toggle"
       />
-      <span>Bot in my chat: <strong>{{ optedIn ? 'On' : 'Off' }}</strong></span>
+      <span
+        >Bot in my chat: <strong>{{ optedIn ? 'On' : 'Off' }}</strong></span
+      >
     </label>
     <p v-if="error" class="error">{{ error }}</p>
   </div>
