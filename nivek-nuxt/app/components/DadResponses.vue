@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { API_ROUTES } from '~/utils/constants'
+import { errorMessage } from '~/utils/errorMessage'
 import type { DadResponse } from '~/types/dad'
 
 const dadResponses = ref<DadResponse[]>([])
 const newResponse = ref('')
+const loading = ref(true)
+const error = ref<string | null>(null)
 
 // Track which response is awaiting delete confirmation.
 const confirmingDelete = reactive<Record<number, boolean>>({})
@@ -12,16 +15,22 @@ const globalResponses = computed(() => dadResponses.value.filter((r) => r.is_glo
 const channelResponses = computed(() => dadResponses.value.filter((r) => !r.is_global))
 
 async function getResponses() {
+    loading.value = true
+    error.value = null
     try {
         dadResponses.value = await api<DadResponse[]>(API_ROUTES.Secure.GetDadResponses)
         dadResponses.value.forEach((r) => (confirmingDelete[r.id] = false))
     } catch (err: unknown) {
         console.error('error fetching dad responses: ', err)
+        error.value = errorMessage(err, "Couldn't load your !dad responses.")
+    } finally {
+        loading.value = false
     }
 }
 
 async function addResponse() {
     if (!newResponse.value.trim()) return
+    error.value = null
     try {
         await api(API_ROUTES.Secure.PostCreateDadResponse, {
             method: 'POST',
@@ -31,10 +40,12 @@ async function addResponse() {
         newResponse.value = ''
     } catch (err: unknown) {
         console.error('error creating dad response: ', err)
+        error.value = errorMessage(err, "Couldn't add the response.")
     }
 }
 
 async function removeResponse(id: number) {
+    error.value = null
     try {
         await api(API_ROUTES.Secure.DeleteDadResponse(id), {
             method: 'DELETE',
@@ -42,6 +53,7 @@ async function removeResponse(id: number) {
         await getResponses()
     } catch (err: unknown) {
         console.error('error deleting dad response: ', err)
+        error.value = errorMessage(err, "Couldn't remove the response.")
     }
 }
 
@@ -74,8 +86,11 @@ onMounted(() => {
             <button type="submit" class="btn btn-primary mt-2">Add Response</button>
         </form>
 
+        <p v-if="error" class="error" role="alert">{{ error }}</p>
+
         <h5 class="section-label">Your Responses</h5>
-        <ul class="dad-list list-group">
+        <p v-if="loading">Loading…</p>
+        <ul v-else class="dad-list list-group">
             <li v-if="channelResponses.length === 0" class="list-group-item empty">
                 No custom responses yet — add one above.
             </li>
@@ -105,7 +120,7 @@ onMounted(() => {
         </ul>
 
         <h5 class="section-label mt-4">Defaults (all channels)</h5>
-        <ul class="dad-list list-group">
+        <ul v-if="!loading" class="dad-list list-group">
             <li
                 v-for="resp in globalResponses"
                 :key="resp.id"
@@ -181,5 +196,8 @@ input.form-control::placeholder {
 form {
     border-top: 2px solid gray;
     border-bottom: 2px solid gray;
+}
+.error {
+    color: #e5484d;
 }
 </style>

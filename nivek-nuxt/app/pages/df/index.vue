@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { errorMessage } from '~/utils/errorMessage'
 import type { MapSnapshot, Position, ZLevel } from '~/types/df'
 import { drawLevel, pixelToWorld, DEFAULT_CELL_SIZE, MIN_CELL_SIZE, MAX_CELL_SIZE } from '~/utils/dfRenderer'
 
@@ -146,7 +147,8 @@ async function loadSnapshot() {
             renderCurrent()
         }
     } catch (err: unknown) {
-        error.value = (err as { message?: string })?.message ?? 'unknown error'
+        console.error('error fetching DF snapshot: ', err)
+        error.value = errorMessage(err, "couldn't reach the server. Retrying shortly.")
     }
 }
 
@@ -276,7 +278,7 @@ onBeforeUnmount(() => {
             </p>
         </header>
 
-        <div v-if="error" class="error">Snapshot unavailable: {{ error }}</div>
+        <div v-if="error" class="error" role="alert">Snapshot unavailable: {{ error }}</div>
 
         <div v-if="!snapshot && !error" class="waiting">
             <p class="waiting-text">Waiting for data…</p>

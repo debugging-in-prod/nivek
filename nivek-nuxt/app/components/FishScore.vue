@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { API_ROUTES } from '~/utils/constants'
+import { errorMessage } from '~/utils/errorMessage'
 import type { Fish, FishScoresResponse } from '~/types/fishing'
 
 const expandedRows = ref<Record<string | number, boolean>>({})
@@ -13,13 +14,21 @@ const fishScores = ref<FishScoresResponse>({
     as_chatter: [],
 })
 
+const loading = ref(true)
+const error = ref<string | null>(null)
+
 async function getFishScore() {
+    loading.value = true
+    error.value = null
     try {
         fishScores.value = await api<FishScoresResponse>(
             API_ROUTES.Secure.GetFishScore
         )
     } catch (err: unknown) {
         console.error('error fetching fish score: ', err)
+        error.value = errorMessage(err, "Couldn't load fishing scores.")
+    } finally {
+        loading.value = false
     }
 }
 
@@ -51,7 +60,11 @@ onMounted(() => {
 <template>
     <h4 class="title pb-1 mb-4">Fishing</h4>
 
+    <p v-if="loading">Loading…</p>
+    <p v-else-if="error" class="error" role="alert">{{ error }}</p>
+
     <!-- Loop over both As Channel and As Chatter -->
+    <template v-else>
     <div v-for="(fishScoresGroup, key) in fishScores" :key="key"
         class="fishermen mb-4"
     >
@@ -132,6 +145,7 @@ onMounted(() => {
             </div>
         </div>
     </div>
+    </template>
 </template>
 
 <style scoped>
@@ -159,5 +173,8 @@ onMounted(() => {
 }
 .table-hover>tbody>tr:hover>* {
     --bs-table-color-state: unset;
+}
+.error {
+    color: #e5484d;
 }
 </style>
