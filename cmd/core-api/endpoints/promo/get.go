@@ -11,6 +11,8 @@ import (
 // NewGetPromosEndpoint returns the logged-in channel's recurring messages
 // (enabled and disabled).
 func NewGetPromosEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
+	svc := newPromoService(nivek)
+
 	return func(c echo.Context) error {
 		user, err := utilities.GetUserFromContext(c, nivek.Logger())
 		if err != nil {
@@ -24,7 +26,6 @@ func NewGetPromosEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": errCh.Error()})
 		}
 
-		svc := newPromoService(nivek)
 		promos, errList := svc.ListForChannel(channel)
 		if errList != nil {
 			nivek.Logger().Errorf("[Promo] list promos for %s: %v", channel, errList)

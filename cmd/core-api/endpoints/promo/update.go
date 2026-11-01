@@ -14,6 +14,8 @@ import (
 // its message, interval, enabled flag, and (optionally) its min_chat_lines
 // chat-activity threshold. Scoped to the channel in the service.
 func NewUpdatePromoEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
+	svc := newPromoService(nivek)
+
 	return func(c echo.Context) error {
 		user, err := utilities.GetUserFromContext(c, nivek.Logger())
 		if err != nil {
@@ -51,7 +53,6 @@ func NewUpdatePromoEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "interval_seconds required"})
 		}
 
-		svc := newPromoService(nivek)
 		if errUpd := svc.Update(channel, id, payload.Message, payload.IntervalSeconds, payload.Enabled, payload.MinChatLines); errUpd != nil {
 			nivek.Logger().Errorf("[Promo] update promo for %s: %v", channel, errUpd)
 			return c.JSON(http.StatusInternalServerError, map[string]string{

@@ -10,6 +10,8 @@ import (
 
 // NewGetStalkEndpoint returns the logged-in channel's !stalk target.
 func NewGetStalkEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
+	svc := newStalkService(nivek)
+
 	return func(c echo.Context) error {
 		user, err := utilities.GetUserFromContext(c, nivek.Logger())
 		if err != nil {
@@ -23,7 +25,6 @@ func NewGetStalkEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": errCh.Error()})
 		}
 
-		svc := newStalkService(nivek)
 		rec, found, errGet := svc.Get(channel)
 		if errGet != nil {
 			nivek.Logger().Errorf("[Stalk] get stalk target for %s: %v", channel, errGet)

@@ -31,10 +31,17 @@ var dadCases = []struct {
 	{"delete", NewDeleteDadResponseEndpoint, "", "7"},
 }
 
-func TestServiceFailureIsGeneric500(t *testing.T) {
+// useFailingDadService swaps in the failing fake. Endpoints build their
+// service once at construction, so this must run before calling tc.ctor.
+func useFailingDadService(t *testing.T) {
+	t.Helper()
 	orig := newDadService
 	newDadService = func(nivek.NivekService) dadSvc.NivekDadService { return failingDad{} }
 	t.Cleanup(func() { newDadService = orig })
+}
+
+func TestServiceFailureIsGeneric500(t *testing.T) {
+	useFailingDadService(t)
 
 	for _, tc := range dadCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -46,6 +53,8 @@ func TestServiceFailureIsGeneric500(t *testing.T) {
 }
 
 func TestNoUserContextIs401Unauthorized(t *testing.T) {
+	useFailingDadService(t)
+
 	for _, tc := range dadCases {
 		t.Run(tc.name, func(t *testing.T) {
 			svc, _ := newFakeNivek()
@@ -65,6 +74,8 @@ func TestNoUserContextIs401Unauthorized(t *testing.T) {
 }
 
 func TestMissingTwitchLoginDoesNotLeakUserID(t *testing.T) {
+	useFailingDadService(t)
+
 	for _, tc := range dadCases {
 		t.Run(tc.name, func(t *testing.T) {
 			svc, hook := newFakeNivek()

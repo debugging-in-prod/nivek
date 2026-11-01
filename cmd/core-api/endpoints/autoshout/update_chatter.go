@@ -10,6 +10,8 @@ import (
 )
 
 func NewUpdateAutoShoutChatterEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
+	autoShoutService := newAutoShoutService(nivek)
+
 	return func(c echo.Context) error {
 		user, err := utilities.GetUserFromContext(c, nivek.Logger())
 		if err != nil {
@@ -29,8 +31,6 @@ func NewUpdateAutoShoutChatterEndpoint(nivek nivek.NivekService) echo.HandlerFun
 		if errBid != nil {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": errBid.Error()})
 		}
-
-		autoShoutService := newAutoShoutService(nivek)
 
 		// get chatter record to make sure they exist first @TODO::update this to use a smaller fetch
 		chatter, errFetch := autoShoutService.GetAutoShoutChatter(bid, updatedChatter.ChatterName)

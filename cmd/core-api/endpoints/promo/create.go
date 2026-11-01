@@ -12,6 +12,8 @@ import (
 // NewCreatePromoEndpoint adds a recurring message scoped to the logged-in
 // channel. interval_seconds is clamped to the service's bounds.
 func NewCreatePromoEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
+	svc := newPromoService(nivek)
+
 	return func(c echo.Context) error {
 		user, err := utilities.GetUserFromContext(c, nivek.Logger())
 		if err != nil {
@@ -45,7 +47,6 @@ func NewCreatePromoEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "account has no linked twitch id"})
 		}
 
-		svc := newPromoService(nivek)
 		created, errAdd := svc.Create(channel, *user.TwitchID, payload.Message, payload.IntervalSeconds)
 		if errAdd != nil {
 			nivek.Logger().Errorf("[Promo] create promo for %s: %v", channel, errAdd)

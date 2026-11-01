@@ -11,6 +11,8 @@ import (
 
 // NewSetStalkEndpoint upserts the logged-in channel's !stalk target.
 func NewSetStalkEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
+	svc := newStalkService(nivek)
+
 	return func(c echo.Context) error {
 		user, err := utilities.GetUserFromContext(c, nivek.Logger())
 		if err != nil {
@@ -36,7 +38,6 @@ func NewSetStalkEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "that doesn't look like a username"})
 		}
 
-		svc := newStalkService(nivek)
 		if errSet := svc.Set(channel, target, setByLogin(user)); errSet != nil {
 			nivek.Logger().Errorf("[Stalk] set stalk target for %s: %v", channel, errSet)
 			return c.JSON(http.StatusInternalServerError, map[string]string{

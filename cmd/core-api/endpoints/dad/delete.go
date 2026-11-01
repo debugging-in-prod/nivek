@@ -13,6 +13,8 @@ import (
 // responses. Globals and other channels' rows are unaffected (enforced in the
 // service).
 func NewDeleteDadResponseEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
+	svc := newDadService(nivek)
+
 	return func(c echo.Context) error {
 		user, err := utilities.GetUserFromContext(c, nivek.Logger())
 		if err != nil {
@@ -35,7 +37,6 @@ func NewDeleteDadResponseEndpoint(nivek nivek.NivekService) echo.HandlerFunc {
 			})
 		}
 
-		svc := newDadService(nivek)
 		if errDel := svc.Remove(*user.TwitchLogin, id); errDel != nil {
 			nivek.Logger().Errorf("[Dad] delete response for %s: %v", *user.TwitchLogin, errDel)
 			return c.JSON(http.StatusInternalServerError, map[string]string{
