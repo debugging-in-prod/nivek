@@ -35,9 +35,6 @@ const (
 	KindRedemption Kind = "redemption"
 	KindPowerUp    Kind = "power_up"
 	KindExtension  Kind = "extension"
-	// KindCommand is a chat command routed to the overlay for execution. Unlike
-	// every other kind it is NOT replayed on reconnect -- see EventsAfter.
-	KindCommand Kind = "command"
 )
 
 // Device is one registered overlay client. Token holds sha256(token) hex; the
