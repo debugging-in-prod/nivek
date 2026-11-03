@@ -232,17 +232,15 @@ func (s *service) BroadcastersWithActiveDevices() ([]string, error) {
 
 // EventsAfter returns the backlog an overlay missed, oldest first.
 //
-// KindCommand is deliberately excluded. A cheer that landed during a restart
+// Legacy 'command' rows are deliberately excluded. The relay used to route chat
+// commands to the overlay as kind='command' (removed in fe9d93a), and those rows
+// may still sit in nivek.overlay_event. A cheer that landed during a restart
 // must still be honoured, which is the whole reason the log exists -- but a
-// chat command is a request to do something NOW. Replaying "!nuke" twenty
+// chat command was a request to do something NOW. Replaying "!nuke" twenty
 // minutes later drops a nuke on stream with nobody around who asked for it.
-// Money wants durability; commands want fire-now-or-never.
-//
-// The rows are still written: they keep the per-user seq monotonic, and they
-// carry the same unique-message dedupe every other kind gets, so a command is
-// never delivered twice across a reconnect. They are just never re-sent. An
-// overlay's cursor therefore stays at the last non-command event it saw, which
-// is correct -- there is nothing to catch up on.
+// Nothing writes kind='command' any more, so this filter only guards old rows;
+// it stays a literal rather than a Kind constant so no new code is tempted to
+// start emitting it again.
 func (s *service) EventsAfter(userID int, since int64, limit int) ([]Event, error) {
 	if limit <= 0 || limit > MaxReplay {
 		limit = MaxReplay
@@ -251,11 +249,11 @@ func (s *service) EventsAfter(userID int, since int64, limit int) ([]Event, erro
 	const query = `
 		SELECT seq, twitch_message_id, kind, payload, created_at
 		  FROM nivek.overlay_event
-		 WHERE user_id = $1 AND seq > $2 AND kind <> $4
+		 WHERE user_id = $1 AND seq > $2 AND kind <> 'command'
 		 ORDER BY seq ASC
 		 LIMIT $3`
 
-	rows, err := s.session().SQL().Query(query, userID, since, limit, string(KindCommand))
+	rows, err := s.session().SQL().Query(query, userID, since, limit)
 	if err != nil {
 		return nil, fmt.Errorf("read events after %d: %w", since, err)
 	}
