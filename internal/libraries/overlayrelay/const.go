@@ -112,18 +112,6 @@ type PowerUpPayload struct {
 	PowerUpTitle string `json:"power_up_title"`
 }
 
-// CommandPayload is a chat command the bot has routed here for the overlay to
-// execute. Action is the stable name the overlay dispatches on (matching the
-// handler_key in nivek.command minus the "overlay_" prefix); Args are the
-// command's trailing words, already split.
-type CommandPayload struct {
-	Action    string   `json:"action"`
-	Args      []string `json:"args,omitempty"`
-	UserID    string   `json:"user_id,omitempty"`
-	UserLogin string   `json:"user_login"`
-	UserName  string   `json:"user_name"`
-}
-
 // ExtensionPayload is a Bits interaction redeemed through the Twitch Extension
 // (a Bits-in-Extensions product purchase), not an EventSub webhook. It reaches
 // the relay from the extension's backend endpoint after the signed Bits receipt
