@@ -305,3 +305,152 @@ func TestIRCBanishCooldown(t *testing.T) {
 		t.Fatal("a repeat IRC !banish inside the floor must be blocked")
 	}
 }
+
+func TestCooldownAllowPerUser(t *testing.T) {
+	t.Parallel()
+	c, clk := newTestCooldowns()
+	if !c.allowPerUser("chan", hangmanGuessKey, "alice", time.Second) {
+		t.Fatal("first use must be allowed")
+	}
+	if c.allowPerUser("chan", hangmanGuessKey, "alice", time.Second) {
+		t.Fatal("same user inside the window must be blocked")
+	}
+	if !c.allowPerUser("chan", hangmanGuessKey, "bob", time.Second) {
+		t.Fatal("per-user only: another user must not be blocked")
+	}
+	if !c.allowPerUser("other", hangmanGuessKey, "alice", time.Second) {
+		t.Fatal("a different channel must not share the window")
+	}
+	if g, _ := c.size(); g != 0 {
+		t.Fatalf("per-user-only window wrote %d global entries, want 0", g)
+	}
+	clk.advance(time.Second)
+	if !c.allowPerUser("chan", hangmanGuessKey, "alice", time.Second) {
+		t.Fatal("window elapsed: alice must be allowed")
+	}
+	var nilC *commandCooldowns
+	if !nilC.allowPerUser("chan", hangmanGuessKey, "alice", time.Second) {
+		t.Fatal("nil guard must allow")
+	}
+}
+
+// hangmanDispatchBot is dispatchBot plus a counting "!hangman" builtin.
+func hangmanDispatchBot(hangmanCalls, fishCalls *atomic.Int32) (*Bot, *fakeClock) {
+	b, clk := dispatchBot(fishCalls)
+	b.setCommands(map[string]commandHandler{
+		"!fish":        func(*Bot, *chatMessageEvent) { fishCalls.Add(1) },
+		hangmanTrigger: func(*Bot, *chatMessageEvent) { hangmanCalls.Add(1) },
+	}, nil)
+	return b, clk
+}
+
+func TestDispatchHangmanGuessesSkipCommandCooldown(t *testing.T) {
+	t.Parallel()
+	var hm, fish atomic.Int32
+	b, clk := hangmanDispatchBot(&hm, &fish)
+
+	// One user guessing every ~1.1s for well past the 5s/15s command windows:
+	// every guess must go through.
+	letters := "abcdefghijklmnopq"
+	for i, l := range letters {
+		b.handleWebhookMessage(chatEvent(fmt.Sprintf("g%d", i), "42", "alice", "!hangman "+string(l), false))
+		clk.advance(1100 * time.Millisecond)
+	}
+	if got, want := int(hm.Load()), len(letters); got != want {
+		t.Fatalf("guesses dispatched = %d, want %d (all, spaced >1s, over %v)", got, want,
+			time.Duration(len(letters))*1100*time.Millisecond)
+	}
+}
+
+func TestDispatchHangmanGuessPerUserGuard(t *testing.T) {
+	t.Parallel()
+	var hm, fish atomic.Int32
+	b, clk := hangmanDispatchBot(&hm, &fish)
+
+	b.handleWebhookMessage(chatEvent("m1", "42", "alice", "!hangman a", false))
+	clk.advance(500 * time.Millisecond)
+	b.handleWebhookMessage(chatEvent("m2", "42", "alice", "!hangman b", false))
+	if hm.Load() != 1 {
+		t.Fatalf("second guess within 1s ran: calls = %d, want 1", hm.Load())
+	}
+	// Mods get no bypass of the guess guard.
+	b.handleWebhookMessage(chatEvent("m3", "50", "mod", "!hangman c", true))
+	b.handleWebhookMessage(chatEvent("m4", "50", "mod", "!hangman d", true))
+	if hm.Load() != 2 {
+		t.Fatalf("mod double guess: calls = %d, want 2", hm.Load())
+	}
+	// Different users don't block each other, even back to back.
+	b.handleWebhookMessage(chatEvent("m5", "43", "bob", "!hangman e", false))
+	b.handleWebhookMessage(chatEvent("m6", "44", "carol", "!HANGMAN f", false))
+	if hm.Load() != 4 {
+		t.Fatalf("other users blocked: calls = %d, want 4", hm.Load())
+	}
+	clk.advance(500 * time.Millisecond)
+	b.handleWebhookMessage(chatEvent("m7", "42", "alice", "!hangman b", false))
+	if hm.Load() != 5 {
+		t.Fatalf("alice after 1s: calls = %d, want 5", hm.Load())
+	}
+}
+
+func TestDispatchBareHangmanKeepsCommandCooldown(t *testing.T) {
+	t.Parallel()
+	var hm, fish atomic.Int32
+	b, clk := hangmanDispatchBot(&hm, &fish)
+	invisibleOnly := "!hangman " + oneRune(0x034F)
+
+	b.handleWebhookMessage(chatEvent("m1", "42", "alice", "!hangman", false))
+	clk.advance(2 * time.Second)
+	b.handleWebhookMessage(chatEvent("m2", "43", "bob", "!hangman", false))
+	b.handleWebhookMessage(chatEvent("m3", "43", "bob", invisibleOnly, false))
+	if hm.Load() != 1 {
+		t.Fatalf("bare/invisible-only !hangman inside the 5s global window ran: calls = %d, want 1", hm.Load())
+	}
+	// Guesses don't consume or get blocked by the bare-command cooldown.
+	b.handleWebhookMessage(chatEvent("m4", "43", "bob", "!hangman z", false))
+	if hm.Load() != 2 {
+		t.Fatalf("guess blocked by the bare cooldown: calls = %d, want 2", hm.Load())
+	}
+	clk.advance(defaultGlobalCooldown)
+	b.handleWebhookMessage(chatEvent("m5", "43", "bob", invisibleOnly, false))
+	if hm.Load() != 3 {
+		t.Fatalf("global window elapsed: calls = %d, want 3", hm.Load())
+	}
+	// alice's 15s per-user window still holds for a bare !hangman at 7s.
+	b.handleWebhookMessage(chatEvent("m6", "42", "alice", "!hangman", false))
+	if hm.Load() != 3 {
+		t.Fatalf("per-user window ignored for bare !hangman: calls = %d, want 3", hm.Load())
+	}
+}
+
+func TestDispatchHangmanDoesNotChangeOtherCommands(t *testing.T) {
+	t.Parallel()
+	var hm, fish atomic.Int32
+	b, clk := hangmanDispatchBot(&hm, &fish)
+
+	// A guess must not loosen the cooldown on other commands, even ones with args.
+	b.handleWebhookMessage(chatEvent("m1", "42", "alice", "!fish a", false))
+	clk.advance(1100 * time.Millisecond)
+	b.handleWebhookMessage(chatEvent("m2", "42", "alice", "!fish b", false))
+	b.handleWebhookMessage(chatEvent("m3", "43", "bob", "!fish", false))
+	if fish.Load() != 1 {
+		t.Fatalf("!fish ran %d times inside its cooldown, want 1", fish.Load())
+	}
+}
+
+func TestIsHangmanGuess(t *testing.T) {
+	t.Parallel()
+	cases := map[string]bool{
+		"!hangman":                          false,
+		"  !hangman  ":                      false,
+		"!hangman " + oneRune(0x034F):       false,
+		"!hangman\t" + oneRune(0x200B):      false,
+		"!hangman a":                        true,
+		"!hangman apple":                    true,
+		"!hangman " + oneRune(0x034F) + "e": true,
+	}
+	for in, want := range cases {
+		if got := isHangmanGuess(in); got != want {
+			t.Errorf("isHangmanGuess(%q) = %v, want %v", in, got, want)
+		}
+	}
+}
