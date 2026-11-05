@@ -37,7 +37,7 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 		} else {
 
 			// new game
-			newgame := hangman.StartNewGame(b.httpClient)
+			newgame := hangman.StartNewGame()
 			if newgame == nil {
 				b.say(channelId, "whoops! Failed to start new game")
 			} else {

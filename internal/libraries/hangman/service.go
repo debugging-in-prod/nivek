@@ -1,43 +1,37 @@
 package hangman
 
 import (
-	"encoding/json"
+	_ "embed"
 	"fmt"
-	"net/http"
+	"math/rand/v2"
 	"slices"
 	"strings"
 )
 
-func StartNewGame(httpClient *http.Client) *Game {
-	newgame := &Game{
-		Word:     "",
+// wordsFile is the built-in hangman wordbank: one lowercase word per line.
+//
+//go:embed words.txt
+var wordsFile string
+
+// wordList is wordsFile split into words once at package init.
+var wordList = strings.Fields(wordsFile)
+
+// StartNewGame starts a game with a random word from the built-in wordbank.
+// It returns nil if the wordbank is empty.
+func StartNewGame() *Game {
+	if len(wordList) == 0 {
+		fmt.Println("[HANGMAN] wordbank is empty")
+		return nil
+	}
+
+	word := wordList[rand.IntN(len(wordList))]
+	fmt.Printf("[HANGMAN] word generated for new game: %s\n", word)
+
+	return &Game{
+		Word:     word,
 		Guesses:  []string{},
 		GameOver: false,
 	}
-
-	// get word
-	resp, err := httpClient.Get("https://random-word-api.herokuapp.com/word")
-	if err != nil {
-		fmt.Printf("[HANGMAN] failed to fetch word! %s\n", err.Error())
-		return nil
-	}
-	defer resp.Body.Close()
-
-	var words []string
-	if err := json.NewDecoder(resp.Body).Decode(&words); err != nil {
-		fmt.Printf("[HANGMAN] failed to decode new-word response: %s\n", err.Error())
-		return nil
-	}
-
-	if len(words) == 0 {
-		fmt.Println("[HANGMAN] word API returned an empty array")
-		return nil
-	}
-
-	fmt.Printf("[HANGMAN] word generated for new game: %s\n", words[0])
-
-	newgame.Word = words[0]
-	return newgame
 }
 
 func PrintState(game *Game) string {
