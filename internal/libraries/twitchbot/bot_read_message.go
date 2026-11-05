@@ -229,7 +229,14 @@ func (b *Bot) handleWebhookMessage(notification *EventSubSubscriptionResponse) {
 		// a builtin in v1).
 		if handler, ok := b.lookupCommand(msgword); ok {
 			// Central cooldown gate: silently skip a command still cooling down.
-			if !b.commandAllowed(&messageEvent, msgword, b.builtinCooldownSecs(msgword)) {
+			// !hangman guesses get their own short per-user window (cooldown.go).
+			var allowed bool
+			if msgword == hangmanTrigger {
+				allowed = b.hangmanGateAllowed(&messageEvent)
+			} else {
+				allowed = b.commandAllowed(&messageEvent, msgword, b.builtinCooldownSecs(msgword))
+			}
+			if !allowed {
 				continue
 			}
 			log.Printf("[CMD-RECV] [%s] %s: %q", channel, chatter, msg)

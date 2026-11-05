@@ -51,7 +51,10 @@ looping messages to any channel.
   builtin or custom, EventSub or IRC, calls `commandAllowed` (or
   `ircCommandAllowed` for IRC) in `internal/libraries/twitchbot/cooldown.go`
   before its handler runs. Put role checks *before* the gate so unauthorised
-  users can't burn the cooldown.
+  users can't burn the cooldown. (`!hangman` dispatches through
+  `hangmanGateAllowed` in the same file: a bare `!hangman` goes through
+  `commandAllowed`; a guess must instead pass both a 3 s per-user window and a
+  2 s per-channel window, checked together and recorded only if both pass.)
 - **Never reply to itself or to other bots.** Messages from the bot's own
   user ID/login, and from logins on the no-reply list (`no_reply.go`: the
   built-in `defaultNoReplyLogins` in `const.go` plus

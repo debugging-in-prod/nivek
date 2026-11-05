@@ -35,6 +35,24 @@ func stripInvisible(s string) string {
 	}, s)
 }
 
+// hangmanArgFields returns the words after the first word of a !hangman
+// message, with invisible runes stripped. Empty means a bare !hangman (new game
+// or show the board); anything else is a guess. Shared by the handler and the
+// cooldown gate (hangmanGateAllowed) so both classify a message the same way.
+func hangmanArgFields(text string) []string {
+	raw := strings.TrimSpace(text)
+	args := ""
+	if idx := strings.IndexAny(raw, " \t"); idx != -1 {
+		args = strings.TrimSpace(raw[idx+1:])
+	}
+	return strings.Fields(stripInvisible(args))
+}
+
+// isHangmanGuess reports whether a !hangman message carries a guess.
+func isHangmanGuess(text string) bool {
+	return len(hangmanArgFields(text)) > 0
+}
+
 func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 	channel := message.BroadcasterUserLogin
 	channelId := message.BroadcasterUserId
@@ -43,12 +61,7 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 	game := b.hangmanGames[channel]
 
 	// get command args
-	raw := strings.TrimSpace(message.Message.Text)
-	args := ""
-	if idx := strings.IndexAny(raw, " \t"); idx != -1 {
-		args = strings.TrimSpace(raw[idx+1:])
-	}
-	fields := strings.Fields(stripInvisible(args))
+	fields := hangmanArgFields(message.Message.Text)
 
 	// if no args, either new game or checking game state
 	if len(fields) == 0 {
