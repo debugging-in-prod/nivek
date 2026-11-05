@@ -203,6 +203,13 @@ type Bot struct {
 
 	hangmanGames map[string]*hangman.Game
 
+	// hangmanSeq numbers hangman state pushes in issue order. hangmanPushMu
+	// is held across each push and guards hangmanSaved, the newest seq saved
+	// per channel, so an older snapshot never overwrites a newer one.
+	hangmanSeq    atomic.Uint64
+	hangmanPushMu sync.Mutex
+	hangmanSaved  map[string]uint64
+
 	// translateMu guards translateCooldown, the per-chatter last-used timestamp
 	// for !translate (keyed by Twitch user id). Throttles the paid DeepL API.
 	translateMu       sync.Mutex

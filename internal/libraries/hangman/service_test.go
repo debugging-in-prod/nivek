@@ -3,6 +3,7 @@ package hangman
 import (
 	"regexp"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -70,5 +71,107 @@ func TestStartNewGameEmptyWordbank(t *testing.T) {
 	wordList = nil
 	if game := StartNewGame(); game != nil {
 		t.Fatalf("StartNewGame with empty wordbank = %+v, want nil", game)
+	}
+}
+
+func playGuesses(game *Game, guesses ...string) string {
+	var state string
+	for _, g := range guesses {
+		Guess(game, g)
+		state = PrintState(game)
+	}
+	return state
+}
+
+func TestWordGuessCorrectWins(t *testing.T) {
+	game := &Game{Word: "apple", Guesses: []string{}}
+
+	state := playGuesses(game, "APPLE")
+
+	if !strings.Contains(state, "a p p l e") || !strings.Contains(state, "You win!") {
+		t.Fatalf("state = %q, want full word revealed and a win", state)
+	}
+	if !strings.Contains(state, "(0/6)") {
+		t.Errorf("state = %q, want no misses", state)
+	}
+	if !game.GameOver {
+		t.Error("GameOver = false after a correct word guess")
+	}
+}
+
+func TestWordGuessWrongCostsOneMissRevealsNothing(t *testing.T) {
+	game := &Game{Word: "apple", Guesses: []string{}}
+
+	// "lapel" shares every letter with "apple" but must reveal none of them.
+	state := playGuesses(game, "lapel")
+
+	if !strings.Contains(state, "_ _ _ _ _") {
+		t.Errorf("state = %q, want nothing revealed", state)
+	}
+	if !strings.Contains(state, "❌ lapel") || !strings.Contains(state, "(1/6)") {
+		t.Errorf("state = %q, want exactly one miss for lapel", state)
+	}
+	if game.GameOver {
+		t.Error("GameOver = true after one wrong word guess")
+	}
+
+	// Repeating the same wrong word, in any case, doesn't cost another miss.
+	state = playGuesses(game, "LAPEL")
+	if !strings.Contains(state, "(1/6)") {
+		t.Errorf("state = %q, want a repeated word guess to be ignored", state)
+	}
+}
+
+func TestWordGuessWrongAtMissLimitLoses(t *testing.T) {
+	game := &Game{Word: "apple", Guesses: []string{}}
+
+	state := playGuesses(game, "z", "x", "q", "w", "k", "grape")
+
+	if !strings.Contains(state, "(6/6)") || !strings.Contains(state, "Game over! The word was apple") {
+		t.Fatalf("state = %q, want a loss at 6/6", state)
+	}
+	if !game.GameOver {
+		t.Error("GameOver = false after the sixth miss")
+	}
+}
+
+func TestLetterGuessesUnchanged(t *testing.T) {
+	game := &Game{Word: "apple", Guesses: []string{}}
+
+	state := playGuesses(game, "p", "z", "p")
+	if !strings.Contains(state, "_ p p _ _") || !strings.Contains(state, "❌ z") || !strings.Contains(state, "(1/6)") {
+		t.Fatalf("state = %q, want p revealed and one miss for z", state)
+	}
+
+	state = playGuesses(game, "a", "l", "e")
+	if !strings.Contains(state, "You win!") || !game.GameOver {
+		t.Fatalf("state = %q, want a win once every letter is guessed", state)
+	}
+}
+
+func TestWordGuessWrongLengthRejected(t *testing.T) {
+	for _, guess := range []string{"plea", "apples", strings.Repeat("x", 400)} {
+		game := &Game{Word: "apple", Guesses: []string{"p"}}
+
+		if !WrongLength(game, guess) {
+			t.Errorf("WrongLength(%.10q) = false, want true", guess)
+		}
+		if Guess(game, guess) {
+			t.Errorf("Guess(%.10q) = true, want rejected", guess)
+		}
+		if len(game.Guesses) != 1 || game.GameOver {
+			t.Errorf("game = %+v after %.10q, want unchanged", game, guess)
+		}
+		if misses, wrong := calcMisses(game); len(misses) != 0 || wrong != 0 {
+			t.Errorf("misses = %q (%d) after %.10q, want none", misses, wrong, guess)
+		}
+	}
+
+	// Single letters and same-length words are not length-checked.
+	game := &Game{Word: "apple"}
+	for _, guess := range []string{"z", "lapel", "APPLE"} {
+		if WrongLength(game, guess) {
+			t.Errorf("WrongLength(%q) = true, want false", guess)
+		}
 	}
 }
