@@ -2,7 +2,6 @@ package twitchbot
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 	"unicode"
 
@@ -80,10 +79,8 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 
 	guess := fields[0]
 
-	// check if word was already guessed
-	if !slices.Contains(game.Guesses, guess) {
-		game.Guesses = append(game.Guesses, guess)
-	}
+	// record the guess; repeats are ignored
+	hangman.Guess(game, guess)
 
 	b.say(channelId, hangman.PrintState(game))
 	fmt.Printf("[HANGMAN] handling guess %s for word %s\n", guess, game.Word)
