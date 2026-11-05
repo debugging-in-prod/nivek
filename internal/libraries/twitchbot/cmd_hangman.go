@@ -4,9 +4,29 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode"
 
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/hangman"
 )
+
+// hangmanNoGameMsg is the reply to a guess when no game is running.
+const hangmanNoGameMsg = "No game running, start one with !hangman"
+
+// stripInvisible removes invisible/format runes (e.g. the U+034F combining
+// grapheme joiner Chatterino/7TV append to dodge Twitch's duplicate-message
+// filter) so they aren't mistaken for a guess. Whitespace is kept.
+func stripInvisible(s string) string {
+	return strings.Map(func(r rune) rune {
+		switch r {
+		case 0x034F, 0x200B, 0x200C, 0x200D, 0x2060, 0xFEFF:
+			return -1
+		}
+		if !unicode.IsGraphic(r) && !unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}, s)
+}
 
 // push state to db on state update
 // state update == on new guess, on game over, on new game
@@ -25,7 +45,7 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 	if idx := strings.IndexAny(raw, " \t"); idx != -1 {
 		args = strings.TrimSpace(raw[idx+1:])
 	}
-	fields := strings.Fields(args)
+	fields := strings.Fields(stripInvisible(args))
 
 	// if no args, either new game or checking game state
 	if len(fields) == 0 {
@@ -54,7 +74,7 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 
 	// check if game exists or if game has already ended
 	if game == nil || game.GameOver {
-		b.say(channelId, hangman.PrintState(game))
+		b.say(channelId, hangmanNoGameMsg)
 		return
 	}
 

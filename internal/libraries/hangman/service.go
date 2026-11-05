@@ -34,7 +34,11 @@ func StartNewGame() *Game {
 	}
 }
 
+// PrintState renders the board for game. It returns "" for a nil game.
 func PrintState(game *Game) string {
+	if game == nil {
+		return ""
+	}
 	guessed := make(map[rune]bool, len(game.Guesses))
 	for _, g := range game.Guesses {
 		for _, r := range strings.ToLower(g) {
