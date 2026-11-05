@@ -61,15 +61,25 @@ const (
 // A bare !hangman (start a game / show the board) uses the normal command
 // cooldown. A guess (!hangman <letter|word>) is a move in a game already on the
 // board, and the 5s/15s command windows dropped most of them, so guesses skip
-// those windows and instead share the central state under a dedicated key with
-// a short per-user window only.
+// those windows and instead share the central state under dedicated keys with
+// two short windows, both of which must pass:
+//
+//   - per user (hangmanGuessUserCooldown): one chatter can't guess faster than
+//     this in a channel;
+//   - per channel (hangmanGuessChannelCooldown): the whole channel can't
+//     trigger guess replies faster than this, whoever is guessing.
+//
+// The channel window is what bounds reply volume: senderLoop paces every send
+// across all channels (a 1.5s sleep after each send in bot_send_message.go,
+// ~0.67 msg/s total), so an unbounded guess rate would fill the say() queue and
+// drop replies everywhere. No privileged bypass.
 const (
-	hangmanTrigger  = "!hangman"
-	hangmanGuessKey = "^hangman-guess"
-	// hangmanGuessCooldown is the per-user gap between two guesses in one
-	// channel. There is no global window (different chatters never block each
-	// other) and no privileged bypass.
-	hangmanGuessCooldown = time.Second
+	hangmanTrigger         = "!hangman"
+	hangmanGuessKey        = "^hangman-guess"
+	hangmanGuessChannelKey = "^hangman-guess-channel"
+
+	hangmanGuessUserCooldown    = 3 * time.Second
+	hangmanGuessChannelCooldown = 2 * time.Second
 )
 
 // cooldownWindows resolves the effective (global, per-user) windows for a
@@ -152,24 +162,39 @@ func (c *commandCooldowns) allow(channel, trigger, user string, cooldownSecs int
 	return true
 }
 
-// allowPerUser is a per-user-only window: key may run now in channel for user
-// unless the same user ran it there less than window ago. No global window and
-// no privileged bypass. Records the use when allowed.
-func (c *commandCooldowns) allowPerUser(channel, key, user string, window time.Duration) bool {
+// allowUserAndChannel gates a use on two windows at once: a per-user window
+// (userKey, userWin; stored in c.user) and a channel-wide window (chanKey,
+// chanWin; stored in c.global). No privileged bypass.
+//
+// Order and atomicity: under one hold of c.mu it first checks both windows
+// without recording anything, and only if both pass records both stamps. So a
+// use rejected by either window consumes neither (a guess dropped by the
+// channel window doesn't start that user's window, and vice versa), and two
+// concurrent callers can't both slip through.
+func (c *commandCooldowns) allowUserAndChannel(channel, user, userKey string, userWin time.Duration, chanKey string, chanWin time.Duration) bool {
 	if c == nil {
 		return true
 	}
-	uKey := channel + "\x00" + strings.ToLower(key) + "\x00" + user
+	cKey := channel + "\x00" + strings.ToLower(chanKey)
+	uKey := channel + "\x00" + strings.ToLower(userKey) + "\x00" + user
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	now := c.now()
 	c.pruneLocked(now)
 
-	if u, ok := c.user[uKey]; ok && now.Sub(u.last) < window {
+	// Check both first; record nothing on rejection.
+	if g, ok := c.global[cKey]; ok && now.Sub(g.last) < chanWin {
 		return false
 	}
-	c.user[uKey] = cooldownStamp{last: now, expires: now.Add(window)}
+	if u, ok := c.user[uKey]; ok && now.Sub(u.last) < userWin {
+		return false
+	}
+
+	// Both passed: record both.
+	c.global[cKey] = cooldownStamp{last: now, expires: now.Add(chanWin)}
+	c.user[uKey] = cooldownStamp{last: now, expires: now.Add(userWin)}
+	c.capLocked(c.global)
 	c.capLocked(c.user)
 	return true
 }
@@ -257,15 +282,20 @@ func (b *Bot) caretEchoAllowed(message *chatMessageEvent) bool {
 
 // hangmanGateAllowed is the cooldown gate for !hangman. A bare !hangman
 // (including one whose only argument is invisible runes) goes through
-// commandAllowed like any other command. A guess goes through the
-// hangmanGuessCooldown per-user window instead, so a chatter can guess about
-// once a second and chatters never block each other. Allowed guesses are still
-// counted as !hangman usage.
+// commandAllowed like any other command. A guess must instead pass both the
+// hangmanGuessUserCooldown per-user window and the hangmanGuessChannelCooldown
+// per-channel window (checked together, recorded only if both pass; see
+// allowUserAndChannel). Allowed guesses are still counted as !hangman usage.
 func (b *Bot) hangmanGateAllowed(message *chatMessageEvent) bool {
 	if !isHangmanGuess(message.Message.Text) {
 		return b.commandAllowed(message, hangmanTrigger, b.builtinCooldownSecs(hangmanTrigger))
 	}
-	if !b.cooldowns.allowPerUser(message.BroadcasterUserId, hangmanGuessKey, message.ChatterUserId, hangmanGuessCooldown) {
+	if !b.cooldowns.allowUserAndChannel(
+		message.BroadcasterUserId,
+		message.ChatterUserId,
+		hangmanGuessKey, hangmanGuessUserCooldown,
+		hangmanGuessChannelKey, hangmanGuessChannelCooldown,
+	) {
 		return false
 	}
 	b.recordCommandUse(message.BroadcasterUserId, message.BroadcasterUserLogin, hangmanTrigger)

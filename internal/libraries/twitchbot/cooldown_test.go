@@ -238,13 +238,18 @@ func dispatchBot(calls *atomic.Int32) (*Bot, *fakeClock) {
 }
 
 func chatEvent(id, chatterID, login, text string, mod bool) *EventSubSubscriptionResponse {
+	return chatEventIn("9", "somechannel", id, chatterID, login, text, mod)
+}
+
+// chatEventIn is chatEvent in an explicit channel (broadcaster id + login).
+func chatEventIn(channelID, channelLogin, id, chatterID, login, text string, mod bool) *EventSubSubscriptionResponse {
 	badges := "[]"
 	if mod {
 		badges = `[{"set_id":"moderator","id":"1","info":""}]`
 	}
-	ev := fmt.Sprintf(`{"broadcaster_user_login":"somechannel","broadcaster_user_id":"9",`+
+	ev := fmt.Sprintf(`{"broadcaster_user_login":%q,"broadcaster_user_id":%q,`+
 		`"chatter_user_id":%q,"chatter_user_login":%q,"chatter_user_name":%q,"message_id":%q,`+
-		`"badges":%s,"message":{"text":%q}}`, chatterID, login, login, id, badges, text)
+		`"badges":%s,"message":{"text":%q}}`, channelLogin, channelID, chatterID, login, login, id, badges, text)
 	return &EventSubSubscriptionResponse{Event: []byte(ev)}
 }
 
@@ -306,31 +311,61 @@ func TestIRCBanishCooldown(t *testing.T) {
 	}
 }
 
-func TestCooldownAllowPerUser(t *testing.T) {
+func TestCooldownAllowUserAndChannel(t *testing.T) {
 	t.Parallel()
 	c, clk := newTestCooldowns()
-	if !c.allowPerUser("chan", hangmanGuessKey, "alice", time.Second) {
+	const uWin, cWin = 3 * time.Second, 2 * time.Second
+	allow := func(ch, user string) bool {
+		return c.allowUserAndChannel(ch, user, hangmanGuessKey, uWin, hangmanGuessChannelKey, cWin)
+	}
+	if !allow("chan", "alice") {
 		t.Fatal("first use must be allowed")
 	}
-	if c.allowPerUser("chan", hangmanGuessKey, "alice", time.Second) {
-		t.Fatal("same user inside the window must be blocked")
+	if allow("chan", "bob") {
+		t.Fatal("another user inside the channel window must be blocked")
 	}
-	if !c.allowPerUser("chan", hangmanGuessKey, "bob", time.Second) {
-		t.Fatal("per-user only: another user must not be blocked")
+	if !allow("other", "bob") {
+		t.Fatal("a different channel must not share the channel window")
 	}
-	if !c.allowPerUser("other", hangmanGuessKey, "alice", time.Second) {
-		t.Fatal("a different channel must not share the window")
+	clk.advance(cWin)
+	// Channel window clear, alice's user window (3s) not.
+	if allow("chan", "alice") {
+		t.Fatal("alice inside her user window must be blocked")
 	}
-	if g, _ := c.size(); g != 0 {
-		t.Fatalf("per-user-only window wrote %d global entries, want 0", g)
+	// alice's rejection (by the user window) must not have burned the channel
+	// window, and bob's earlier rejection (by the channel window) must not have
+	// started his user window.
+	if !allow("chan", "bob") {
+		t.Fatal("bob must be allowed: neither rejection may record a stamp")
 	}
-	clk.advance(time.Second)
-	if !c.allowPerUser("chan", hangmanGuessKey, "alice", time.Second) {
-		t.Fatal("window elapsed: alice must be allowed")
+	clk.advance(uWin)
+	if !allow("chan", "alice") {
+		t.Fatal("both windows elapsed: alice must be allowed")
 	}
 	var nilC *commandCooldowns
-	if !nilC.allowPerUser("chan", hangmanGuessKey, "alice", time.Second) {
+	if !nilC.allowUserAndChannel("chan", "alice", hangmanGuessKey, uWin, hangmanGuessChannelKey, cWin) {
 		t.Fatal("nil guard must allow")
+	}
+}
+
+func TestCooldownAllowUserAndChannelConcurrent(t *testing.T) {
+	t.Parallel()
+	c, _ := newTestCooldowns()
+	var wg sync.WaitGroup
+	var allowed atomic.Int32
+	for i := range 50 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if c.allowUserAndChannel("chan", fmt.Sprint(i), hangmanGuessKey, 3*time.Second,
+				hangmanGuessChannelKey, 2*time.Second) {
+				allowed.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+	if allowed.Load() != 1 {
+		t.Fatalf("concurrent guesses allowed = %d, want 1 (channel window)", allowed.Load())
 	}
 }
 
@@ -349,46 +384,84 @@ func TestDispatchHangmanGuessesSkipCommandCooldown(t *testing.T) {
 	var hm, fish atomic.Int32
 	b, clk := hangmanDispatchBot(&hm, &fish)
 
-	// One user guessing every ~1.1s for well past the 5s/15s command windows:
-	// every guess must go through.
-	letters := "abcdefghijklmnopq"
+	// One user guessing just past the 3s user window for well past the 5s/15s
+	// command windows: every guess must go through.
+	const gap = hangmanGuessUserCooldown + 100*time.Millisecond
+	letters := "abcdefghij"
 	for i, l := range letters {
 		b.handleWebhookMessage(chatEvent(fmt.Sprintf("g%d", i), "42", "alice", "!hangman "+string(l), false))
-		clk.advance(1100 * time.Millisecond)
+		clk.advance(gap)
 	}
 	if got, want := int(hm.Load()), len(letters); got != want {
-		t.Fatalf("guesses dispatched = %d, want %d (all, spaced >1s, over %v)", got, want,
-			time.Duration(len(letters))*1100*time.Millisecond)
+		t.Fatalf("guesses dispatched = %d, want %d (all, spaced %v, over %v)", got, want,
+			gap, time.Duration(len(letters))*gap)
 	}
 }
 
-func TestDispatchHangmanGuessPerUserGuard(t *testing.T) {
+func TestDispatchHangmanGuessUserWindow(t *testing.T) {
 	t.Parallel()
 	var hm, fish atomic.Int32
 	b, clk := hangmanDispatchBot(&hm, &fish)
 
 	b.handleWebhookMessage(chatEvent("m1", "42", "alice", "!hangman a", false))
-	clk.advance(500 * time.Millisecond)
+	// Past the channel window but inside alice's 3s window: dropped.
+	clk.advance(hangmanGuessChannelCooldown + 500*time.Millisecond)
 	b.handleWebhookMessage(chatEvent("m2", "42", "alice", "!hangman b", false))
 	if hm.Load() != 1 {
-		t.Fatalf("second guess within 1s ran: calls = %d, want 1", hm.Load())
+		t.Fatalf("same user within 3s ran: calls = %d, want 1", hm.Load())
 	}
-	// Mods get no bypass of the guess guard.
-	b.handleWebhookMessage(chatEvent("m3", "50", "mod", "!hangman c", true))
-	b.handleWebhookMessage(chatEvent("m4", "50", "mod", "!hangman d", true))
+	clk.advance(hangmanGuessUserCooldown - hangmanGuessChannelCooldown)
+	b.handleWebhookMessage(chatEvent("m3", "42", "alice", "!hangman b", false))
 	if hm.Load() != 2 {
-		t.Fatalf("mod double guess: calls = %d, want 2", hm.Load())
+		t.Fatalf("same user after >3s: calls = %d, want 2", hm.Load())
 	}
-	// Different users don't block each other, even back to back.
-	b.handleWebhookMessage(chatEvent("m5", "43", "bob", "!hangman e", false))
-	b.handleWebhookMessage(chatEvent("m6", "44", "carol", "!HANGMAN f", false))
-	if hm.Load() != 4 {
-		t.Fatalf("other users blocked: calls = %d, want 4", hm.Load())
+	// Mods get no bypass.
+	clk.advance(hangmanGuessUserCooldown)
+	b.handleWebhookMessage(chatEvent("m4", "50", "mod", "!hangman c", true))
+	b.handleWebhookMessage(chatEvent("m5", "50", "mod", "!hangman d", true))
+	if hm.Load() != 3 {
+		t.Fatalf("mod double guess: calls = %d, want 3", hm.Load())
 	}
+}
+
+func TestDispatchHangmanGuessChannelWindow(t *testing.T) {
+	t.Parallel()
+	var hm, fish atomic.Int32
+	b, clk := hangmanDispatchBot(&hm, &fish)
+
+	// Two users 0.5s apart in one channel: only the first is handled.
+	b.handleWebhookMessage(chatEvent("m1", "42", "alice", "!hangman a", false))
 	clk.advance(500 * time.Millisecond)
-	b.handleWebhookMessage(chatEvent("m7", "42", "alice", "!hangman b", false))
-	if hm.Load() != 5 {
-		t.Fatalf("alice after 1s: calls = %d, want 5", hm.Load())
+	b.handleWebhookMessage(chatEvent("m2", "43", "bob", "!hangman e", false))
+	if hm.Load() != 1 {
+		t.Fatalf("second user within the 2s channel window ran: calls = %d, want 1", hm.Load())
+	}
+	// bob's rejected guess didn't start his 3s window: he can guess as soon
+	// as the channel window (from alice's guess) clears.
+	clk.advance(hangmanGuessChannelCooldown - 500*time.Millisecond)
+	b.handleWebhookMessage(chatEvent("m3", "43", "bob", "!hangman e", false))
+	if hm.Load() != 2 {
+		t.Fatalf("bob right after the channel window cleared: calls = %d, want 2", hm.Load())
+	}
+}
+
+func TestDispatchHangmanGuessChannelsIndependent(t *testing.T) {
+	t.Parallel()
+	var hm, fish atomic.Int32
+	b, clk := hangmanDispatchBot(&hm, &fish)
+
+	// Back to back in two channels: neither channel window blocks the other.
+	b.handleWebhookMessage(chatEventIn("9", "somechannel", "m1", "42", "alice", "!hangman a", false))
+	b.handleWebhookMessage(chatEventIn("10", "otherchannel", "m2", "43", "bob", "!hangman a", false))
+	if hm.Load() != 2 {
+		t.Fatalf("guesses in different channels: calls = %d, want 2", hm.Load())
+	}
+	// alice's user window is per channel: once otherchannel's window clears she
+	// can guess there even though she guessed in somechannel <3s ago.
+	clk.advance(hangmanGuessChannelCooldown)
+	b.handleWebhookMessage(chatEventIn("10", "otherchannel", "m3", "42", "alice", "!hangman b", false))
+	if hm.Load() != 3 {
+		t.Fatalf("alice in a second channel: calls = %d, want 3", hm.Load())
 	}
 }
 
