@@ -102,21 +102,21 @@ func TestWordGuessCorrectWins(t *testing.T) {
 func TestWordGuessWrongCostsOneMissRevealsNothing(t *testing.T) {
 	game := &Game{Word: "apple", Guesses: []string{}}
 
-	// "plea" shares every letter with "apple" but must reveal none of them.
-	state := playGuesses(game, "plea")
+	// "lapel" shares every letter with "apple" but must reveal none of them.
+	state := playGuesses(game, "lapel")
 
 	if !strings.Contains(state, "_ _ _ _ _") {
 		t.Errorf("state = %q, want nothing revealed", state)
 	}
-	if !strings.Contains(state, "❌ plea") || !strings.Contains(state, "(1/6)") {
-		t.Errorf("state = %q, want exactly one miss for plea", state)
+	if !strings.Contains(state, "❌ lapel") || !strings.Contains(state, "(1/6)") {
+		t.Errorf("state = %q, want exactly one miss for lapel", state)
 	}
 	if game.GameOver {
 		t.Error("GameOver = true after one wrong word guess")
 	}
 
 	// Repeating the same wrong word, in any case, doesn't cost another miss.
-	state = playGuesses(game, "PLEA")
+	state = playGuesses(game, "LAPEL")
 	if !strings.Contains(state, "(1/6)") {
 		t.Errorf("state = %q, want a repeated word guess to be ignored", state)
 	}
@@ -146,5 +146,32 @@ func TestLetterGuessesUnchanged(t *testing.T) {
 	state = playGuesses(game, "a", "l", "e")
 	if !strings.Contains(state, "You win!") || !game.GameOver {
 		t.Fatalf("state = %q, want a win once every letter is guessed", state)
+	}
+}
+
+func TestWordGuessWrongLengthRejected(t *testing.T) {
+	for _, guess := range []string{"plea", "apples", strings.Repeat("x", 400)} {
+		game := &Game{Word: "apple", Guesses: []string{"p"}}
+
+		if !WrongLength(game, guess) {
+			t.Errorf("WrongLength(%.10q) = false, want true", guess)
+		}
+		if Guess(game, guess) {
+			t.Errorf("Guess(%.10q) = true, want rejected", guess)
+		}
+		if len(game.Guesses) != 1 || game.GameOver {
+			t.Errorf("game = %+v after %.10q, want unchanged", game, guess)
+		}
+		if misses, wrong := calcMisses(game); len(misses) != 0 || wrong != 0 {
+			t.Errorf("misses = %q (%d) after %.10q, want none", misses, wrong, guess)
+		}
+	}
+
+	// Single letters and same-length words are not length-checked.
+	game := &Game{Word: "apple"}
+	for _, guess := range []string{"z", "lapel", "APPLE"} {
+		if WrongLength(game, guess) {
+			t.Errorf("WrongLength(%q) = true, want false", guess)
+		}
 	}
 }

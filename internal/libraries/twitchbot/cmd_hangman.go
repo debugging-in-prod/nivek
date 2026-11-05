@@ -6,12 +6,18 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/hangman"
 )
 
 // hangmanNoGameMsg is the reply to a guess when no game is running.
 const hangmanNoGameMsg = "No game running, start one with !hangman"
+
+// hangmanWrongLengthMsg is the reply to a word guess of the wrong length. It
+// never echoes the guess; %d is the secret word's length, already visible on
+// the board.
+const hangmanWrongLengthMsg = "Word guesses must be %d letters long"
 
 // stripInvisible removes invisible/format runes (e.g. the U+034F combining
 // grapheme joiner Chatterino/7TV append to dodge Twitch's duplicate-message
@@ -61,7 +67,7 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 				b.say(channelId, "New game started!")
 				b.say(channelId, hangman.PrintState(newgame))
 				b.hangmanGames[channel] = newgame
-				go b.pushGameStateToDB(snapshotGame(newgame), channel)
+				go b.pushGameStateToDB(snapshotGame(newgame), channel, b.hangmanSeq.Add(1))
 			}
 		}
 		return
@@ -77,6 +83,13 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 
 	guess := fields[0]
 
+	// a word guess of the wrong length can't be right: reject it without
+	// storing, counting, or echoing it
+	if hangman.WrongLength(game, guess) {
+		b.say(channelId, fmt.Sprintf(hangmanWrongLengthMsg, utf8.RuneCountInString(game.Word)))
+		return
+	}
+
 	// record the guess (repeats are ignored); this also ends the game on a
 	// win or loss
 	isNew := hangman.Guess(game, guess)
@@ -86,7 +99,7 @@ func (b *Bot) handleHangmanCommand(message *chatMessageEvent) {
 
 	// persist the new state, including the final state when the game ends
 	if isNew {
-		go b.pushGameStateToDB(snapshotGame(game), channel)
+		go b.pushGameStateToDB(snapshotGame(game), channel, b.hangmanSeq.Add(1))
 	}
 }
 
@@ -99,14 +112,26 @@ func snapshotGame(game *hangman.Game) *hangman.Game {
 }
 
 // pushGameStateToDB saves game to core-api. It runs in its own goroutine and
-// only logs on failure; the in-memory game is unaffected.
-func (b *Bot) pushGameStateToDB(game *hangman.Game, channel string) {
+// only logs on failure; the in-memory game is unaffected. seq is the
+// snapshot's issue order (from hangmanSeq); a snapshot older than one already
+// saved for channel is dropped so the latest state wins.
+func (b *Bot) pushGameStateToDB(game *hangman.Game, channel string, seq uint64) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("[HANGMAN] [%s] panic pushing game state: %v", channel, r)
 		}
 	}()
+	b.hangmanPushMu.Lock()
+	defer b.hangmanPushMu.Unlock()
+	if seq <= b.hangmanSaved[channel] {
+		return
+	}
 	if err := b.coreAPI.PushHangmanGameState(game, channel); err != nil {
 		log.Printf("[HANGMAN] [%s] push game state failed: %v", channel, err)
+		return
 	}
+	if b.hangmanSaved == nil {
+		b.hangmanSaved = make(map[string]uint64)
+	}
+	b.hangmanSaved[channel] = seq
 }

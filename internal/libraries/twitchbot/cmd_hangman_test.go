@@ -1,6 +1,7 @@
 package twitchbot
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -199,5 +200,66 @@ func TestPrintStateDoesNotEndGame(t *testing.T) {
 	}
 	if game.GameOver {
 		t.Error("PrintState set GameOver; only Guess should")
+	}
+}
+
+func TestHangmanWrongLengthGuessRejected(t *testing.T) {
+	t.Parallel()
+	for _, guess := range []string{strings.Repeat("y", 400), "plea"} {
+		b, fake := newHangmanBot()
+		b.hangmanGames["chan"] = &hangman.Game{Word: "apple", Guesses: []string{"p"}}
+
+		b.handleHangmanCommand(hangmanMsg("!hangman " + guess))
+
+		fake.noPush(t)
+		if g := b.hangmanGames["chan"]; len(g.Guesses) != 1 || g.GameOver {
+			t.Errorf("%.10q: game = %+v, want unchanged", guess, g)
+		}
+		want := fmt.Sprintf(hangmanWrongLengthMsg, 5)
+		got := drainSay(b)
+		if len(got) != 1 || got[0] != want {
+			t.Errorf("%.10q: replies = %q, want [%q]", guess, got, want)
+		}
+		if strings.Contains(hangman.PrintState(b.hangmanGames["chan"]), "❌") {
+			t.Errorf("%.10q: board shows a miss, want none", guess)
+		}
+	}
+}
+
+func TestHangmanSameLengthWrongWordOneMiss(t *testing.T) {
+	t.Parallel()
+	b, fake := newHangmanBot()
+	b.hangmanGames["chan"] = &hangman.Game{Word: "apple", Guesses: []string{}}
+
+	b.handleHangmanCommand(hangmanMsg("!hangman grape"))
+
+	if p := fake.nextPush(t); len(p.game.Guesses) != 1 || p.game.Guesses[0] != "grape" {
+		t.Errorf("push = %+v, want one guess grape", p)
+	}
+	got := drainSay(b)
+	if len(got) != 1 || !strings.Contains(got[0], "❌ grape (1/6)") {
+		t.Errorf("replies = %q, want one board with exactly one miss", got)
+	}
+}
+
+func TestHangmanStalePushDropped(t *testing.T) {
+	t.Parallel()
+	b, fake := newHangmanBot()
+	newer := &hangman.Game{Word: "apple", Guesses: []string{"p", "a"}}
+	older := &hangman.Game{Word: "apple", Guesses: []string{"p"}}
+
+	// The newer snapshot lands first; the older one must not overwrite it.
+	b.pushGameStateToDB(newer, "chan", 2)
+	b.pushGameStateToDB(older, "chan", 1)
+
+	if p := fake.nextPush(t); len(p.game.Guesses) != 2 {
+		t.Errorf("push = %+v, want the newer snapshot", p)
+	}
+	fake.noPush(t)
+
+	// Ordering is per channel.
+	b.pushGameStateToDB(older, "other", 1)
+	if p := fake.nextPush(t); p.channel != "other" {
+		t.Errorf("push = %+v, want a push for other", p)
 	}
 }

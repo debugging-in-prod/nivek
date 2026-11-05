@@ -38,9 +38,11 @@ func StartNewGame() *Game {
 // Guess records guess against game, ignoring repeats, and sets GameOver
 // when the guess wins or loses the game. A guess of more than
 // one letter is a guess at the whole word and is stored lower-cased so case
-// variants of the same word count once. It reports whether guess was new.
+// variants of the same word count once. A word guess whose length differs
+// from the secret word is rejected without changing game (see WrongLength).
+// It reports whether guess was new.
 func Guess(game *Game, guess string) bool {
-	if game == nil || guess == "" {
+	if game == nil || guess == "" || WrongLength(game, guess) {
 		return false
 	}
 	if !isLetterGuess(guess) {
@@ -87,6 +89,16 @@ func PrintState(game *Game) string {
 	}
 
 	return line
+}
+
+// WrongLength reports whether guess is a word guess (more than one letter)
+// whose length in runes differs from the secret word's. Such a guess can never
+// be right, so Guess rejects it rather than storing it as a miss.
+func WrongLength(game *Game, guess string) bool {
+	if game == nil || isLetterGuess(guess) {
+		return false
+	}
+	return utf8.RuneCountInString(strings.ToLower(guess)) != utf8.RuneCountInString(game.Word)
 }
 
 // isLetterGuess reports whether g is a single-letter guess. Anything longer
