@@ -1,6 +1,7 @@
 package twitchbot
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -8,20 +9,48 @@ import (
 	"github.com/tim-the-toolman-taylor/nivek/internal/libraries/hangman"
 )
 
+// hangmanPush is one recorded PushHangmanGameState call.
+type hangmanPush struct {
+	channel string
+	game    hangman.Game
+}
+
 // fakeHangmanAPI records PushHangmanGameState calls. Any other method panics
 // via the nil embedded interface.
 type fakeHangmanAPI struct {
 	api.CoreAPIClient
-	pushed chan string
+	pushed chan hangmanPush
 }
 
-func (f *fakeHangmanAPI) PushHangmanGameState(_ *hangman.Game, channel string) error {
-	f.pushed <- channel
+func (f *fakeHangmanAPI) PushHangmanGameState(game *hangman.Game, channel string) error {
+	f.pushed <- hangmanPush{channel: channel, game: *game}
 	return nil
 }
 
+// nextPush waits for the next recorded push.
+func (f *fakeHangmanAPI) nextPush(t *testing.T) hangmanPush {
+	t.Helper()
+	select {
+	case p := <-f.pushed:
+		return p
+	case <-time.After(2 * time.Second):
+		t.Fatal("game state was not pushed")
+		return hangmanPush{}
+	}
+}
+
+// noPush asserts nothing more is pushed.
+func (f *fakeHangmanAPI) noPush(t *testing.T) {
+	t.Helper()
+	select {
+	case p := <-f.pushed:
+		t.Fatalf("unexpected push %+v", p)
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
 func newHangmanBot() (*Bot, *fakeHangmanAPI) {
-	fake := &fakeHangmanAPI{pushed: make(chan string, 4)}
+	fake := &fakeHangmanAPI{pushed: make(chan hangmanPush, 16)}
 	return &Bot{
 		sayQueue:     make(chan sayRequest, 8),
 		hangmanGames: make(map[string]*hangman.Game),
@@ -80,13 +109,8 @@ func TestHangmanInvisibleArgStartsGame(t *testing.T) {
 
 	b.handleHangmanCommand(hangmanMsg("!hangman " + oneRune(0x034F)))
 
-	select {
-	case ch := <-fake.pushed:
-		if ch != "chan" {
-			t.Errorf("pushed state for %q, want chan", ch)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("new game state was not pushed")
+	if p := fake.nextPush(t); p.channel != "chan" {
+		t.Errorf("pushed state for %q, want chan", p.channel)
 	}
 	if g := b.hangmanGames["chan"]; g == nil || g.GameOver {
 		t.Fatalf("game = %+v, want a running game", g)
@@ -101,5 +125,79 @@ func TestPrintStateNil(t *testing.T) {
 	t.Parallel()
 	if got := hangman.PrintState(nil); got != "" {
 		t.Errorf("PrintState(nil) = %q, want empty", got)
+	}
+}
+
+func TestHangmanGuessPushesState(t *testing.T) {
+	t.Parallel()
+	b, fake := newHangmanBot()
+	b.hangmanGames["chan"] = &hangman.Game{Word: "apple", Guesses: []string{}}
+
+	b.handleHangmanCommand(hangmanMsg("!hangman p"))
+
+	p := fake.nextPush(t)
+	if p.channel != "chan" || len(p.game.Guesses) != 1 || p.game.Guesses[0] != "p" || p.game.GameOver {
+		t.Errorf("push = %+v, want running game with guess p", p)
+	}
+
+	// A repeated guess changes nothing, so nothing is pushed.
+	b.handleHangmanCommand(hangmanMsg("!hangman p"))
+	fake.noPush(t)
+	if got := drainSay(b); len(got) != 2 {
+		t.Errorf("replies = %q, want one board per guess", got)
+	}
+}
+
+func TestHangmanWinPushesGameOver(t *testing.T) {
+	t.Parallel()
+	b, fake := newHangmanBot()
+	b.hangmanGames["chan"] = &hangman.Game{Word: "apple", Guesses: []string{}}
+
+	b.handleHangmanCommand(hangmanMsg("!hangman Apple"))
+
+	if p := fake.nextPush(t); !p.game.GameOver {
+		t.Errorf("push = %+v, want GameOver after a correct word guess", p)
+	}
+	if !b.hangmanGames["chan"].GameOver {
+		t.Error("in-memory game not marked over after a win")
+	}
+	got := drainSay(b)
+	if len(got) != 1 || !strings.Contains(got[0], "You win!") {
+		t.Errorf("replies = %q, want one winning board", got)
+	}
+}
+
+func TestHangmanLossPushesGameOver(t *testing.T) {
+	t.Parallel()
+	b, fake := newHangmanBot()
+	b.hangmanGames["chan"] = &hangman.Game{Word: "apple", Guesses: []string{"z", "x", "q", "w", "k"}}
+
+	b.handleHangmanCommand(hangmanMsg("!hangman grape"))
+
+	p := fake.nextPush(t)
+	if !p.game.GameOver || len(p.game.Guesses) != 6 {
+		t.Errorf("push = %+v, want final lost state with 6 guesses", p)
+	}
+	got := drainSay(b)
+	if len(got) != 1 || !strings.Contains(got[0], "Game over! The word was apple") {
+		t.Errorf("replies = %q, want one losing board", got)
+	}
+
+	// The game is over, so a further guess gets the no-game reply.
+	b.handleHangmanCommand(hangmanMsg("!hangman a"))
+	fake.noPush(t)
+	if got := drainSay(b); len(got) != 1 || got[0] != hangmanNoGameMsg {
+		t.Errorf("replies = %q, want [%q]", got, hangmanNoGameMsg)
+	}
+}
+
+func TestPrintStateDoesNotEndGame(t *testing.T) {
+	t.Parallel()
+	game := &hangman.Game{Word: "apple", Guesses: []string{"apple"}}
+	if got := hangman.PrintState(game); !strings.Contains(got, "You win!") {
+		t.Fatalf("PrintState = %q, want a winning board", got)
+	}
+	if game.GameOver {
+		t.Error("PrintState set GameOver; only Guess should")
 	}
 }

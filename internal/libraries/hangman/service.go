@@ -35,7 +35,8 @@ func StartNewGame() *Game {
 	}
 }
 
-// Guess records guess against game, ignoring repeats. A guess of more than
+// Guess records guess against game, ignoring repeats, and sets GameOver
+// when the guess wins or loses the game. A guess of more than
 // one letter is a guess at the whole word and is stored lower-cased so case
 // variants of the same word count once. It reports whether guess was new.
 func Guess(game *Game, guess string) bool {
@@ -49,10 +50,23 @@ func Guess(game *Game, guess string) bool {
 		return false
 	}
 	game.Guesses = append(game.Guesses, guess)
+	won, lost := outcome(game)
+	game.GameOver = won || lost
 	return true
 }
 
-// PrintState renders the board for game. It returns "" for a nil game.
+// outcome reports whether game has been won or lost. A game at the miss
+// limit is lost even if the word is also fully revealed.
+func outcome(game *Game) (won, lost bool) {
+	_, wrong := calcMisses(game)
+	if wrong >= HangmanMaxWrong {
+		return false, true
+	}
+	return !slices.Contains(revealSlots(game), "_"), false
+}
+
+// PrintState renders the board for game. It returns "" for a nil game. It
+// does not modify game; Guess sets GameOver.
 func PrintState(game *Game) string {
 	if game == nil {
 		return ""
@@ -66,11 +80,9 @@ func PrintState(game *Game) string {
 	}
 	line += fmt.Sprintf(" (%d/%d)", wrong, HangmanMaxWrong)
 
-	if wrong >= HangmanMaxWrong {
+	if won, lost := outcome(game); lost {
 		line += fmt.Sprintf(" Game over! The word was %s", game.Word)
-		game.GameOver = true
-	} else if !slices.Contains(slots, "_") {
-		game.GameOver = true
+	} else if won {
 		line += " You win! Use '!hangman' to start a new game"
 	}
 
